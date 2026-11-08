@@ -9,12 +9,14 @@ Professor/Admin ──► apps/web (React + MUI) ─┐
                                             ├─ HTTPS/JSON · Bearer token ─► apps/api (NestJS 12) ─► PostgreSQL 17
 Aluno ───────────► apps/mobile (Expo)  ─────┘
 packages/design-tokens ──► consumido por web e mobile
+packages/api-contract  ──► tipos de resposta + parseApiError: consumido por api (só `import type`), web e mobile
 ```
 
 - A **API** concentra toda a regra de negócio e é a única a acessar o banco.
 - **Web** (professor/admin) e **mobile** (aluno) são clientes da mesma API REST em `/api/v1`.
 - O login informa o canal (`web` ou `mobile`) e a API valida o perfil do canal.
 - O pacote `design-tokens` garante a mesma identidade visual ("Caderno Vivo") nos dois clientes.
+- O pacote `api-contract` (`@nivela/api-contract`, TS puro, sem build) é a fonte única dos **tipos de resposta da API** (`ApiUser`, `Role`, `Paginated`, `ErrorBody`...) e do `parseApiError`. Regra: tipos de resposta só no contrato — web e mobile não os redefinem. A API importa dele **apenas com `import type`** (regra de ESLint), pois a parte de runtime depende de `axios`.
 
 ## Stack
 
