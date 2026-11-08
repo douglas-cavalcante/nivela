@@ -51,7 +51,7 @@ A organização interna de cada app está em [estruturaDePastas.md](estruturaDeP
 - Campos JSON (corpo, resposta e query string) sempre em `snake_case` (`join_code`, `created_at`).
 - Datas e horas no banco como `TIMESTAMPTZ(3)` (`@db.Timestamptz(3)` em todo `DateTime` do schema; datas sem hora, como `last_study_date`, ficam `DATE`). Migrations que convertem colunas existentes usam `ALTER COLUMN … TYPE TIMESTAMPTZ(3) USING … AT TIME ZONE 'UTC'`.
 - Paginação `{ data, meta: { page, per_page, total, last_page } }`, com `?page=` (≥ 1, padrão 1) e `?per_page=` (1–100, padrão 15): a rota recebe `@Query() query: PaginationQueryDto` e o service usa `toPrismaPage(query)` no `findMany` e `paginate(data, total, query)` na resposta (`src/shared/pagination/`).
-- Documentação interativa em `http://localhost:8000/docs`.
+- Documentação interativa em `http://localhost:8000/docs` (JSON em `/docs-json`). O plugin da CLI do `@nestjs/swagger` (`nest-cli.json`, com `classValidatorShim` e `introspectComments`) gera o schema dos DTOs a partir dos tipos, dos decorators do class-validator e dos comentários `/** … */` das propriedades, sem `@ApiProperty` manual. Vale para `nest start`/`nest build`; nos testes (ts-jest) o plugin não roda.
 
 ## Como subir o ambiente
 

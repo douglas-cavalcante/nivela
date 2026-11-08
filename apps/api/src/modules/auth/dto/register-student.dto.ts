@@ -33,6 +33,7 @@ export class RegisterStudentDto {
   @MatchesField('password', { message: 'A confirmação de senha não confere.' })
   password_confirmation: string;
 
+  /** Código da turma passado pelo professor (ex.: `NIV-4K7Q`; espaços e minúsculas são aceitos). */
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? JoinCodeService.normalize(value) : value,
   )

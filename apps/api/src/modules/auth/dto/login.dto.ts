@@ -10,6 +10,7 @@ export class LoginDto {
   @IsNotEmpty({ message: 'A senha é obrigatória.' })
   password: string;
 
+  /** Onde a pessoa está entrando: `web` (professor/admin) ou `mobile` (aluno). */
   @IsIn(['web', 'mobile'], { message: 'O canal deve ser web ou mobile.' })
   channel: 'web' | 'mobile';
 }

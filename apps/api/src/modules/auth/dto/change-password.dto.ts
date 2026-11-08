@@ -2,6 +2,7 @@ import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
 import { MatchesField } from 'src/common/validators/matches-field.validator';
 
 export class ChangePasswordDto {
+  /** Senha em uso, para confirmar que é a própria pessoa. */
   @IsString({ message: 'A senha atual é obrigatória.' })
   @IsNotEmpty({ message: 'A senha atual é obrigatória.' })
   current_password: string;
