@@ -30,6 +30,28 @@ describe('turmas do aluno no perfil', () => {
     expect(screen.getByText('Prof. Carla Dias')).toBeTruthy();
   });
 
+  it('enquanto a lista carrega não oferece "Entrar em outra turma"', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await renderApp({
+      user: student,
+      initialUrl: '/profile',
+      routes: {
+        'GET /me/classrooms': async () => {
+          await gate;
+          return { status: 200, data: { data: [sexto] } };
+        },
+      },
+    });
+
+    expect(await screen.findByLabelText('Carregando turmas')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Entrar em outra turma' })).toBeNull();
+    release();
+    expect(await screen.findByRole('button', { name: 'Entrar em outra turma' })).toBeTruthy();
+  });
+
   it('sem turmas mostra o estado vazio', async () => {
     await renderApp({ user: student, initialUrl: '/profile', routes: { 'GET /me/classrooms': list([]) } });
 
@@ -46,9 +68,12 @@ describe('turmas do aluno no perfil', () => {
     const user = userEvent.setup();
 
     expect(await screen.findByRole('alert')).toBeTruthy();
+    // Sem a lista não dá para entrar em outra turma (evita corrida com o GET inicial).
+    expect(screen.queryByRole('button', { name: 'Entrar em outra turma' })).toBeNull();
     await user.press(screen.getByRole('button', { name: 'Tentar de novo' }));
 
     expect(await screen.findByText('6º A')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Entrar em outra turma' })).toBeTruthy();
   });
 
   it('entra em outra turma com o código normalizado e atualiza a lista', async () => {

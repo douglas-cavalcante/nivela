@@ -132,6 +132,22 @@ describe('Turmas (e2e)', () => {
     expect(await prisma.classroom.count()).toBe(0);
   });
 
+  it('admin não cria turma para professor inativo → 422', async () => {
+    const inactive = await createUser(prisma, {
+      role: Role.Teacher,
+      active: false,
+    });
+
+    const { body } = await http()
+      .post('/api/v1/classrooms')
+      .set(as(admin.token))
+      .send({ name: '7º C', teacher_id: inactive.id })
+      .expect(422);
+
+    expect(body.errors).toEqual({ teacher_id: ['Professor não encontrado.'] });
+    expect(await prisma.classroom.count()).toBe(0);
+  });
+
   it('valida nome e ano letivo', async () => {
     const { body } = await http()
       .post('/api/v1/classrooms')
@@ -563,6 +579,96 @@ describe('Turmas (e2e)', () => {
       expect(await prisma.classroomStudent.count()).toBe(0);
       expect(await prisma.user.count({ where: { id: student.id } })).toBe(1);
       expect(await prisma.studentProfile.count()).toBe(1);
+    });
+
+    it('turma inativa não recebe aluno pela matrícula manual → 409 e nada é criado (RN13)', async () => {
+      const classroom = await createClassroom(prisma, {
+        teacherId: teacherA.id,
+        active: false,
+      });
+
+      await http()
+        .post(`/api/v1/classrooms/${classroom.id}/students`)
+        .set(as(teacherA.token))
+        .send({
+          name: 'Bia',
+          email: 'bia@aluno.test',
+          password: 'segredo123',
+        })
+        .expect(409)
+        .expect(({ body }) =>
+          expect(body.message).toBe(
+            'Esta turma não está aceitando novos alunos.',
+          ),
+        );
+
+      expect(
+        await prisma.user.count({ where: { email: 'bia@aluno.test' } }),
+      ).toBe(0);
+      expect(await prisma.classroomStudent.count()).toBe(0);
+    });
+
+    describe('aluno compartilhado entre professores', () => {
+      it('B remove da turma de B e a matrícula na turma de A permanece; na turma de A → 404', async () => {
+        const classroomA = await createClassroom(prisma, {
+          teacherId: teacherA.id,
+        });
+        const classroomB = await createClassroom(prisma, {
+          teacherId: teacherB.id,
+        });
+        const student = await createUser(prisma);
+        await prisma.classroomStudent.createMany({
+          data: [
+            { classroomId: classroomA.id, studentId: student.id },
+            { classroomId: classroomB.id, studentId: student.id },
+          ],
+        });
+
+        await http()
+          .delete(`/api/v1/classrooms/${classroomA.id}/students/${student.id}`)
+          .set(as(teacherB.token))
+          .expect(404)
+          .expect(({ body }) => expect(body.message).toBe(NOT_FOUND));
+        expect(await prisma.classroomStudent.count()).toBe(2);
+
+        await http()
+          .delete(`/api/v1/classrooms/${classroomB.id}/students/${student.id}`)
+          .set(as(teacherB.token))
+          .expect(204);
+
+        const left = await prisma.classroomStudent.findMany();
+        expect(left).toHaveLength(1);
+        expect(left[0]).toMatchObject({
+          classroomId: classroomA.id,
+          studentId: student.id,
+        });
+      });
+
+      it('admin lista os alunos de uma turma com classroom_id', async () => {
+        const classroomA = await createClassroom(prisma, {
+          teacherId: teacherA.id,
+        });
+        const classroomB = await createClassroom(prisma, {
+          teacherId: teacherB.id,
+        });
+        const inA = await createUser(prisma);
+        const inB = await createUser(prisma);
+        await prisma.classroomStudent.createMany({
+          data: [
+            { classroomId: classroomA.id, studentId: inA.id },
+            { classroomId: classroomB.id, studentId: inB.id },
+          ],
+        });
+
+        const { body } = await http()
+          .get(`/api/v1/students?classroom_id=${classroomB.id}`)
+          .set(as(admin.token))
+          .expect(200);
+
+        expect(
+          (body.data as { id: number }[]).map((student) => student.id),
+        ).toEqual([inB.id]);
+      });
     });
 
     it('remover aluno que não está na turma → 404 "Aluno não encontrado nesta turma."', async () => {

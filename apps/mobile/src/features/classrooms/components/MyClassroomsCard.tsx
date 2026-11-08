@@ -87,14 +87,17 @@ export function MyClassroomsCard() {
         ) : null}
       </PenCard>
       {joining ? <JoinClassroomForm onJoined={handleJoined} /> : null}
-      <Button
-        title={joining ? 'Cancelar' : 'Entrar em outra turma'}
-        variant="outline"
-        onPress={() => {
-          setJoining((value) => !value);
-          setJoinedName(null);
-        }}
-      />
+      {/* Só depois da lista carregar: assim a entrada não disputa com o GET inicial. */}
+      {classrooms !== null && !loadError ? (
+        <Button
+          title={joining ? 'Cancelar' : 'Entrar em outra turma'}
+          variant="outline"
+          onPress={() => {
+            setJoining((value) => !value);
+            setJoinedName(null);
+          }}
+        />
+      ) : null}
     </View>
   );
 }

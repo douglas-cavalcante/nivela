@@ -4,7 +4,7 @@ import PersonRemoveIcon from '@mui/icons-material/PersonRemoveOutlined';
 import { Box, Button, CircularProgress, IconButton, Tooltip, Typography } from '@mui/material';
 import { parseApiError } from '@nivela/api-contract';
 import type { ApiClassroom, ApiClassroomStudent } from '@nivela/api-contract';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ConfirmDialog } from 'src/components/ConfirmDialog';
 import { DataTable } from 'src/components/DataTable';
@@ -200,16 +200,25 @@ function ClassroomLoader({ id }: { id: number }) {
     async (signal) => [await getClassroomAction(id, signal)],
     String(id),
   );
-  if (error) return <NotFound message={error} />;
-  if (loading && !rows[0]) {
+  const notify = useNotify();
+  // Última turma carregada: uma recarga que falha não derruba a página.
+  const [kept, setKept] = useState<ApiClassroom | null>(null);
+  if (rows[0] && rows[0] !== kept) setKept(rows[0]);
+
+  useEffect(() => {
+    if (error && kept) notify.error(error);
+  }, [error, kept, notify]);
+
+  if (error && !kept) return <NotFound message={error} />;
+  if (loading && !rows[0] && !kept) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
         <CircularProgress aria-label="Carregando" />
       </Box>
     );
   }
-  if (!rows[0]) return null;
-  return <ClassroomView classroom={rows[0]} reload={reload} />;
+  if (!kept) return null;
+  return <ClassroomView classroom={kept} reload={reload} />;
 }
 
 /** Ficha da turma: código de entrada, alunos matriculados e (em breve) desempenho. */

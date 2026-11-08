@@ -113,11 +113,11 @@ describe('JoinCodeService', () => {
         Promise.resolve({ id: 5, joinCode: data.joinCode }),
       );
 
-      const code = await service.regenerate(5);
+      const code = await service.regenerate(5, { teacherId: 3 });
 
       expect(code).toMatch(CODE);
       expect(update).toHaveBeenCalledWith({
-        where: { id: 5 },
+        where: { id: 5, AND: [{ teacherId: 3 }] },
         data: { joinCode: code },
         select: { joinCode: true },
       });
@@ -128,14 +128,16 @@ describe('JoinCodeService', () => {
         .mockRejectedValueOnce(collision())
         .mockResolvedValueOnce({ joinCode: 'NIV-OK23' });
 
-      await expect(service.regenerate(5)).resolves.toBe('NIV-OK23');
+      await expect(service.regenerate(5, { teacherId: 3 })).resolves.toBe(
+        'NIV-OK23',
+      );
       expect(update).toHaveBeenCalledTimes(2);
     });
 
     it('desiste depois de 10 colisões', async () => {
       update.mockRejectedValue(collision());
 
-      await expect(service.regenerate(5)).rejects.toThrow(
+      await expect(service.regenerate(5, { teacherId: 3 })).rejects.toThrow(
         'Não foi possível gerar um código de turma único.',
       );
       expect(update).toHaveBeenCalledTimes(10);

@@ -30,6 +30,20 @@ tcc/
 
 Na API a pasta é `kebab-case` (`modules/leveling-plans`); na web e no mobile é `camelCase` (`features/questions`, `features/levelingPlans`).
 
+### Situação das features
+
+| Feature | API (`modules/`) | Web (`features/`) | Mobile (`features/`) |
+|---|---|---|---|
+| `auth` | login, cadastro do aluno com código de turma, perfil e troca de senha | Login, Perfil | Welcome, Login, Register, Perfil |
+| `teachers` | CRUD de professores, ativar/desativar, redefinir senha (admin) | Lista de professores (admin) | — |
+| `subjects` | CRUD de disciplinas (cor e ícone dos tokens) | Lista de disciplinas | — |
+| `categories` | CRUD de categorias por disciplina | Lista de categorias | — |
+| `questions` | CRUD de questões, alternativas, imagem, ativar/desativar (RN02) | Lista e formulário de questão (com upload de imagem) | — |
+| `classrooms` | CRUD de turmas, código de entrada, matrícula manual e remoção de alunos; `GET`/`POST /me/classrooms` do aluno | Lista e ficha da turma | "Minhas turmas" e entrada pelo código no Perfil |
+| `students` | Listagem e ficha de alunos (escopo do professor) | Lista e ficha do aluno | — |
+| `health` | `GET /health` | — | — |
+| `answers`, `levelingPlans`, `rewards`, `dashboard` | planejadas (Planos 3 a 5) | planejadas | planejadas |
+
 ---
 
 ## API — `apps/api`
@@ -72,9 +86,9 @@ scripts/test-db-migrate.js           # aplica as migrations no banco nivela_test
 src/
 ├── app/          # App.tsx, rotas, layouts (AppLayout com sidebar "fichário", AuthLayout)
 ├── features/     # Um diretório por feature
-├── components/   # UI genérica, sem regra de negócio, uma pasta por componente (EmptyState/index.tsx, Mascot/, PageHeader/)
-├── lib/          # Adaptadores: axios (interceptor de token e 401), AuthContext, theme (MUI a partir dos design tokens)
-├── hooks/        # Hooks genéricos
+├── components/   # UI genérica, sem regra de negócio, uma pasta por componente (DataTable, FormDialog, ConfirmDialog, SearchField, StatusChip, PasswordField, ErrorBoundary, EmptyState, Mascot, PageHeader)
+├── lib/          # Adaptadores: axios (interceptor de token e 401), AuthContext, notify (avisos rápidos), theme (MUI a partir dos design tokens)
+├── hooks/        # Hooks genéricos de lista: useListQuery (filtros na URL), usePaginatedList, useRemoteList
 ├── utils/        # Funções puras
 ├── constants/    # Constantes globais
 ├── types/        # Tipos usados por várias features
@@ -117,8 +131,8 @@ app/                       # Rotas (Expo Router) — só montam a tela, sem lóg
 ├── _layout.tsx            # fontes, ThemeProvider, AuthProvider e Stack.Protected (grupos (tabs) e (auth))
 ├── (auth)/                # welcome, login, register
 ├── (tabs)/                # index, study, store, profile (barra de abas: Início, Estudar, Loja, Perfil)
-├── plans/[id].tsx
-└── questions/[id].tsx
+├── plans/[id].tsx         # planejada (Plano 3)
+└── questions/[id].tsx     # planejada (Plano 3)
 src/
 ├── features/<feature>/    # mesmas regras de import da web; anatomia abaixo
 ├── components/            # arquivos soltos, um por componente (AppText.tsx, Button.tsx…): AppText, Button, EmptyState, HandTitle, Mascot, OfflineScreen, PaperBackground (fundo pautado), PenCard (borda + sombra sólida), TabIcon, TextField
@@ -158,7 +172,7 @@ features/auth/
 4. `axios` só pode ser importado em `features/*/api` e em `lib/`.
 5. Sem `any` explícito.
 6. Nada de cor hexadecimal fora do tema: use sempre os tokens de `@nivela/design-tokens`.
-7. Tipos de resposta da API (usuário, paginação, corpo de erro) e o `parseApiError` vêm de `@nivela/api-contract`: nunca redefina-os em `types/` do app. Na API, importe do contrato somente com `import type`.
+7. Tipos de resposta da API (usuário, paginação, corpo de erro, turma, questão…) e o `parseApiError` vêm de `@nivela/api-contract`: nunca redefina-os em `types/` do app. Na API, importe do contrato somente com `import type`. Ao criar ou mudar uma rota, atualize o tipo de resposta no contrato (um arquivo por feature em `packages/api-contract/src/`) e exporte-o no `index.ts`.
 
 ---
 
@@ -176,6 +190,8 @@ features/auth/
 ### Nova feature
 
 1. **API:** criar `src/modules/<feature>/` com `dto/`, controller, service e module; importar o module no `AppModule`; adicionar os models no `prisma/schema.prisma` e gerar a migration (`npm run db:migrate -w apps/api`); escrever o teste e2e da feature (sucesso, validação, permissão) e os unitários do service.
+   - **Busca parcial:** use sempre `containsInsensitive(term)` (`src/shared/prisma/contains-insensitive.ts`) em vez de `{ contains, mode: 'insensitive' }` direto — o Prisma repassa `%`, `_` e `\` ao `ILIKE` sem escapar, e o helper os trata como texto literal.
+   - **Escopo do professor:** consultas de turmas e alunos partem de `classroomScope(user)` / `studentScope(user)` (`src/shared/scopes/`), também nas escritas; recurso fora do escopo responde 404.
    - **Autorização negada por padrão:** toda rota precisa declarar quem pode acessá-la — `@Roles(Role.Admin, …)` (no método ou no controller), `@AnyAuthenticated()` (qualquer usuário logado) ou `@Public()`. Sem nenhum deles, o `RolesGuard` responde 403, e o teste `test/route-authorization.e2e-spec.ts` falha apontando a rota esquecida.
 2. **Web/Mobile:** criar `src/features/<feature>/` com `api/`, `pages/` (web) ou `screens/` (mobile) e `index.ts`; exportar no `index.ts` só o que outras features (e, no mobile, as rotas de `app/`) precisam.
 3. Rodar `npm run lint` e `npm run test`; atualizar esta página se a estrutura mudou.

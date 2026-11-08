@@ -48,11 +48,18 @@ export class JoinCodeService {
     );
   }
 
-  /** Troca o código da turma por um novo e devolve-o (mesmo retry contra colisão). */
-  async regenerate(classroomId: number): Promise<string> {
+  /**
+   * Troca o código da turma por um novo e devolve-o (mesmo retry contra
+   * colisão). `scope` restringe a escrita às turmas visíveis a quem pede; fora
+   * dele o Prisma responde P2025 (registro não encontrado).
+   */
+  async regenerate(
+    classroomId: number,
+    scope: Prisma.ClassroomWhereInput,
+  ): Promise<string> {
     const classroom = await this.withUniqueCode((joinCode) =>
       this.prisma.classroom.update({
-        where: { id: classroomId },
+        where: { id: classroomId, AND: [scope] },
         data: { joinCode },
         select: { joinCode: true },
       }),
