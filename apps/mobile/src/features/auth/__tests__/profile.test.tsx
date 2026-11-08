@@ -3,9 +3,11 @@ import * as SecureStore from 'expo-secure-store';
 import { renderApp } from 'src/test/render';
 import { student } from 'src/test/users';
 
+const noClassrooms = { 'GET /me/classrooms': () => ({ status: 200, data: { data: [] } }) };
+
 describe('perfil', () => {
   it('mostra os dados do aluno', async () => {
-    await renderApp({ user: student, initialUrl: '/profile' });
+    await renderApp({ user: student, initialUrl: '/profile', routes: noClassrooms });
 
     expect(await screen.findByText('Ana Souza')).toBeTruthy();
     expect(screen.getByText('ana@escola.com')).toBeTruthy();
@@ -19,7 +21,7 @@ describe('perfil', () => {
     const { getPathname } = await renderApp({
       user: student,
       initialUrl: '/profile',
-      routes: { 'POST /auth/logout': logout },
+      routes: { ...noClassrooms, 'POST /auth/logout': logout },
     });
 
     await user.press(await screen.findByRole('button', { name: 'Sair' }));

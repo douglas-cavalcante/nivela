@@ -1,10 +1,5 @@
 import { z } from 'zod';
-
-/** Mesma regra da API: sem espaços, maiúsculas e hífen depois de `NIV` ("niv 4k7q" → "NIV-4K7Q"). */
-export function normalizeJoinCode(raw: string): string {
-  const compact = raw.replace(/\s+/g, '').toUpperCase();
-  return /^NIV[^-]/.test(compact) ? `NIV-${compact.slice(3)}` : compact;
-}
+import { normalizeJoinCode } from 'src/features/classrooms';
 
 export const registerSchema = z
   .object({
