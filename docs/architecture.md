@@ -49,6 +49,7 @@ A organização interna de cada app está em [estruturaDePastas.md](estruturaDeP
 - Autorização por `RolesGuard`, **negada por padrão**: toda rota não pública declara `@Roles(Role.Admin, Role.Teacher)` ou `@AnyAuthenticated()` (qualquer perfil logado, ex.: `GET /auth/me`); sem isso a resposta é 403. O teste `test/route-authorization.e2e-spec.ts` percorre todas as rotas do `AppModule` e falha se alguma não declarar. Regras de posse (professor só mexe no que é seu) ficam nos services.
 - Erros em JSON `{ message, errors? }`, padronizados por um filtro global: 422 validação (`errors: { campo: [mensagens] }`), 401/403 autenticação/autorização, 404, 409 conflito de regra de negócio (`BusinessRuleException`), 500 sem detalhes internos. Mensagens em português do Brasil.
 - Campos JSON (corpo, resposta e query string) sempre em `snake_case` (`join_code`, `created_at`).
+- Datas e horas no banco como `TIMESTAMPTZ(3)` (`@db.Timestamptz(3)` em todo `DateTime` do schema; datas sem hora, como `last_study_date`, ficam `DATE`). Migrations que convertem colunas existentes usam `ALTER COLUMN … TYPE TIMESTAMPTZ(3) USING … AT TIME ZONE 'UTC'`.
 - Paginação `{ data, meta: { page, per_page, total, last_page } }`, com `?page=` (≥ 1, padrão 1) e `?per_page=` (1–100, padrão 15): a rota recebe `@Query() query: PaginationQueryDto` e o service usa `toPrismaPage(query)` no `findMany` e `paginate(data, total, query)` na resposta (`src/shared/pagination/`).
 - Documentação interativa em `http://localhost:8000/docs`.
 
