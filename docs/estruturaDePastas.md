@@ -144,6 +144,15 @@ src/
 
 ---
 
+## Textos e mensagens
+
+- Interface e mensagens da API em português do Brasil, sempre **frases completas terminadas em ponto**.
+- Campo vazio: **"Informe …"** (`Informe seu e-mail.`, `Informe sua senha.`, `Informe seu nome.`, `Informe o código da turma.`, `Informe sua senha atual.`); confirmação vazia: `Confirme sua senha.` / `Confirme a nova senha.`.
+- A mesma regra usa **o mesmo texto** na API, na web e no mobile: `A senha deve ter pelo menos 8 caracteres.`, `A confirmação de senha não confere.`, `Informe um e-mail válido.`.
+- Na API, cada campo devolve as mensagens sem repetição (`@IsString` e `@IsNotEmpty` podem usar a mesma frase).
+
+---
+
 ## Receitas
 
 ### Nova feature
