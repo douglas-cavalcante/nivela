@@ -9,7 +9,7 @@ import { AuthLayout } from 'src/app/layouts/AuthLayout';
 import { ProtectedRoute } from 'src/app/routes/ProtectedRoute';
 import { Login, Profile } from 'src/features/auth';
 import { CategoryList } from 'src/features/categories';
-import { QuestionList } from 'src/features/questions';
+import { QuestionForm, QuestionList } from 'src/features/questions';
 import { SubjectList } from 'src/features/subjects';
 import { TeacherList } from 'src/features/teachers';
 
@@ -54,6 +54,8 @@ export function AppRoutes() {
           <Route index element={page(<HomePage />)} />
           <Route path="/perfil" element={page(<Profile />)} />
           <Route path="/questoes" element={page(<QuestionList />)} />
+          <Route path="/questoes/nova" element={page(<QuestionForm />)} />
+          <Route path="/questoes/:id" element={page(<QuestionForm />)} />
           <Route path="/disciplinas" element={page(<SubjectList />)} />
           <Route path="/categorias" element={page(<CategoryList />)} />
           {placeholders

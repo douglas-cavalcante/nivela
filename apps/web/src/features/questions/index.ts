@@ -4,3 +4,6 @@ import { lazy } from 'react';
 export const QuestionList = lazy(() =>
   import('src/features/questions/pages/QuestionList').then((m) => ({ default: m.QuestionList })),
 );
+export const QuestionForm = lazy(() =>
+  import('src/features/questions/pages/QuestionForm').then((m) => ({ default: m.QuestionForm })),
+);
