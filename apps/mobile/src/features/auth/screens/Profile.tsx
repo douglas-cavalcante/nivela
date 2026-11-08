@@ -7,7 +7,7 @@ import { PaperBackground } from 'src/components/PaperBackground';
 import { PenCard } from 'src/components/PenCard';
 import { useAuth } from 'src/lib/auth/AuthContext';
 import { useTheme } from 'src/lib/theme/useTheme';
-import type { Role } from 'src/types/user';
+import type { Role } from '@nivela/api-contract';
 
 const ROLE_LABEL: Record<Role, string> = {
   admin: 'Administrador',

@@ -10,7 +10,7 @@ import { AuthForm } from 'src/features/auth/components/AuthForm';
 import { FormTextField } from 'src/features/auth/components/FormTextField';
 import { loginSchema } from 'src/features/auth/schemas/login.schema';
 import type { LoginFormValues, LoginPayloadValues } from 'src/features/auth/schemas/login.schema';
-import { parseApiError } from 'src/lib/apiError';
+import { parseApiError } from '@nivela/api-contract';
 import { useAuth } from 'src/lib/auth/AuthContext';
 import { useTheme } from 'src/lib/theme/useTheme';
 
