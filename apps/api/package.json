@@ -16,6 +16,7 @@
     "test:watch": "jest --watch",
     "test:e2e": "node scripts/test-db-migrate.js && jest --config test/jest-e2e.json --runInBand",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "postinstall": "prisma generate"
   },
