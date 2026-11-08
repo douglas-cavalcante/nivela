@@ -100,8 +100,8 @@ describe('login', () => {
 
     await submit(user);
 
-    expect(await screen.findByText('Informe seu e-mail')).toBeTruthy();
-    expect(screen.getByText('Informe sua senha')).toBeTruthy();
+    expect(await screen.findByText('Informe seu e-mail.')).toBeTruthy();
+    expect(screen.getByText('Informe sua senha.')).toBeTruthy();
     expect(login).not.toHaveBeenCalled();
   });
 

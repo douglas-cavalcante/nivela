@@ -109,7 +109,7 @@ describe('cadastro do aluno', () => {
     await fillForm(user, { confirmation: 'outra-senha' });
     await submit(user);
 
-    expect(await screen.findByText('As senhas não conferem')).toBeTruthy();
+    expect(await screen.findByText('A confirmação de senha não confere.')).toBeTruthy();
     expect(register).not.toHaveBeenCalled();
   });
 
@@ -124,10 +124,10 @@ describe('cadastro do aluno', () => {
     await user.type(screen.getByLabelText('Confirmar senha'), '1234567');
     await submit(user);
 
-    expect(await screen.findByText('Informe o código da turma')).toBeTruthy();
-    expect(screen.getByText('Informe seu nome')).toBeTruthy();
+    expect(await screen.findByText('Informe o código da turma.')).toBeTruthy();
+    expect(screen.getByText('Informe seu nome.')).toBeTruthy();
     expect(screen.getByText('Informe um e-mail válido.')).toBeTruthy();
-    expect(screen.getByText('A senha precisa ter pelo menos 8 caracteres.')).toBeTruthy();
+    expect(screen.getByText('A senha deve ter pelo menos 8 caracteres.')).toBeTruthy();
     expect(register).not.toHaveBeenCalled();
   });
 
