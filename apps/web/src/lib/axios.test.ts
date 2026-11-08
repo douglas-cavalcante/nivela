@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import api, { setUnauthorizedHandler } from 'src/lib/axios';
+import api, { requireApiUrl, setUnauthorizedHandler } from 'src/lib/axios';
 import { clearToken, getToken, setToken } from 'src/lib/auth/tokenStorage';
 import { API_URL, server } from 'src/test/server';
 
@@ -75,5 +75,15 @@ describe('api (axios)', () => {
     await api.get('/auth/me');
 
     expect(authorization).toBeNull();
+  });
+});
+
+describe('requireApiUrl', () => {
+  it('devolve a URL configurada', () => {
+    expect(requireApiUrl('http://localhost:8000/api/v1')).toBe('http://localhost:8000/api/v1');
+  });
+
+  it.each([undefined, '', '   '])('falha com mensagem clara quando VITE_API_URL falta (%j)', (value) => {
+    expect(() => requireApiUrl(value)).toThrow(/VITE_API_URL não está definida.*apps\/web\/\.env\.example/);
   });
 });

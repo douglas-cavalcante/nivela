@@ -10,8 +10,18 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
   onUnauthorized = handler;
 }
 
+/** Falha logo na inicialização, com mensagem clara, se a URL da API não estiver configurada. */
+export function requireApiUrl(value: string | undefined): string {
+  if (!value?.trim()) {
+    throw new Error(
+      'VITE_API_URL não está definida. Copie apps/web/.env.example para apps/web/.env e reinicie o Vite (npm run dev:web).',
+    );
+  }
+  return value;
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: requireApiUrl(import.meta.env.VITE_API_URL),
   headers: { Accept: 'application/json' },
 });
 
