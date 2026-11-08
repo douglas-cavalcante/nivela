@@ -32,6 +32,8 @@ Fazer no início do Plano 3, antes das telas de estudo:
 - **FK composta** `questions(category_id, subject_id) → categories(id, subject_id)` (com `UNIQUE (id, subject_id)` em `categories`), para o banco garantir que a categoria pertence à disciplina (hoje só o service garante).
 - (Plano 4) **`CHECK (coins_balance >= 0)`** em `student_profiles`.
 
+- Títulos de EmptyState das abas Início, Estudar e Loja do app ainda sem ponto final ("Seu caderno está vazio", "Em breve") — as telas são substituídas no Plano 3; aplicar a regra de textos nas novas.
+
 ## Plano 3 — Estudo
 
 - Tela "Sem conexão" do app aparece para qualquer erro não-401 (403/404/429) e não tem botão de sair — ajustar texto por tipo de erro e oferecer "Sair".
