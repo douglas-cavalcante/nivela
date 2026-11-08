@@ -20,5 +20,10 @@
   },
   "devDependencies": {
     "typescript": "~6.0.2"
+  },
+  "overrides": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "jsdom": "29.1.1"
   }
 }

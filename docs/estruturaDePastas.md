@@ -78,8 +78,11 @@ src/
 ├── constants/    # Constantes globais
 ├── types/        # Tipos usados por várias features
 ├── assets/       # Imagens e arquivos compartilhados
-└── styles/       # Estilos globais
+├── styles/       # Estilos globais
+└── test/         # Infra dos testes: setup (jest-dom, MSW), server MSW, renderWithProviders, usuários de exemplo
 ```
+
+O ESLint da web (`apps/web/eslint.config.mjs`) lê `src/features/*` para montar as regras de cada feature; `src/lib/theme` é o único lugar de `src/` onde cor hexadecimal é permitida (o tema MUI gerado a partir dos tokens).
 
 **Direção das dependências:** `app → features → (components, lib, hooks, utils, constants, types)`. Nunca no sentido contrário.
 
