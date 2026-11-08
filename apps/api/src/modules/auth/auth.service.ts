@@ -6,6 +6,7 @@ import { RegisterStudentDto } from 'src/modules/auth/dto/register-student.dto';
 import { presentUser } from 'src/modules/auth/presenters/user.presenter';
 import { TokenService } from 'src/modules/auth/token.service';
 import { ClassroomsService } from 'src/modules/classrooms/classrooms.service';
+import { StudentsService } from 'src/modules/students/students.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { ApiUser } from '@nivela/api-contract';
 import { Role } from 'src/shared/enums/role.enum';
@@ -33,6 +34,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
     private readonly classrooms: ClassroomsService,
+    private readonly students: StudentsService,
   ) {}
 
   async login(dto: LoginDto): Promise<AuthResult> {
@@ -80,15 +82,11 @@ export class AuthService {
           throw new FieldValidationException({ email: [EMAIL_TAKEN] });
         }
 
-        const user = await tx.user.create({
-          data: {
-            name: dto.name.trim(),
-            email: dto.email,
-            password: passwordHash,
-            role: Role.Student,
-          },
+        const user = await this.students.createAccount(tx, {
+          name: dto.name,
+          email: dto.email,
+          passwordHash,
         });
-        await tx.studentProfile.create({ data: { userId: user.id } });
         await tx.classroomStudent.create({
           data: { classroomId: classroom.id, studentId: user.id },
         });
