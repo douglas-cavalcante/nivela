@@ -49,10 +49,19 @@ const coreNoFeatures = {
   message: 'O núcleo (common, shared, prisma) não pode depender de features.',
 };
 
+// @nivela/api-contract não tem build e sua parte de runtime (parseApiError)
+// depende de axios: a API só pode importar tipos dele.
+const contractTypesOnly = {
+  name: '@nivela/api-contract',
+  allowTypeImports: true,
+  message:
+    'A API só pode usar `import type` de @nivela/api-contract (o pacote não tem build).',
+};
+
 const restrict = ({ patterns = [], paths = [] } = {}) => ({
-  'no-restricted-imports': [
+  '@typescript-eslint/no-restricted-imports': [
     'error',
-    { paths, patterns: [noParent, ...patterns] },
+    { paths: [contractTypesOnly, ...paths], patterns: [noParent, ...patterns] },
   ],
 });
 

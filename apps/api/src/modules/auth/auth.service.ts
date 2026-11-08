@@ -6,7 +6,7 @@ import { RegisterStudentDto } from 'src/modules/auth/dto/register-student.dto';
 import { presentUser } from 'src/modules/auth/presenters/user.presenter';
 import { TokenService } from 'src/modules/auth/token.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { AuthUser } from 'src/shared/auth/auth-user';
+import type { ApiUser } from '@nivela/api-contract';
 import { Role } from 'src/shared/enums/role.enum';
 import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
 import { isUniqueViolation } from 'src/shared/prisma/unique-violation';
@@ -23,7 +23,7 @@ const EMAIL_UNIQUE_CONSTRAINT = 'users_email_key';
 
 export interface AuthResult {
   token: string;
-  user: AuthUser;
+  user: ApiUser;
 }
 
 @Injectable()
