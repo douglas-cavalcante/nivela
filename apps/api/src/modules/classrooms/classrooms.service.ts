@@ -23,6 +23,7 @@ import { StudentsService } from 'src/modules/students/students.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
 import { Role } from 'src/shared/enums/role.enum';
+import { BusinessRuleException } from 'src/shared/exceptions/business-rule.exception';
 import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
 import { paginate, toPrismaPage } from 'src/shared/pagination/paginate';
 import { containsInsensitive } from 'src/shared/prisma/contains-insensitive';
@@ -37,6 +38,7 @@ const NOT_FOUND = 'Turma não encontrada.';
 const STUDENT_NOT_IN_CLASSROOM = 'Aluno não encontrado nesta turma.';
 const EMAIL_TAKEN =
   'Este e-mail já está cadastrado. O aluno pode entrar na turma pelo código.';
+const NOT_ACCEPTING = 'Esta turma não está aceitando novos alunos.';
 const ALREADY_ENROLLED = 'Você já está nesta turma.';
 // Chave primária (turma, aluno) da matrícula.
 const ENROLLMENT_PRIMARY_KEY = 'classroom_student_pkey';
@@ -120,8 +122,9 @@ export class ClassroomsService {
   ): Promise<ApiClassroom> {
     await this.assertVisible(id, user);
     try {
+      // O escopo também vai na escrita: não depende só da checagem anterior.
       await this.prisma.classroom.update({
-        where: { id },
+        where: { id, AND: [classroomScope(user)] },
         data: {
           name: dto.name,
           // undefined = não mexe; null = limpa o ano letivo.
@@ -142,7 +145,9 @@ export class ClassroomsService {
   ): Promise<{ join_code: string }> {
     await this.assertVisible(id, user);
     try {
-      return { join_code: await this.joinCodes.regenerate(id) };
+      return {
+        join_code: await this.joinCodes.regenerate(id, classroomScope(user)),
+      };
     } catch (error) {
       throw this.translate(error);
     }
@@ -157,7 +162,11 @@ export class ClassroomsService {
     dto: CreateClassroomStudentDto,
     user: AuthUser,
   ): Promise<ApiStudent> {
-    await this.assertVisible(id, user);
+    const classroom = await this.assertVisible(id, user);
+    // RN13: turma inativa não recebe alunos, nem pela matrícula manual.
+    if (!classroom.active) {
+      throw new BusinessRuleException(NOT_ACCEPTING);
+    }
 
     const emailTaken = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -203,7 +212,11 @@ export class ClassroomsService {
   ): Promise<void> {
     await this.assertVisible(id, user);
     const { count } = await this.prisma.classroomStudent.deleteMany({
-      where: { classroomId: id, studentId },
+      where: {
+        classroomId: id,
+        studentId,
+        classroom: classroomScope(user),
+      },
     });
     if (count === 0) {
       throw new NotFoundException(STUDENT_NOT_IN_CLASSROOM);
@@ -276,21 +289,25 @@ export class ClassroomsService {
     }
     if (!classroom.active) {
       throw new FieldValidationException({
-        join_code: ['Esta turma não está aceitando novos alunos.'],
+        join_code: [NOT_ACCEPTING],
       });
     }
     return classroom;
   }
 
   /** 404 quando a turma não existe ou não é visível para quem pede. */
-  private async assertVisible(id: number, user: AuthUser): Promise<void> {
+  private async assertVisible(
+    id: number,
+    user: AuthUser,
+  ): Promise<{ id: number; active: boolean }> {
     const classroom = await this.prisma.classroom.findFirst({
       where: { AND: [{ id }, classroomScope(user)] },
-      select: { id: true },
+      select: { id: true, active: true },
     });
     if (!classroom) {
       throw new NotFoundException(NOT_FOUND);
     }
+    return classroom;
   }
 
   private async resolveTeacherId(
@@ -306,7 +323,7 @@ export class ClassroomsService {
       });
     }
     const teacher = await this.prisma.user.findFirst({
-      where: { id: dto.teacher_id, role: Role.Teacher },
+      where: { id: dto.teacher_id, role: Role.Teacher, active: true },
       select: { id: true },
     });
     if (!teacher) {

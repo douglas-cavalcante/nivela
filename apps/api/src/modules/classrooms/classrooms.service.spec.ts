@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { BusinessRuleException } from 'src/shared/exceptions/business-rule.exception';
 import { classroomScope } from 'src/shared/scopes/classroom-scope';
 import { ClassroomsService } from 'src/modules/classrooms/classrooms.service';
 import { JoinCodeService } from 'src/modules/classrooms/join-code.service';
@@ -162,7 +163,7 @@ describe('ClassroomsService', () => {
         { errors: { teacher_id: ['Professor não encontrado.'] } },
       );
       expect(userFindFirst).toHaveBeenCalledWith({
-        where: { id: 7, role: Role.Teacher },
+        where: { id: 7, role: Role.Teacher, active: true },
         select: { id: true },
       });
       expect(createWithUniqueCode).not.toHaveBeenCalled();
@@ -189,8 +190,30 @@ describe('ClassroomsService', () => {
       regenerate.mockResolvedValue('NIV-NEW2');
 
       await expect(
-        service.regenerateJoinCode(1, user(Role.Admin)),
+        service.regenerateJoinCode(1, user(Role.Teacher, 5)),
       ).resolves.toEqual({ join_code: 'NIV-NEW2' });
+      expect(regenerate).toHaveBeenCalledWith(1, { teacherId: 5 });
+    });
+
+    it('o escopo também vai nas escritas; P2025 vira 404', async () => {
+      findFirst.mockResolvedValue(row());
+      update.mockResolvedValue({});
+      await service.update(1, { name: 'X' }, user(Role.Teacher, 5));
+      expect(update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1, AND: [{ teacherId: 5 }] },
+        }),
+      );
+
+      update.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('sumiu', {
+          code: 'P2025',
+          clientVersion: 'teste',
+        }),
+      );
+      await expect(
+        service.update(1, { name: 'X' }, user(Role.Teacher, 5)),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
@@ -203,7 +226,7 @@ describe('ClassroomsService', () => {
     const teacher = user(Role.Teacher, 5);
 
     it('cria usuário, perfil e matrícula na mesma transação e devolve a ficha', async () => {
-      findFirst.mockResolvedValue({ id: 1 });
+      findFirst.mockResolvedValue({ id: 1, active: true });
       userFindUnique.mockResolvedValue(null);
       txUserCreate.mockResolvedValue({ id: 42 });
       findStudent.mockResolvedValue({ id: 42 });
@@ -238,8 +261,20 @@ describe('ClassroomsService', () => {
       expect($transaction).not.toHaveBeenCalled();
     });
 
+    it('turma inativa → 409 (RN13) sem criar nada', async () => {
+      findFirst.mockResolvedValue({ id: 1, active: false });
+
+      await expect(service.addStudent(1, dto, teacher)).rejects.toThrow(
+        new BusinessRuleException(
+          'Esta turma não está aceitando novos alunos.',
+        ),
+      );
+      expect(userFindUnique).not.toHaveBeenCalled();
+      expect($transaction).not.toHaveBeenCalled();
+    });
+
     it('e-mail existente → 422 com a dica do código', async () => {
-      findFirst.mockResolvedValue({ id: 1 });
+      findFirst.mockResolvedValue({ id: 1, active: true });
       userFindUnique.mockResolvedValue({ id: 9 });
 
       const error = await service
@@ -258,7 +293,7 @@ describe('ClassroomsService', () => {
     });
 
     it('corrida de e-mail (P2002 em users_email_key) também vira 422 no campo', async () => {
-      findFirst.mockResolvedValue({ id: 1 });
+      findFirst.mockResolvedValue({ id: 1, active: true });
       userFindUnique.mockResolvedValue(null);
       ($transaction as jest.Mock).mockRejectedValue(
         new Prisma.PrismaClientKnownRequestError('duplicado', {
@@ -285,7 +320,11 @@ describe('ClassroomsService', () => {
         service.removeStudent(1, 7, teacher),
       ).resolves.toBeUndefined();
       expect(deleteMany).toHaveBeenCalledWith({
-        where: { classroomId: 1, studentId: 7 },
+        where: {
+          classroomId: 1,
+          studentId: 7,
+          classroom: { teacherId: 5 },
+        },
       });
       await expect(service.removeStudent(1, 8, teacher)).rejects.toThrow(
         new NotFoundException('Aluno não encontrado nesta turma.'),
