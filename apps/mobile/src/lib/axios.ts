@@ -22,6 +22,8 @@ export function requireApiUrl(value: string | undefined): string {
 
 const api = axios.create({
   baseURL: requireApiUrl(process.env.EXPO_PUBLIC_API_URL),
+  // Sem resposta em 15 s, a requisição falha (ERR_TIMEOUT) em vez de prender a tela.
+  timeout: 15000,
   headers: { Accept: 'application/json' },
 });
 

@@ -6,6 +6,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { OfflineScreen } from 'src/components/OfflineScreen';
 import { AuthProvider, useAuth } from 'src/lib/auth/AuthContext';
 import { ThemeProvider } from 'src/lib/theme/ThemeProvider';
 import { useTheme } from 'src/lib/theme/useTheme';
@@ -13,7 +14,7 @@ import { useTheme } from 'src/lib/theme/useTheme';
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
-  const { user, loading } = useAuth();
+  const { user, loading, offline, retrying, retry } = useAuth();
   const { mode } = useTheme();
 
   // A splash fica até validar o token salvo, para não piscar a tela de entrada.
@@ -22,6 +23,16 @@ function RootNavigator() {
   }, [loading]);
 
   if (loading) return null;
+
+  // Sessão salva, mas a API não respondeu: mantém o token e oferece tentar de novo.
+  if (offline) {
+    return (
+      <>
+        <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+        <OfflineScreen onRetry={retry} retrying={retrying} />
+      </>
+    );
+  }
 
   return (
     <>

@@ -22,6 +22,11 @@ interface Options {
   routes?: Record<string, FakeHandler>;
 }
 
+/** Rota que falha sem resposta, como sem internet ou com a API fora do ar. */
+export const networkError: FakeHandler = (_body, config) => {
+  throw new AxiosError('Network Error', AxiosError.ERR_NETWORK, config);
+};
+
 function toResponse(reply: FakeReply, config: InternalAxiosRequestConfig): AxiosResponse {
   return { data: reply.data ?? null, status: reply.status, statusText: '', headers: {}, config };
 }

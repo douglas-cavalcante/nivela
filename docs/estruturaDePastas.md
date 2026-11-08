@@ -119,13 +119,14 @@ app/                       # Rotas (Expo Router) — só montam a tela, sem lóg
 └── questions/[id].tsx
 src/
 ├── features/<feature>/    # mesma anatomia e mesmas regras de import da web
-├── components/            # AppText, EmptyState, Mascot, PaperBackground (fundo pautado), PenCard (borda + sombra sólida), TabIcon
+├── components/            # AppText, Button, EmptyState, HandTitle, Mascot, OfflineScreen, PaperBackground (fundo pautado), PenCard (borda + sombra sólida), TabIcon, TextField
 ├── lib/                   # axios (Bearer e 401), auth (AuthContext, tokenStorage via expo-secure-store), theme (ThemeProvider/useTheme a partir dos design tokens)
 ├── types/ hooks/ utils/ constants/ assets/
 └── test/                  # setup do Jest (SecureStore em memória), renderApp (renderRouter) e usuários de exemplo
 ```
 
 - **Rotas protegidas:** `app/_layout.tsx` usa `Stack.Protected` — o grupo `(tabs)` só existe com usuário logado e `(auth)` só sem usuário; o redirecionamento acontece sozinho quando o login muda (inclusive no 401 que expira a sessão).
+- **Sem conexão:** na abertura, se há token salvo e o `GET /auth/me` falha por rede, tempo esgotado (15 s) ou 5xx, o token é mantido e `app/_layout.tsx` mostra a `OfflineScreen` ("Sem conexão com o servidor" + "Tentar de novo"); só o 401 encerra a sessão.
 - **Testes** ficam em `__tests__/` ao lado do código (`app/(tabs)/__tests__`, `src/lib/__tests__`); o Metro não os inclui no bundle.
 - O ESLint do mobile (`apps/mobile/eslint.config.mjs`) tem as mesmas regras da web; `app/` conta como camada de rotas (`src/` nunca importa de `app/`) e `src/lib/theme` é o único lugar com cor hexadecimal permitida.
 - Diferença em relação à web: o `tokenStorage` é assíncrono (`expo-secure-store`), então `signIn` retorna `Promise<void>`.

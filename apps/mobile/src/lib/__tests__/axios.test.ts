@@ -87,6 +87,10 @@ describe('api (axios)', () => {
     expect(onUnauthorized).not.toHaveBeenCalled();
   });
 
+  it('desiste da requisição depois de 15 segundos', () => {
+    expect(api.defaults.timeout).toBe(15000);
+  });
+
   it('envia o Bearer salvo', async () => {
     const sent: string[] = [];
     respondUnauthorized(sent);
