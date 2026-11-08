@@ -103,6 +103,48 @@ describe('Formato de erros (e2e)', () => {
     expect(res.body).toEqual({ message: 'Tipo de conteúdo não suportado.' });
   });
 
+  it('ParseUUIDPipe → 400 "Identificador inválido."', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/__test/uuid/abc')
+      .expect(400);
+    expect(res.body).toEqual({ message: 'Identificador inválido.' });
+  });
+
+  it('ParseArrayPipe → 400 "Lista inválida." (lista ausente ou item inválido)', async () => {
+    const item = await request(app.getHttpServer())
+      .get('/api/v1/__test/ids?ids=1,x')
+      .expect(400);
+    expect(item.body).toEqual({ message: 'Lista inválida.' });
+    const missing = await request(app.getHttpServer())
+      .get('/api/v1/__test/ids')
+      .expect(400);
+    expect(missing.body).toEqual({ message: 'Lista inválida.' });
+  });
+
+  it('ParseFilePipe sem arquivo → 400 "Envie um arquivo."', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/__test/required-file')
+      .field('campo', 'valor')
+      .expect(400);
+    expect(res.body).toEqual({ message: 'Envie um arquivo.' });
+  });
+
+  it('ParseFilePipe com arquivo grande ou de outro tipo → 400 em pt-BR', async () => {
+    const big = await request(app.getHttpServer())
+      .post('/api/v1/__test/checked-file')
+      .attach('file', Buffer.from('conteúdo maior que cinco bytes'), 'a.png')
+      .expect(400);
+    expect(big.body).toEqual({ message: 'Arquivo muito grande.' });
+    const type = await request(app.getHttpServer())
+      .post('/api/v1/__test/checked-file')
+      .attach('file', Buffer.from('abc'), {
+        filename: 'a.txt',
+        contentType: 'text/plain',
+      })
+      .expect(400);
+    expect(type.body).toEqual({ message: 'Tipo de arquivo não suportado.' });
+  });
+
   it('4xx sem mensagem própria → "Requisição inválida.", sem log', async () => {
     const logger = jest.spyOn(Logger.prototype, 'error');
     const res = await request(app.getHttpServer())

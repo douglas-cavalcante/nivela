@@ -5,7 +5,13 @@ import {
   Get,
   GoneException,
   Param,
+  ParseArrayPipe,
+  ParseFilePipe,
   ParseIntPipe,
+  ParseUUIDPipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
+  Query,
   Post,
   ServiceUnavailableException,
   UploadedFile,
@@ -65,5 +71,44 @@ export class TestErrorsController {
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 } }))
   upload(@UploadedFile() file: { originalname: string } | undefined) {
     return { name: file?.originalname };
+  }
+
+  @Get('uuid/:id')
+  uuid(@Param('id', ParseUUIDPipe) id: string) {
+    return { id };
+  }
+
+  @Get('ids')
+  ids(
+    @Query('ids', new ParseArrayPipe({ items: Number, separator: ',' }))
+    ids: number[],
+  ) {
+    return { ids };
+  }
+
+  @Post('required-file')
+  @UseInterceptors(FileInterceptor('file'))
+  requiredFile(
+    @UploadedFile(new ParseFilePipe()) file: { originalname: string },
+  ) {
+    return { name: file.originalname };
+  }
+
+  @Post('checked-file')
+  @UseInterceptors(FileInterceptor('file'))
+  checkedFile(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5 }),
+          new FileTypeValidator({ fileType: 'image/png' }),
+        ],
+      }),
+    )
+    file: {
+      originalname: string;
+    },
+  ) {
+    return { name: file.originalname };
   }
 }
