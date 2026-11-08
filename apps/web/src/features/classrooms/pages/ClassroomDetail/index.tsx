@@ -133,7 +133,6 @@ function ClassroomView({ classroom, reload }: ClassroomViewProps) {
       <Box sx={{ display: 'grid', gap: 3 }}>
         <JoinCodeCard code={classroom.join_code} onRegenerate={regenerate} />
 
-        <EmptyState title="Desempenho da turma — disponível em breve." />
 
         <Box component="section" aria-labelledby="students-title">
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 2 }}>
@@ -153,6 +152,8 @@ function ClassroomView({ classroom, reload }: ClassroomViewProps) {
             emptyDescription="Adicione um aluno ou passe o código da turma para que ele entre pelo app."
           />
         </Box>
+
+        <EmptyState title="Desempenho da turma — disponível em breve." />
       </Box>
 
       {editing ? (
