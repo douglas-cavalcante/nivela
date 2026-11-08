@@ -10,6 +10,7 @@ type PasswordFieldProps = Omit<TextFieldProps, 'type' | 'variant'>;
 export function PasswordField({ slotProps, ...props }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false);
   const inputSlot = slotProps?.input;
+  // slotProps.input em forma de função (depende do ownerState) não é suportado: é ignorado
   const inputProps = typeof inputSlot === 'function' ? {} : inputSlot;
   const label = visible ? 'Ocultar senha' : 'Mostrar senha';
 

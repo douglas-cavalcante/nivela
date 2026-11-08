@@ -1,6 +1,8 @@
 import { Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
-import { useId } from 'react';
+import { useId, useRef } from 'react';
 import type { FormEvent, ReactNode } from 'react';
+
+const SUBMIT_GUARD_MS = 500;
 
 interface FormDialogProps {
   open: boolean;
@@ -15,12 +17,17 @@ interface FormDialogProps {
 /** Diálogo com formulário: Enter envia; Esc e clique fora só fecham quando não está enviando. */
 export function FormDialog({ open, title, submitLabel, loading = false, onSubmit, onClose, children }: FormDialogProps) {
   const titleId = useId();
+  const lastSubmit = useRef(0);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     // o diálogo é renderizado num portal, mas o React propaga o evento pela árvore: não deixa vazar para um <form> pai
     event.stopPropagation();
-    if (!loading) onSubmit();
+    // Enter repetido antes de o pai marcar `loading` não envia duas vezes
+    const now = Date.now();
+    if (loading || now - lastSubmit.current < SUBMIT_GUARD_MS) return;
+    lastSubmit.current = now;
+    onSubmit();
   }
 
   return (

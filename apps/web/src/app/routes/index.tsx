@@ -2,6 +2,7 @@ import { Box, CircularProgress } from '@mui/material';
 import { lazy, Suspense } from 'react';
 import type { ReactNode } from 'react';
 import { Navigate, Route, Routes } from 'react-router';
+import { ErrorBoundary } from 'src/components/ErrorBoundary';
 import { AppLayout } from 'src/app/layouts/AppLayout';
 import { menuItems } from 'src/app/layouts/AppLayout/menu';
 import { AuthLayout } from 'src/app/layouts/AuthLayout';
@@ -14,6 +15,7 @@ const ComingSoon = lazy(() => import('src/app/routes/ComingSoon').then((m) => ({
 /** Cada página é carregada sob demanda; enquanto isso o layout continua na tela e só o miolo mostra o spinner. */
 function page(element: ReactNode) {
   return (
+    <ErrorBoundary>
     <Suspense
       fallback={
         <Box sx={{ display: 'grid', placeItems: 'center', py: 8 }}>
@@ -23,6 +25,7 @@ function page(element: ReactNode) {
     >
       {element}
     </Suspense>
+    </ErrorBoundary>
   );
 }
 

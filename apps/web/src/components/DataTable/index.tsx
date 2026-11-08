@@ -13,7 +13,7 @@ import {
 import { alpha } from '@mui/material/styles';
 import { penShadow } from '@nivela/design-tokens';
 import type { PaginationMeta } from '@nivela/api-contract';
-import type { KeyboardEvent, ReactNode } from 'react';
+import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import { EmptyState } from 'src/components/EmptyState';
 import { useNivelaColors } from 'src/lib/theme/useNivelaColors';
 
@@ -38,6 +38,8 @@ interface DataTableProps<T> {
   emptyDescription?: string;
   onRowClick?: (row: T) => void;
 }
+
+const INTERACTIVE = 'button, a, input, select, textarea, [role="button"], [role="checkbox"], [role="switch"]';
 
 const paginationLabels = {
   getItemAriaLabel: (type: 'first' | 'last' | 'next' | 'previous') =>
@@ -91,7 +93,28 @@ export function DataTable<T>({
   }
 
   if (!loading && rows.length === 0) {
+    // página vazia além da primeira (?page=9 antigo, última linha excluída): oferece o caminho de volta
+    if (meta && meta.page > 1 && onPageChange) {
+      return (
+        <EmptyState
+          title="Esta página está vazia"
+          description="Não há registros nesta página."
+          action={
+            <Button variant="contained" onClick={() => onPageChange(1)}>
+              Voltar para a primeira página
+            </Button>
+          }
+        />
+      );
+    }
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
+  }
+
+  function handleClick(event: MouseEvent<HTMLTableRowElement>, row: T) {
+    // cliques em botões, links e campos da linha são deles, não da linha
+    const inner = (event.target as Element).closest(INTERACTIVE);
+    if (inner && event.currentTarget.contains(inner)) return;
+    onRowClick?.(row);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTableRowElement>, row: T) {
@@ -140,7 +163,7 @@ export function DataTable<T>({
                 key={getRowId(row)}
                 hover={Boolean(onRowClick)}
                 tabIndex={onRowClick ? 0 : undefined}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                onClick={onRowClick ? (event) => handleClick(event, row) : undefined}
                 onKeyDown={onRowClick ? (event) => handleKeyDown(event, row) : undefined}
                 sx={{
                   cursor: onRowClick ? 'pointer' : undefined,

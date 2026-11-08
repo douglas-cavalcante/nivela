@@ -25,7 +25,10 @@ const ui = (
 
 describe('useNotify', () => {
   beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
   it('mostra o aviso de sucesso e ele some depois de 4 s', async () => {
     render(ui);
@@ -36,6 +39,20 @@ describe('useNotify', () => {
       vi.advanceTimersByTime(4500);
     });
     await vi.waitFor(() => expect(screen.queryByText('Salvo!')).not.toBeInTheDocument());
+  });
+
+  it('erro fica 6 s na tela', async () => {
+    render(ui);
+    await userEvent.click(screen.getByText('erro'));
+    expect(await screen.findByText('Deu ruim.')).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(4500);
+    });
+    expect(screen.getByText('Deu ruim.')).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    await vi.waitFor(() => expect(screen.queryByText('Deu ruim.')).not.toBeInTheDocument());
   });
 
   it('anuncia o erro como alerta', async () => {

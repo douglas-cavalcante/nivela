@@ -1,20 +1,24 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useLocation } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useListQuery } from 'src/hooks/useListQuery';
 import { renderWithProviders } from 'src/test/render';
 
-const defaults = { search: '', subject_id: '' };
+const defaults = { search: '', subject_id: '', status: 'active' };
 
 function Probe() {
   const { page, filters, setPage, setFilter } = useListQuery(defaults);
   const location = useLocation();
+  const navigate = useNavigate();
   return (
     <>
       <output aria-label="estado">{JSON.stringify({ page, filters })}</output>
       <output aria-label="url">{location.search}</output>
       <button onClick={() => setFilter('search', 'y')}>buscar y</button>
       <button onClick={() => setFilter('search', '')}>limpar busca</button>
+      <button onClick={() => setFilter('status', '')}>status vazio</button>
+      <button onClick={() => setFilter('status', 'active')}>status padrão</button>
+      <button onClick={() => navigate(-1)}>voltar</button>
       <button onClick={() => setPage(4)}>pagina 4</button>
       <button onClick={() => setPage(1)}>pagina 1</button>
     </>
@@ -27,12 +31,12 @@ const url = () => screen.getByLabelText('url').textContent;
 describe('useListQuery', () => {
   it('usa os padrões sem query string', () => {
     renderWithProviders(<Probe />);
-    expect(state()).toEqual({ page: 1, filters: { search: '', subject_id: '' } });
+    expect(state()).toEqual({ page: 1, filters: { search: '', subject_id: '', status: 'active' } });
   });
 
   it('lê página e filtros da URL', () => {
     renderWithProviders(<Probe />, { route: '/?page=3&search=x' });
-    expect(state()).toEqual({ page: 3, filters: { search: 'x', subject_id: '' } });
+    expect(state()).toEqual({ page: 3, filters: { search: 'x', subject_id: '', status: 'active' } });
   });
 
   it('ignora página inválida', () => {
@@ -68,5 +72,23 @@ describe('useListQuery', () => {
     expect(url()).toBe('?search=x&page=4');
     await userEvent.click(screen.getByText('pagina 1'));
     expect(url()).toBe('?search=x');
+  });
+
+  it('filtro vazio com padrão não vazio vai para a URL e é lido de volta', async () => {
+    renderWithProviders(<Probe />);
+    await userEvent.click(screen.getByText('status vazio'));
+    expect(url()).toBe('?status=');
+    expect(state().filters.status).toBe('');
+    await userEvent.click(screen.getByText('status padrão'));
+    expect(url()).toBe('');
+    expect(state().filters.status).toBe('active');
+  });
+
+  it('voltar do navegador restaura os filtros anteriores', async () => {
+    renderWithProviders(<Probe />, { route: '/?search=x' });
+    await userEvent.click(screen.getByText('buscar y'));
+    expect(state().filters.search).toBe('y');
+    await userEvent.click(screen.getByText('voltar'));
+    expect(state().filters.search).toBe('x');
   });
 });

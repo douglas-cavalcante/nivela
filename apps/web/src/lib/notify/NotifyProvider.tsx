@@ -4,7 +4,9 @@ import type { ReactNode, SyntheticEvent } from 'react';
 import { NotifyContext } from 'src/lib/notify/useNotify';
 import type { Notify } from 'src/lib/notify/useNotify';
 
-const AUTO_HIDE_MS = 4000;
+const SUCCESS_MS = 4000;
+/** Erros ficam mais tempo na tela: dá para ler e entender o que houve. */
+const ERROR_MS = 6000;
 
 interface Message {
   id: number;
@@ -37,7 +39,7 @@ export function NotifyProvider({ children }: { children: ReactNode }) {
       <Snackbar
         key={message?.id}
         open={open}
-        autoHideDuration={AUTO_HIDE_MS}
+        autoHideDuration={message?.severity === 'error' ? ERROR_MS : SUCCESS_MS}
         onClose={handleClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >

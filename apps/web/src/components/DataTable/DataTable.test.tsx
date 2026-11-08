@@ -74,3 +74,24 @@ describe('DataTable', () => {
     expect(onRowClick).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('DataTable - casos de borda', () => {
+  it('clique em botão dentro da linha não abre a linha', async () => {
+    const onRowClick = vi.fn();
+    const onEdit = vi.fn();
+    const withAction = [...columns, { key: 'a', header: 'Ações', render: () => <button onClick={onEdit}>Editar</button> }];
+    renderWithProviders(<DataTable {...base} columns={withAction} rows={rows} onRowClick={onRowClick} />);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Editar' })[0]);
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onRowClick).not.toHaveBeenCalled();
+  });
+
+  it('página vazia depois da primeira oferece voltar para a primeira', async () => {
+    const onPageChange = vi.fn();
+    renderWithProviders(
+      <DataTable {...base} rows={[]} meta={{ page: 9, per_page: 15, total: 20, last_page: 2 }} onPageChange={onPageChange} />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Voltar para a primeira página' }));
+    expect(onPageChange).toHaveBeenCalledWith(1);
+  });
+});

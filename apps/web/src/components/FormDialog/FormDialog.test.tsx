@@ -19,13 +19,17 @@ function setup(loading = false) {
 }
 
 describe('FormDialog', () => {
-  it('envia com Enter e com o botão', async () => {
+  it('envia com Enter', async () => {
     const { onSubmit } = setup();
     expect(screen.getByRole('dialog', { name: 'Nova disciplina' })).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText('Nome'), 'Mat{Enter}');
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('envia pelo botão', async () => {
+    const { onSubmit } = setup();
     await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
-    expect(onSubmit).toHaveBeenCalledTimes(2);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
   it('fecha com Esc e pelo Cancelar', async () => {
@@ -40,5 +44,13 @@ describe('FormDialog', () => {
     await userEvent.keyboard('{Escape}');
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Salvar' })).toBeDisabled();
+  });
+});
+
+describe('FormDialog - envio duplo', () => {
+  it('Enter repetido rapidamente envia uma vez só', async () => {
+    const { onSubmit } = setup();
+    await userEvent.type(screen.getByLabelText('Nome'), 'a{Enter}{Enter}');
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 });
