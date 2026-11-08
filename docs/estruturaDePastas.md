@@ -52,7 +52,7 @@ src/
 prisma/schema.prisma, prisma/migrations/, prisma/seed.ts
 test/*.e2e-spec.ts                 # e2e com supertest contra o banco nivela_test
 test/helpers/                      # createTestApp() e rotas só de teste
-scripts/test-db-reset.js           # recria o banco nivela_test antes do e2e
+scripts/test-db-migrate.js           # recria o banco nivela_test antes do e2e
 ```
 
 **Regras de dependência (ESLint, `apps/api/eslint.config.mjs`):**

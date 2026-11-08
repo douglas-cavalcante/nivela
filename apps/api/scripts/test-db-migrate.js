@@ -1,4 +1,4 @@
-// Recria o banco de teste (nivela_test) antes dos testes e2e.
+// Aplica as migrations (prisma migrate deploy) no banco de teste (nivela_test) antes dos e2e.
 // Lê o DATABASE_URL de .env.test e se recusa a rodar fora de um banco "_test".
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
@@ -17,7 +17,7 @@ if (!url || !new URL(url).pathname.endsWith('_test')) {
 
 const result = spawnSync(
   'npx',
-  ['prisma', 'migrate', 'reset', '--force'],
+  ['prisma', 'migrate', 'deploy'],
   {
     cwd: root,
     stdio: 'inherit',

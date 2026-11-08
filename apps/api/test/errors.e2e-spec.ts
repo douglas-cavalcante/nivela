@@ -1,6 +1,8 @@
 import { INestApplication, Logger } from '@nestjs/common';
 import request from 'supertest';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { createTestApp } from './helpers/create-test-app';
+import { resetDatabase } from './helpers/reset-database';
 import { TestErrorsController } from './helpers/test-errors.controller';
 
 describe('Formato de erros (e2e)', () => {
@@ -8,6 +10,7 @@ describe('Formato de erros (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp([TestErrorsController]);
+    await resetDatabase(app.get(PrismaService));
   });
 
   afterAll(async () => {
@@ -35,6 +38,23 @@ describe('Formato de erros (e2e)', () => {
       .get('/api/v1/__test/conflict')
       .expect(409);
     expect(res.body).toEqual({ message: 'Saldo insuficiente.' });
+  });
+
+  it('JSON malformado → 400 em pt-BR, sem texto do parser', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/__test/validation')
+      .set('Content-Type', 'application/json')
+      .send('{"name": ')
+      .expect(400);
+    expect(res.body).toEqual({ message: 'Requisição inválida.' });
+  });
+
+  it('corpo grande demais → 413 em pt-BR', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/__test/validation')
+      .send({ name: 'a'.repeat(200_000) })
+      .expect(413);
+    expect(res.body).toEqual({ message: 'Requisição muito grande.' });
   });
 
   it('erro inesperado → 500 sem stack', async () => {

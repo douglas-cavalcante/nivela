@@ -1,6 +1,6 @@
 // Roda antes de cada arquivo e2e (setupFiles do jest-e2e.json).
 // Carrega o .env.test e garante que os testes só toquem em um banco "_test",
-// já que `prisma migrate reset` e os testes apagam dados.
+// já que os testes apagam dados.
 import { config } from 'dotenv';
 import { join } from 'node:path';
 

@@ -20,7 +20,7 @@ const DEFAULT_MESSAGES: Record<number, string> = {
   404: 'Recurso não encontrado.',
   405: 'Método não permitido.',
   409: 'Conflito ao processar a requisição.',
-  413: 'Conteúdo muito grande.',
+  413: 'Requisição muito grande.',
   422: 'Os dados enviados são inválidos.',
   429: 'Muitas requisições. Tente novamente em instantes.',
 };
@@ -38,6 +38,9 @@ const FRAMEWORK_MESSAGES = [
   'Too Many Requests',
 ];
 
+// Texto do SyntaxError do JSON.parse, que o Nest repassa como 400 (corpo malformado).
+const JSON_PARSE_MESSAGE = /JSON|^Unexpected (token|end)|^Expected /;
+
 /**
  * Padroniza todas as respostas de erro como `{ message, errors? }`, sem
  * vazar stack nem mensagens internas.
@@ -50,6 +53,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = host.switchToHttp().getResponse<Response>();
 
     if (!(exception instanceof HttpException)) {
+      // Erros do body-parser (JSON malformado, corpo grande) trazem o status.
+      const clientStatus = this.clientErrorStatus(exception);
+      if (clientStatus) {
+        const body: ErrorBody = {
+          message: DEFAULT_MESSAGES[clientStatus] ?? DEFAULT_MESSAGES[400],
+        };
+        response.status(clientStatus).json(body);
+        return;
+      }
       this.logger.error(
         exception instanceof Error ? exception.message : String(exception),
         exception instanceof Error ? exception.stack : undefined,
@@ -60,7 +72,30 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     const status = exception.getStatus();
-    response.status(status).json(this.buildBody(exception, status));
+    const body = this.isParserError(exception)
+      ? { message: DEFAULT_MESSAGES[status] ?? DEFAULT_MESSAGES[400] }
+      : this.buildBody(exception, status);
+    response.status(status).json(body);
+  }
+
+  /** Erros do body-parser (http-errors com `type`, ex.: entity.too.large). */
+  private isParserError(exception: HttpException): boolean {
+    const { cause } = exception as { cause?: { type?: unknown } };
+    return typeof cause?.type === 'string';
+  }
+
+  private clientErrorStatus(exception: unknown): number | undefined {
+    if (typeof exception !== 'object' || exception === null) {
+      return undefined;
+    }
+    const { status, statusCode } = exception as {
+      status?: unknown;
+      statusCode?: unknown;
+    };
+    const value = typeof status === 'number' ? status : statusCode;
+    return typeof value === 'number' && value >= 400 && value < 500
+      ? value
+      : undefined;
   }
 
   private buildBody(exception: HttpException, status: number): ErrorBody {
@@ -86,6 +121,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
   }
 
   private isFrameworkMessage(text: string): boolean {
-    return text.startsWith('Cannot ') || FRAMEWORK_MESSAGES.includes(text);
+    return (
+      text.startsWith('Cannot ') ||
+      FRAMEWORK_MESSAGES.includes(text) ||
+      JSON_PARSE_MESSAGE.test(text)
+    );
   }
 }

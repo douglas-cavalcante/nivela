@@ -61,6 +61,6 @@ Pré-requisitos: Docker Desktop, Node 22 (`.nvmrc`) e npm 10.
 5. Mobile: `npm run dev:mobile` (Expo; abrir no Expo Go ou emulador).
 6. Parar o banco: `npm run db:down`. Os dados ficam em `docker/pgdata/` (ignorado pelo git).
 
-Testes da API: `npm run test -w apps/api` (unitários) e `npm run test:e2e -w apps/api` (recria o banco `nivela_test` com `prisma migrate reset` e roda o Jest com supertest; o script se recusa a rodar se `DATABASE_URL` de `.env.test` não terminar em `_test`).
+Testes da API: `npm run test -w apps/api` (unitários) e `npm run test:e2e -w apps/api` (aplica as migrations no banco `nivela_test` com `prisma migrate deploy` via `scripts/test-db-migrate.js` e roda o Jest com supertest; o script se recusa a rodar se o `DATABASE_URL` de `.env.test` não terminar em `_test`). Entre os testes, as suítes e2e que gravam no banco chamam `resetDatabase(prisma)` (`test/helpers/reset-database.ts`), que faz `TRUNCATE … RESTART IDENTITY CASCADE` em todas as tabelas do schema `public` (exceto `_prisma_migrations`). Não usamos `prisma migrate reset`: o Prisma o bloqueia quando rodado por agentes de IA. O `postinstall` do workspace roda `prisma generate`, então `npm install`/`npm ci` na raiz já cria `src/generated`.
 
 > `apps/web` e `apps/mobile` são criados nas tarefas seguintes do plano de implementação; os passos 4 e 5 só funcionam depois disso.
