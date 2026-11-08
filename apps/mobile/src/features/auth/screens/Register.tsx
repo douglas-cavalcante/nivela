@@ -124,6 +124,7 @@ export function Register() {
         name="password_confirmation"
         label="Confirmar senha"
         password
+        revealLabel="confirmação de senha"
         autoCapitalize="none"
         autoCorrect={false}
         autoComplete="new-password"

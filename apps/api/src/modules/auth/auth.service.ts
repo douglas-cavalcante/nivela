@@ -1,6 +1,5 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { compare, hash, hashSync } from 'bcryptjs';
-import { Prisma } from 'src/generated/prisma/client';
 import { ChangePasswordDto } from 'src/modules/auth/dto/change-password.dto';
 import { LoginDto } from 'src/modules/auth/dto/login.dto';
 import { RegisterStudentDto } from 'src/modules/auth/dto/register-student.dto';
@@ -10,6 +9,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { AuthUser } from 'src/shared/auth/auth-user';
 import { Role } from 'src/shared/enums/role.enum';
 import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
+import { isUniqueViolation } from 'src/shared/prisma/unique-violation';
 
 const BCRYPT_COST = 10;
 // Hash de uma senha qualquer, comparado quando o e-mail não existe para que o
@@ -17,21 +17,9 @@ const BCRYPT_COST = 10;
 const DUMMY_HASH = hashSync('nivela-dummy', BCRYPT_COST);
 
 const INVALID_CREDENTIALS = 'E-mail ou senha inválidos.';
-const UNIQUE_VIOLATION = 'P2002';
-
-/** P2002 só conta se a restrição violada for a do e-mail de `users`. */
-function isEmailUniqueViolation(error: unknown): boolean {
-  if (
-    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
-    error.code !== UNIQUE_VIOLATION
-  ) {
-    return false;
-  }
-  // Com driver adapter o alvo vem em formatos diferentes (meta.target ou
-  // driverAdapterError); em todos os casos o nome do campo/índice aparece no meta.
-  const meta = JSON.stringify(error.meta ?? {});
-  return /users_email_key|"email"/.test(meta);
-}
+const EMAIL_TAKEN = 'Este e-mail já está cadastrado.';
+// Restrição única do e-mail em `users` (nome gerado pela migration).
+const EMAIL_UNIQUE_CONSTRAINT = 'users_email_key';
 
 export interface AuthResult {
   token: string;
@@ -78,28 +66,29 @@ export class AuthService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const errors: Record<string, string[]> = {};
+        // O código da turma é checado primeiro: sem um código válido, a
+        // resposta não diz se o e-mail já existe (evita descobrir e-mails).
+        const classroom = await tx.classroom.findUnique({
+          where: { joinCode: dto.join_code },
+          select: { id: true, active: true },
+        });
+        if (!classroom) {
+          throw new FieldValidationException({
+            join_code: ['Código de turma inválido.'],
+          });
+        }
+        if (!classroom.active) {
+          throw new FieldValidationException({
+            join_code: ['Esta turma não está aceitando novos alunos.'],
+          });
+        }
 
         const emailTaken = await tx.user.findUnique({
           where: { email: dto.email },
           select: { id: true },
         });
         if (emailTaken) {
-          errors.email = ['Este e-mail já está cadastrado.'];
-        }
-
-        const classroom = await tx.classroom.findUnique({
-          where: { joinCode: dto.join_code },
-          select: { id: true, active: true },
-        });
-        if (!classroom) {
-          errors.join_code = ['Código de turma inválido.'];
-        } else if (!classroom.active) {
-          errors.join_code = ['Esta turma não está aceitando novos alunos.'];
-        }
-
-        if (Object.keys(errors).length > 0 || !classroom) {
-          throw new FieldValidationException(errors);
+          throw new FieldValidationException({ email: [EMAIL_TAKEN] });
         }
 
         const user = await tx.user.create({
@@ -120,10 +109,8 @@ export class AuthService {
       });
     } catch (error) {
       // Cadastros simultâneos com o mesmo e-mail: a unicidade do banco decide.
-      if (isEmailUniqueViolation(error)) {
-        throw new FieldValidationException({
-          email: ['Este e-mail já está cadastrado.'],
-        });
+      if (isUniqueViolation(error, EMAIL_UNIQUE_CONSTRAINT)) {
+        throw new FieldValidationException({ email: [EMAIL_TAKEN] });
       }
       throw error;
     }

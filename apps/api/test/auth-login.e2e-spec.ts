@@ -82,8 +82,8 @@ describe('Auth - login (e2e)', () => {
     const { body } = await login({ channel: 'desktop' }).expect(422);
 
     expect(body.errors.email).toBeDefined();
-    expect(body.errors.password).toBeDefined();
-    expect(body.errors.channel).toBeDefined();
+    expect(body.errors.password).toEqual(['Informe sua senha.']);
+    expect(body.errors.channel).toEqual(['O canal deve ser web ou mobile.']);
   });
 
   it('recusa usuário desativado', async () => {

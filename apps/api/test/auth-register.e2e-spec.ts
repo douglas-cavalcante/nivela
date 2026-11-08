@@ -124,6 +124,34 @@ describe('Auth - cadastro de aluno (e2e)', () => {
     expect(upper.body.errors.email[0]).toBe('Este e-mail já está cadastrado.');
   });
 
+  it('e-mail já cadastrado + código inválido: só acusa o código (não revela o e-mail)', async () => {
+    await createUser(prisma, { email: 'bia@aluno.com' });
+
+    const { body } = await register(valid).expect(422);
+
+    expect(body.errors).toEqual({ join_code: ['Código de turma inválido.'] });
+  });
+
+  it('e-mail já cadastrado + turma inativa: só acusa o código', async () => {
+    await createClassroom(prisma, { joinCode: 'NIV-4K7Q', active: false });
+    await createUser(prisma, { email: 'bia@aluno.com' });
+
+    const { body } = await register(valid).expect(422);
+
+    expect(body.errors).toEqual({
+      join_code: ['Esta turma não está aceitando novos alunos.'],
+    });
+  });
+
+  it('e-mail já cadastrado + código válido: 422 no e-mail', async () => {
+    await createClassroom(prisma, { joinCode: 'NIV-4K7Q' });
+    await createUser(prisma, { email: 'bia@aluno.com' });
+
+    const { body } = await register(valid).expect(422);
+
+    expect(body.errors).toEqual({ email: ['Este e-mail já está cadastrado.'] });
+  });
+
   it('exige senha de 8 caracteres e confirmação igual', async () => {
     await createClassroom(prisma, { joinCode: 'NIV-4K7Q' });
 
@@ -132,7 +160,9 @@ describe('Auth - cadastro de aluno (e2e)', () => {
       password: 'curta12',
       password_confirmation: 'curta12',
     }).expect(422);
-    expect(short.body.errors.password).toBeDefined();
+    expect(short.body.errors.password).toEqual([
+      'A senha deve ter pelo menos 8 caracteres.',
+    ]);
 
     const mismatch = await register({
       ...valid,
@@ -196,12 +226,21 @@ describe('Auth - cadastro de aluno (e2e)', () => {
     expect(dup.body.errors.email[0]).toBe('Este e-mail já está cadastrado.');
   });
 
+  it('campos vazios: mensagens "Informe …" em frases completas', async () => {
+    const { body } = await register({}).expect(422);
+
+    expect(body.errors.name).toContain('Informe seu nome.');
+    expect(body.errors.password).toContain('Informe sua senha.');
+    expect(body.errors.password_confirmation).toContain('Confirme sua senha.');
+    expect(body.errors.join_code).toContain('Informe o código da turma.');
+  });
+
   it('rejeita nome só com espaços', async () => {
     await createClassroom(prisma, { joinCode: 'NIV-4K7Q' });
 
     const { body } = await register({ ...valid, name: '   ' }).expect(422);
 
-    expect(body.errors.name).toBeDefined();
+    expect(body.errors.name).toEqual(['Informe seu nome.']);
     expect(await prisma.user.count({ where: { role: 'student' } })).toBe(0);
   });
 });

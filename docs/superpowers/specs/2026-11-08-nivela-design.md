@@ -3,7 +3,7 @@
 - **Data:** 2026-11-08
 - **Autor:** Henrique Douglas Cavalcante Costa
 - **Origem:** documento do TCC "Desenvolvimento de um sistema para apoio ao nivelamento estudantil" (set/2024) + sessões de brainstorming
-- **Status:** aprovada · revisão 2 (2026-11-08): backend trocado de Laravel para NestJS
+- **Status:** aprovada · revisão 2 (2026-11-08): backend trocado de Laravel para NestJS · revisão 3 (2026-11-08): JSON em `snake_case` e paginação com `per_page`/`last_page`
 
 ---
 
@@ -61,7 +61,7 @@ tcc/
 └── CLAUDE.md               # aponta para docs/
 ```
 
-Scripts na raiz: `db:up`, `db:down`, `dev:api`, `dev:web`, `dev:mobile`, `lint`, `test`.
+Scripts na raiz: `db:up`, `db:down`, `dev:api`, `dev:web`, `dev:mobile`, `lint`, `typecheck`, `test`, `build`.
 
 ### 3.2 API — `apps/api`
 
@@ -94,7 +94,8 @@ test/*.e2e-spec.ts                 # e2e com supertest contra o banco nivela_tes
 - **Regras de dependência (ESLint, como no Estagius):** imports com alias `src/...` (nunca `../`); uma feature não importa arquivos internos de outra — usa o service exportado pelo módulo dela; `common`, `shared` e `prisma` não importam de `src/modules`; controllers não usam `PrismaService`.
 - **Prisma:** models em PascalCase com `@@map`/`@map` para as tabelas e colunas `snake_case` da seção 6. Migrations com `prisma migrate dev` (desenvolvimento) e `prisma migrate deploy` (CI/testes).
 - **Erros:** JSON padronizado `{ message, errors? }` por um filtro global; 422 validação (`errors: { campo: [mensagens] }`), 401/403 auth, 404, 409 conflito de regra (`BusinessRuleException`, ex.: saldo insuficiente, estoque zerado).
-- **Paginação:** `{ data, meta: { page, perPage, total, lastPage } }`, 15 por página.
+- **Formato JSON:** todos os campos de requisição e resposta da API em `snake_case` (ex.: `join_code`, `password_confirmation`, `coins_balance`, `created_at`), inclusive na query string; os clientes não convertem nomes.
+- **Paginação:** `{ data, meta: { page, per_page, total, last_page } }`; query `?page=1&per_page=15` (padrão 15 por página, máximo 100; `page` ≥ 1). Implementada em `src/shared/pagination/` (`PaginationQueryDto`, `toPrismaPage`, `paginate`).
 - **Upload de imagens** (questões, prêmios): `multer` em disco (`apps/api/uploads/`, servido em `/uploads`), validação de tipo/tamanho (jpg/png/webp, até 2 MB).
 - **Documentação da API:** Swagger (`@nestjs/swagger`) em `/docs`.
 - **Testes:** Jest — unitários dos services com Prisma mockado e **e2e** (supertest) contra o banco `nivela_test`; ESLint + Prettier.

@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { clearToken, getToken, setToken } from 'src/lib/auth/tokenStorage';
@@ -8,15 +9,48 @@ export interface AuthContextValue {
   user: User | null;
   /** Verdadeiro enquanto o token salvo está sendo lido e validado em GET /auth/me. */
   loading: boolean;
+  /**
+   * Verdadeiro quando há sessão salva mas a API não respondeu (rede, tempo esgotado ou 5xx).
+   * O token é mantido; `retry` refaz a checagem.
+   */
+  offline: boolean;
+  /** Verdadeiro enquanto `retry` aguarda a resposta da API. */
+  retrying: boolean;
+  retry: () => void;
   signIn: (token: string, user: User) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
+type BootRequest = { cancelled: boolean };
+
+interface SessionCheck {
+  user: User | null;
+  offline: boolean;
+}
+
+/**
+ * Se há token salvo, recupera o usuário em GET /auth/me. Só o 401 encerra a sessão (o
+ * interceptor já limpou o token); sem resposta da API (rede, tempo esgotado ou 5xx), o
+ * token fica e o app mostra a tela de reconexão.
+ */
+async function checkSession(): Promise<SessionCheck> {
+  try {
+    if ((await getToken()) === null) return { user: null, offline: false };
+    const { data } = await api.get<{ user: User }>('/auth/me');
+    return { user: data.user, offline: false };
+  } catch (error) {
+    const offline = axios.isAxiosError(error) && error.response?.status !== 401;
+    return { user: null, offline };
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [offline, setOffline] = useState<boolean>(false);
+  const [retrying, setRetrying] = useState<boolean>(false);
 
   // 401 em qualquer requisição autenticada: o interceptor já limpou o token.
   useEffect(() => {
@@ -24,41 +58,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setUnauthorizedHandler(null);
   }, []);
 
-  // Requisição de boot em andamento; `signIn`/`signOut` a marcam como obsoleta para
+  // Checagem de boot em andamento; `signIn`/`signOut` a marcam como obsoleta para
   // que um /auth/me atrasado não sobrescreva o que a pessoa acabou de fazer.
-  const boot = useRef<{ cancelled: boolean } | null>(null);
+  const boot = useRef<BootRequest | null>(null);
 
-  // Boot: se há token salvo, recupera o usuário.
-  useEffect(() => {
-    const request = { cancelled: false };
+  // Inicia uma checagem da sessão salva, marcando a anterior como obsoleta.
+  const startCheck = useCallback(() => {
+    if (boot.current) boot.current.cancelled = true;
+    const request: BootRequest = { cancelled: false };
     boot.current = request;
-    (async () => {
-      try {
-        if ((await getToken()) === null) return;
-        const { data } = await api.get<{ user: User }>('/auth/me');
-        if (!request.cancelled) setUser(data.user);
-      } catch {
-        // 401 já limpou o token no interceptor; outros erros deixam a pessoa na tela de entrada
-        if (!request.cancelled) setUser(null);
-      } finally {
-        if (!request.cancelled) setLoading(false);
-      }
-    })();
+    void checkSession().then((result) => {
+      if (request.cancelled) return;
+      setUser(result.user);
+      setOffline(result.offline);
+      setLoading(false);
+      setRetrying(false);
+    });
+    return request;
+  }, []);
+
+  useEffect(() => {
+    const request = startCheck();
     return () => {
       request.cancelled = true;
     };
-  }, []);
+  }, [startCheck]);
+
+  const retry = useCallback(() => {
+    setRetrying(true);
+    startCheck();
+  }, [startCheck]);
 
   const signIn = useCallback(async (token: string, nextUser: User) => {
     if (boot.current) boot.current.cancelled = true;
     await setToken(token);
     setUser(nextUser);
+    setOffline(false);
+    setRetrying(false);
     setLoading(false);
   }, []);
 
   const signOut = useCallback(async () => {
     if (boot.current) boot.current.cancelled = true;
     setLoading(false);
+    setOffline(false);
+    setRetrying(false);
     try {
       await api.post('/auth/logout');
     } catch {
@@ -69,7 +113,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const value = useMemo(() => ({ user, loading, signIn, signOut }), [user, loading, signIn, signOut]);
+  const value = useMemo(
+    () => ({ user, loading, offline, retrying, retry, signIn, signOut }),
+    [user, loading, offline, retrying, retry, signIn, signOut],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

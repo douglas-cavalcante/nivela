@@ -1,6 +1,9 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
+import {
+  HttpExceptionFilter,
+  keepParserErrorCause,
+} from 'src/common/filters/http-exception.filter';
 import { createValidationPipe } from 'src/common/pipes/validation.pipe';
 
 // Origens de desenvolvimento: painel web (Vite) e Expo web.
@@ -11,14 +14,25 @@ const DEV_ORIGINS = [
   'http://localhost:19006',
 ];
 
+/**
+ * Origens liberadas no CORS: `CORS_ORIGINS` separado por vírgulas (espaços
+ * em volta são ignorados) ou, sem ele, as origens de desenvolvimento.
+ */
+export function parseCorsOrigins(value: string | undefined): string[] {
+  const origins = (value ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+  return origins.length > 0 ? origins : DEV_ORIGINS;
+}
+
 /** Configuração compartilhada entre main.ts e os testes e2e. */
 export function configureApp(app: INestApplication): INestApplication {
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(createValidationPipe());
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.enableCors({
-    origin: process.env.CORS_ORIGINS?.split(',') ?? DEV_ORIGINS,
-  });
+  keepParserErrorCause(app);
+  app.enableCors({ origin: parseCorsOrigins(process.env.CORS_ORIGINS) });
 
   const document = SwaggerModule.createDocument(
     app,

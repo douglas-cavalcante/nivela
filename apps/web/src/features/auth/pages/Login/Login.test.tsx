@@ -99,8 +99,8 @@ describe('Login', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Entrar' }));
 
-    expect(await screen.findByText('Informe seu e-mail')).toBeInTheDocument();
-    expect(screen.getByText('Informe sua senha')).toBeInTheDocument();
+    expect(await screen.findByText('Informe seu e-mail.')).toBeInTheDocument();
+    expect(screen.getByText('Informe sua senha.')).toBeInTheDocument();
     expect(called).not.toHaveBeenCalled();
   });
 

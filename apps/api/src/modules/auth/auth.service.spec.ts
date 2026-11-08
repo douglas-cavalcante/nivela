@@ -116,7 +116,17 @@ describe('AuthService', () => {
         new Prisma.PrismaClientKnownRequestError('duplicado', {
           code: 'P2002',
           clientVersion: 'teste',
-          meta: { modelName: 'User', target: ['email'] },
+          meta: {
+            modelName: 'User',
+            driverAdapterError: {
+              name: 'DriverAdapterError',
+              cause: {
+                kind: 'UniqueConstraintViolation',
+                constraint: { index: 'users_email_key' },
+                table: 'users',
+              },
+            },
+          },
         }),
       );
 

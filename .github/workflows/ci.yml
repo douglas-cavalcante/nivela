@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   api:
-    name: API (lint, tipos, testes)
+    name: API (lint, tipos, testes, build)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -52,6 +52,8 @@ jobs:
       # Aplica as migrations (prisma migrate deploy) no banco do serviço e roda os e2e.
       - name: Testes e2e
         run: npm run test:e2e -w apps/api
+      - name: Build
+        run: npm run build -w apps/api
 
   web:
     name: Web e tokens (lint, tipos, testes, build)

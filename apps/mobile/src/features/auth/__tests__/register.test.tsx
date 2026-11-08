@@ -109,7 +109,7 @@ describe('cadastro do aluno', () => {
     await fillForm(user, { confirmation: 'outra-senha' });
     await submit(user);
 
-    expect(await screen.findByText('As senhas não conferem')).toBeTruthy();
+    expect(await screen.findByText('A confirmação de senha não confere.')).toBeTruthy();
     expect(register).not.toHaveBeenCalled();
   });
 
@@ -124,10 +124,10 @@ describe('cadastro do aluno', () => {
     await user.type(screen.getByLabelText('Confirmar senha'), '1234567');
     await submit(user);
 
-    expect(await screen.findByText('Informe o código da turma')).toBeTruthy();
-    expect(screen.getByText('Informe seu nome')).toBeTruthy();
+    expect(await screen.findByText('Informe o código da turma.')).toBeTruthy();
+    expect(screen.getByText('Informe seu nome.')).toBeTruthy();
     expect(screen.getByText('Informe um e-mail válido.')).toBeTruthy();
-    expect(screen.getByText('A senha precisa ter pelo menos 8 caracteres.')).toBeTruthy();
+    expect(screen.getByText('A senha deve ter pelo menos 8 caracteres.')).toBeTruthy();
     expect(register).not.toHaveBeenCalled();
   });
 
@@ -136,10 +136,22 @@ describe('cadastro do aluno', () => {
     await renderApp({ initialUrl: '/register' });
 
     expect(screen.getByLabelText('Senha').props.secureTextEntry).toBe(true);
-    await user.press(screen.getAllByRole('button', { name: 'Mostrar senha' })[0]);
+    await user.press(screen.getByRole('button', { name: 'Mostrar senha' }));
 
     expect(screen.getByLabelText('Senha').props.secureTextEntry).toBe(false);
-    expect(screen.getAllByRole('button', { name: 'Ocultar senha' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Ocultar senha' })).toBeTruthy();
+    expect(screen.getByLabelText('Confirmar senha').props.secureTextEntry).toBe(true);
+  });
+
+  it('o botão de mostrar da confirmação tem rótulo próprio', async () => {
+    const user = userEvent.setup();
+    await renderApp({ initialUrl: '/register' });
+
+    await user.press(screen.getByRole('button', { name: 'Mostrar confirmação de senha' }));
+
+    expect(screen.getByLabelText('Confirmar senha').props.secureTextEntry).toBe(false);
+    expect(screen.getByRole('button', { name: 'Ocultar confirmação de senha' })).toBeTruthy();
+    expect(screen.getByLabelText('Senha').props.secureTextEntry).toBe(true);
   });
 
   it('mostra mensagem amigável quando a API está fora do ar', async () => {

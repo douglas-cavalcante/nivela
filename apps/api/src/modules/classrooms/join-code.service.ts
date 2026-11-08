@@ -11,9 +11,14 @@ const MAX_ATTEMPTS = 10;
 export class JoinCodeService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Código digitado pelo usuário → forma canônica (sem espaços, maiúsculas). */
+  /**
+   * Código digitado pelo usuário → forma canônica `NIV-XXXX`: tira todos os
+   * espaços, passa para maiúsculas e põe o hífen depois de `NIV` se faltar
+   * (" niv 4k7q " e "niv4k7q" viram "NIV-4K7Q").
+   */
   static normalize(raw: string): string {
-    return raw.trim().toUpperCase();
+    const compact = raw.replace(/\s+/g, '').toUpperCase();
+    return /^NIV[^-]/.test(compact) ? `NIV-${compact.slice(3)}` : compact;
   }
 
   /** Gera um código `NIV-XXXX` ainda não usado por nenhuma turma. */

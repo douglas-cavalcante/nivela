@@ -17,8 +17,15 @@ describe('JoinCodeService', () => {
     }
   });
 
-  it('normaliza', () => {
-    expect(JoinCodeService.normalize(' niv-4k7q ')).toBe('NIV-4K7Q');
+  it.each([
+    [' niv-4k7q ', 'NIV-4K7Q'],
+    [' niv 4k7q ', 'NIV-4K7Q'],
+    ['niv4k7q', 'NIV-4K7Q'],
+    ['NIV-4K7Q', 'NIV-4K7Q'],
+    ['n i v - 4 k 7 q', 'NIV-4K7Q'],
+    ['\tniv\n4k7q', 'NIV-4K7Q'],
+  ])('normaliza %j em %j', (raw, expected) => {
+    expect(JoinCodeService.normalize(raw)).toBe(expected);
   });
 
   it('tenta de novo se o código já existe', async () => {
