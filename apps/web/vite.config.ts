@@ -10,6 +10,8 @@ export default defineConfig({
   server: { port: 5173 },
   test: {
     environment: 'jsdom',
+    // mesma origem da API: o XHR do jsdom não faz preflight de CORS nos testes com MSW
+    environmentOptions: { jsdom: { url: 'http://localhost:8000' } },
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,
