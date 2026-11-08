@@ -3,7 +3,7 @@
 - **Data:** 2026-11-08
 - **Autor:** Henrique Douglas Cavalcante Costa
 - **Origem:** documento do TCC "Desenvolvimento de um sistema para apoio ao nivelamento estudantil" (set/2024) + sessões de brainstorming
-- **Status:** aguardando revisão
+- **Status:** aprovada · revisão 2 (2026-11-08): backend trocado de Laravel para NestJS
 
 ---
 
@@ -39,7 +39,7 @@ Após a pandemia, 7 em cada 10 alunos do Ensino Médio apresentam nível insufic
 
 ```
 Professor/Admin ──► apps/web (React + MUI) ─┐
-                                            ├─ HTTPS/JSON · Bearer token (Sanctum) ─► apps/api (Laravel 12) ─► PostgreSQL 17
+                                            ├─ HTTPS/JSON · Bearer token ─► apps/api (NestJS 12) ─► PostgreSQL 17
 Aluno ───────────► apps/mobile (Expo)  ─────┘
 packages/design-tokens ──► consumido por web e mobile
 ```
@@ -49,14 +49,14 @@ packages/design-tokens ──► consumido por web e mobile
 ```
 tcc/
 ├── apps/
-│   ├── api/                # Laravel 12 (Composer, fora dos workspaces npm)
+│   ├── api/                # NestJS 12 + Prisma 7
 │   ├── web/                # React + Vite + TS
 │   └── mobile/             # Expo + Expo Router + TS
 ├── packages/
 │   └── design-tokens/      # @nivela/design-tokens (TS puro)
 ├── docs/                   # arquitetura, estrutura de pastas, workflow, requisitos, UML, prints
 ├── docker-compose.yml      # postgres:17-alpine
-├── package.json            # npm workspaces: apps/web, apps/mobile, packages/*
+├── package.json            # npm workspaces: apps/*, packages/*
 ├── .github/workflows/ci.yml
 └── CLAUDE.md               # aponta para docs/
 ```
@@ -65,34 +65,39 @@ Scripts na raiz: `db:up`, `db:down`, `dev:api`, `dev:web`, `dev:mobile`, `lint`,
 
 ### 3.2 API — `apps/api`
 
-- **Laravel 12** (suporte de segurança até fev/2027; o Laravel 13 exige PHP 8.3), PHP 8.2+, PostgreSQL 17 (Docker, porta host 5433).
-- **Autenticação:** Laravel Sanctum com *personal access tokens* (Bearer) para web e mobile. Login informa o canal (`web` | `mobile`) e a API valida o perfil do canal.
-- **Rotas:** prefixo `/api/v1`. Públicas: `POST /auth/login`, `POST /auth/register-student`, `GET /health`. Demais exigem `auth:sanctum`.
-- **Autorização:** middleware de perfil (`role:admin,teacher`) + *Policies* por model (ex.: professor só edita a própria questão e as próprias turmas).
-- **Organização por feature** (mesmos nomes da web e do mobile):
+> Decisão de 2026-11-08: o documento original do TCC previa Laravel; o autor optou por **NestJS**, deixando o monorepo inteiro em TypeScript e seguindo o padrão do backend do projeto Estagius (`Documents/Estagius Migrado/backend_estagius_nest`).
+
+- **NestJS 12** (Node 22, TypeScript 6 — a CLI do Nest 12 fixa `typescript ~6.0`), **Prisma 7** com `@prisma/adapter-pg`, PostgreSQL 17 (Docker, porta host 5433). Workspace npm `apps/api` (`@nivela/api`).
+- **Autenticação:** token opaco do tipo *personal access token* (mesmo conceito do Sanctum): no login a API gera um token aleatório, guarda só o **hash SHA-256** na tabela `access_tokens` e devolve o texto puro uma única vez; o `AuthGuard` global resolve `Authorization: Bearer <token>` pelo hash. Logout apaga o registro (revogação imediata). Senhas com `bcryptjs`. Login informa o canal (`web` | `mobile`) e a API valida o perfil do canal.
+- **Rotas:** prefixo global `/api/v1`, porta 8000. Públicas (decorator `@Public()`): `POST /auth/login`, `POST /auth/register-student`, `GET /health`. Demais exigem token.
+- **Autorização:** `RolesGuard` + decorator `@Roles('admin','teacher')`; regras de posse (professor só edita a própria questão e as próprias turmas) nos *services*, lançando `ForbiddenException`.
+- **Organização por feature** (mesmos nomes da web e do mobile), no modelo do Estagius:
 
 ```
-app/
-├── Modules/
-│   └── <Feature>/                 # ex.: Questions
-│       ├── Controllers/           # finos: validam via Request, delegam ao Service, devolvem Resource
-│       ├── Requests/              # FormRequest (validação + mensagens em pt-BR)
-│       ├── Resources/             # formato do JSON de saída
-│       ├── Models/
-│       ├── Policies/
-│       ├── Services/              # regra de negócio, transações
-│       └── routes.php             # rotas da feature, carregadas pelo RouteServiceProvider
-├── Shared/                        # código usado por mais de uma feature (ex.: CoinLedger, enums)
-└── Support/                       # helpers sem regra de negócio
+src/
+├── modules/<feature>/             # ex.: questions/
+│   ├── dto/                       # class-validator (mensagens em pt-BR)
+│   ├── <feature>.controller.ts    # fino: valida via DTO, delega ao service
+│   ├── <feature>.service.ts       # regra de negócio, transações Prisma
+│   ├── <feature>.service.spec.ts  # unitário com Prisma mockado
+│   └── <feature>.module.ts        # `exports` define o que outras features podem usar
+├── common/                        # guards, decorators, filtros, pipes (sem regra de negócio)
+├── shared/                        # regra de negócio usada por mais de uma feature (ex.: CoinLedger, enums)
+├── prisma/                        # PrismaModule / PrismaService
+├── app.module.ts
+└── main.ts
+prisma/schema.prisma, prisma/migrations/, prisma/seed.ts
+test/*.e2e-spec.ts                 # e2e com supertest contra o banco nivela_test
 ```
 
-  Features: `Auth`, `Users` (professores/admin), `Classrooms`, `Students`, `Subjects`, `Categories`, `Questions`, `Answers`, `LevelingPlans`, `Rewards`, `Dashboard`.
-- **Regras de dependência (Pest arch tests):** uma feature não usa classes internas de outra, exceto Models e Services expostos; `Shared` e `Support` não dependem de `Modules`; controllers não usam `DB::` direto.
-- **Erros:** JSON padronizado `{ message, errors? }`; 422 validação, 401/403 auth, 404, 409 conflito de regra (ex.: saldo insuficiente, estoque zerado).
-- **Paginação:** padrão Laravel (`data`, `meta`, `links`), 15 por página.
-- **Upload de imagens** (questões, prêmios): disco `public`, validação de tipo/tamanho (jpg/png/webp, até 2 MB).
-- **Documentação da API:** Scribe em `/docs`.
-- **Testes:** Pest (feature tests com banco PostgreSQL de teste via `RefreshDatabase`), Pint para formatação.
+  Features: `auth`, `users` (professores/admin), `classrooms`, `students`, `subjects`, `categories`, `questions`, `answers`, `leveling-plans`, `rewards`, `dashboard`.
+- **Regras de dependência (ESLint, como no Estagius):** imports com alias `src/...` (nunca `../`); uma feature não importa arquivos internos de outra — usa o service exportado pelo módulo dela; `common`, `shared` e `prisma` não importam de `src/modules`; controllers não usam `PrismaService`.
+- **Prisma:** models em PascalCase com `@@map`/`@map` para as tabelas e colunas `snake_case` da seção 6. Migrations com `prisma migrate dev` (desenvolvimento) e `prisma migrate deploy` (CI/testes).
+- **Erros:** JSON padronizado `{ message, errors? }` por um filtro global; 422 validação (`errors: { campo: [mensagens] }`), 401/403 auth, 404, 409 conflito de regra (`BusinessRuleException`, ex.: saldo insuficiente, estoque zerado).
+- **Paginação:** `{ data, meta: { page, perPage, total, lastPage } }`, 15 por página.
+- **Upload de imagens** (questões, prêmios): `multer` em disco (`apps/api/uploads/`, servido em `/uploads`), validação de tipo/tamanho (jpg/png/webp, até 2 MB).
+- **Documentação da API:** Swagger (`@nestjs/swagger`) em `/docs`.
+- **Testes:** Jest — unitários dos services com Prisma mockado e **e2e** (supertest) contra o banco `nivela_test`; ESLint + Prettier.
 
 ### 3.3 Web — `apps/web` (professor/admin)
 
@@ -187,7 +192,7 @@ Exporta em TypeScript: paleta (claro/escuro), tipografia, raios, espaçamentos, 
 |---|---|
 | `users` | id, name, email (único), password, role (`admin`/`teacher`/`student`), active, timestamps |
 | `student_profiles` | user_id (PK/FK), coins_balance, current_streak, best_streak, last_study_date |
-| `personal_access_tokens` | (Sanctum) |
+| `access_tokens` | id, user_id → users (cascade), token_hash (SHA-256, único), channel (`web`/`mobile`), last_used_at?, created_at |
 | `classrooms` | id, teacher_id → users, name, school_year, join_code (único), active, timestamps |
 | `classroom_student` | classroom_id, student_id, joined_at — PK composta |
 | `subjects` | id, name (único), color, icon |
@@ -247,10 +252,10 @@ Exporta em TypeScript: paleta (claro/escuro), tipografia, raios, espaçamentos, 
 
 ## 9. Testes e qualidade
 
-- **API (Pest)**: um arquivo de teste por feature cobrindo sucesso, validação e permissão; testes dedicados às RN03–RN12 (incluindo resgate concorrente e reembolso); arch tests das regras de dependência; Pint.
+- **API (Jest)**: e2e (supertest, banco `nivela_test`) por feature cobrindo sucesso, validação e permissão; testes dedicados às RN03–RN12 (incluindo resgate concorrente e reembolso); unitários dos services; ESLint com as regras de dependência; Prettier.
 - **Web (Vitest + MSW)**: login, formulário de questões (validação de 1 correta), montagem de plano, fila de resgates.
 - **Mobile (jest-expo)**: tela de questão + feedback (acerto, erro 1ª, erro 2ª), resgate na loja.
-- **CI** (`.github/workflows/ci.yml`): jobs `api` (serviço PostgreSQL, composer, pint --test, pest), `web` (lint, tsc, vitest, build), `mobile` (lint, tsc, jest).
+- **CI** (`.github/workflows/ci.yml`): jobs `api` (serviço PostgreSQL, `prisma migrate deploy`, lint, tsc, jest unit + e2e), `web` (lint, tsc, vitest, build), `mobile` (lint, tsc, jest).
 - **Definição de pronto**: testes da feature passando, lint e tipos limpos, docs atualizadas quando a feature muda estrutura.
 
 ---
