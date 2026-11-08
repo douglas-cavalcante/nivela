@@ -70,7 +70,7 @@ Scripts na raiz: `db:up`, `db:down`, `dev:api`, `dev:web`, `dev:mobile`, `lint`,
 - **NestJS 12** (Node 22, TypeScript 6 — a CLI do Nest 12 fixa `typescript ~6.0`), **Prisma 7** com `@prisma/adapter-pg`, PostgreSQL 17 (Docker, porta host 5433). Workspace npm `apps/api` (`@nivela/api`).
 - **Autenticação:** token opaco do tipo *personal access token* (mesmo conceito do Sanctum): no login a API gera um token aleatório, guarda só o **hash SHA-256** na tabela `access_tokens` e devolve o texto puro uma única vez; o `AuthGuard` global resolve `Authorization: Bearer <token>` pelo hash. Logout apaga o registro (revogação imediata). Senhas com `bcryptjs`. Login informa o canal (`web` | `mobile`) e a API valida o perfil do canal.
 - **Rotas:** prefixo global `/api/v1`, porta 8000. Públicas (decorator `@Public()`): `POST /auth/login`, `POST /auth/register-student`, `GET /health`. Demais exigem token.
-- **Autorização:** `RolesGuard` + decorator `@Roles('admin','teacher')`; regras de posse (professor só edita a própria questão e as próprias turmas) nos *services*, lançando `ForbiddenException`.
+- **Autorização:** `RolesGuard` + decorator `@Roles('admin','teacher')`; regras de posse nos *services*. Recurso fora do escopo do professor (turma de outro professor, aluno que não é seu) responde **404**, não 403, para não confirmar que ele existe; a exceção é a regra RN02 (só o autor edita a própria questão), que continua **403** (`ForbiddenException`).
 - **Organização por feature** (mesmos nomes da web e do mobile), no modelo do Estagius:
 
 ```
