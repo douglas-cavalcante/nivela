@@ -62,12 +62,12 @@ Se `VITE_API_URL` (web) ou `EXPO_PUBLIC_API_URL` (mobile) não estiver definida,
 
 ## Testes e outros comandos
 
-- `npm run lint` e `npm test`: rodam em todos os workspaces.
+- `npm run lint`, `npm run typecheck`, `npm test` e `npm run build`: rodam em todos os workspaces.
 - `npm run test:e2e -w apps/api`: aplica as migrations no banco `nivela_test` (`prisma migrate deploy`) e roda os testes e2e; entre os testes, as tabelas são esvaziadas (`TRUNCATE`). O banco não é recriado, e o script se recusa a rodar se o banco não terminar em `_test`.
   - Um `DATABASE_URL` exportado no terminal **prevalece** sobre o `apps/api/.env.test` (é assim que o CI aponta para o banco dele). A trava do `_test` protege o banco de desenvolvimento: se o `DATABASE_URL` exportado apontar para `nivela`, os e2e se recusam a rodar.
 - `npm run db:migrate -w apps/api`: cria uma migration nova durante o desenvolvimento (`prisma migrate dev`).
 - `npm run db:down`: para o banco (os dados ficam em `docker/pgdata/`).
-- Os mesmos passos do CI, localmente: `npm ci && npm run lint && npm test && npm run test:e2e -w apps/api`.
+- Os mesmos passos do CI, localmente: `npm ci && npm run lint && npm run typecheck && npm test && npm run test:e2e -w apps/api && npm run build`.
 
 ## Documentação
 

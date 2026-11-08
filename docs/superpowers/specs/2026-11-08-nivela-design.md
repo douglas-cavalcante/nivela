@@ -61,7 +61,7 @@ tcc/
 └── CLAUDE.md               # aponta para docs/
 ```
 
-Scripts na raiz: `db:up`, `db:down`, `dev:api`, `dev:web`, `dev:mobile`, `lint`, `test`.
+Scripts na raiz: `db:up`, `db:down`, `dev:api`, `dev:web`, `dev:mobile`, `lint`, `typecheck`, `test`, `build`.
 
 ### 3.2 API — `apps/api`
 
