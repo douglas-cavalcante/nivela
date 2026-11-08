@@ -8,6 +8,7 @@ import { CategoriesModule } from 'src/modules/categories/categories.module';
 import { ClassroomsModule } from 'src/modules/classrooms/classrooms.module';
 import { HealthModule } from 'src/modules/health/health.module';
 import { SubjectsModule } from 'src/modules/subjects/subjects.module';
+import { TeachersModule } from 'src/modules/teachers/teachers.module';
 import { PrismaModule } from 'src/prisma/prisma.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { PrismaModule } from 'src/prisma/prisma.module';
     ClassroomsModule,
     SubjectsModule,
     CategoriesModule,
+    TeachersModule,
     HealthModule,
   ],
   providers: [
