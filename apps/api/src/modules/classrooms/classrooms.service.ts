@@ -3,6 +3,7 @@ import { hash } from 'bcryptjs';
 import type {
   ApiClassroom,
   ApiClassroomSummary,
+  ApiJoinCode,
   ApiMyClassroom,
   ApiStudent,
   Paginated,
@@ -139,10 +140,7 @@ export class ClassroomsService {
   }
 
   /** Gera outro código; o anterior deixa de valer imediatamente. */
-  async regenerateJoinCode(
-    id: number,
-    user: AuthUser,
-  ): Promise<{ join_code: string }> {
+  async regenerateJoinCode(id: number, user: AuthUser): Promise<ApiJoinCode> {
     await this.assertVisible(id, user);
     try {
       return {

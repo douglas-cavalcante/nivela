@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type {
   ApiClassroom,
   ApiClassroomSummary,
+  ApiJoinCode,
   ApiStudent,
   Paginated,
 } from '@nivela/api-contract';
@@ -75,7 +76,7 @@ export class ClassroomsController {
   regenerateJoinCode(
     @Param('id', classroomId()) id: number,
     @CurrentUser() user: AuthUser,
-  ): Promise<{ join_code: string }> {
+  ): Promise<ApiJoinCode> {
     return this.classrooms.regenerateJoinCode(id, user);
   }
 

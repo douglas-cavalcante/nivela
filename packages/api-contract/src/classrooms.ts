@@ -32,3 +32,8 @@ export interface ApiMyClassroom {
   teacher: { name: string };
   joined_at: string;
 }
+
+/** Resposta de `POST /classrooms/:id/join-code` (código novo). */
+export interface ApiJoinCode {
+  join_code: string;
+}

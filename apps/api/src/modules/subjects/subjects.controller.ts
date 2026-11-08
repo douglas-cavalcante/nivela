@@ -9,7 +9,7 @@ import {
   Put,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import type { ApiSubject } from '@nivela/api-contract';
+import type { ApiList, ApiSubject } from '@nivela/api-contract';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { ParseIdPipe } from 'src/common/pipes/parse-id.pipe';
 import { SubjectDto } from 'src/modules/subjects/dto/subject.dto';
@@ -26,7 +26,7 @@ export class SubjectsController {
 
   @Roles(Role.Admin, Role.Teacher)
   @Get()
-  async list(): Promise<{ data: ApiSubject[] }> {
+  async list(): Promise<ApiList<ApiSubject>> {
     return { data: await this.subjects.list() };
   }
 

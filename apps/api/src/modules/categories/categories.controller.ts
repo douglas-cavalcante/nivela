@@ -10,7 +10,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import type { ApiCategory } from '@nivela/api-contract';
+import type { ApiCategory, ApiList } from '@nivela/api-contract';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { ParseIdPipe } from 'src/common/pipes/parse-id.pipe';
 import { CategoriesService } from 'src/modules/categories/categories.service';
@@ -33,7 +33,7 @@ export class CategoriesController {
   @Get()
   async list(
     @Query() query: ListCategoriesQueryDto,
-  ): Promise<{ data: ApiCategory[] }> {
+  ): Promise<ApiList<ApiCategory>> {
     return { data: await this.categories.list(query.subject_id) };
   }
 

@@ -1,5 +1,12 @@
 import type { AxiosResponse } from 'axios';
-import type { ApiQuestion, ApiQuestionSummary, Difficulty, Paginated, QuestionPayload } from '@nivela/api-contract';
+import type {
+  ApiImageUpload,
+  ApiQuestion,
+  ApiQuestionSummary,
+  Difficulty,
+  Paginated,
+  QuestionPayload,
+} from '@nivela/api-contract';
 import api from 'src/lib/axios';
 
 export interface ListQuestionsParams {
@@ -30,10 +37,10 @@ export const setQuestionStatus = (id: number, active: boolean): Promise<AxiosRes
   api.patch<ApiQuestion>(`/questions/${id}/status`, { active });
 
 /** Multipart com o arquivo no campo `image` (o navegador define o Content-Type com o boundary). */
-export const uploadQuestionImage = (id: number, file: File): Promise<AxiosResponse<{ image_url: string }>> => {
+export const uploadQuestionImage = (id: number, file: File): Promise<AxiosResponse<ApiImageUpload>> => {
   const body = new FormData();
   body.append('image', file);
-  return api.post<{ image_url: string }>(`/questions/${id}/image`, body);
+  return api.post<ApiImageUpload>(`/questions/${id}/image`, body);
 };
 
 export const deleteQuestionImage = (id: number): Promise<AxiosResponse<void>> =>

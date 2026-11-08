@@ -1,11 +1,11 @@
 import type { AxiosResponse } from 'axios';
-import type { ApiCategory } from '@nivela/api-contract';
+import type { ApiCategory, ApiList } from '@nivela/api-contract';
 import api from 'src/lib/axios';
 
 export const listCategories = (
   params: { subject_id?: number },
   signal?: AbortSignal,
-): Promise<AxiosResponse<{ data: ApiCategory[] }>> => api.get<{ data: ApiCategory[] }>('/categories', { params, signal });
+): Promise<AxiosResponse<ApiList<ApiCategory>>> => api.get<ApiList<ApiCategory>>('/categories', { params, signal });
 
 export const createCategory = (data: { name: string; subject_id: number }): Promise<AxiosResponse<ApiCategory>> =>
   api.post<ApiCategory>('/categories', data);

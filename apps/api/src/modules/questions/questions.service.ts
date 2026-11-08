@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type {
+  ApiImageUpload,
   ApiQuestion,
   ApiQuestionSummary,
   Paginated,
@@ -163,7 +164,7 @@ export class QuestionsService {
     id: number,
     file: UploadedImage | undefined,
     user: AuthUser,
-  ): Promise<{ image_url: string }> {
+  ): Promise<ApiImageUpload> {
     const question = await this.load(id);
     this.assertCanEdit(question, user);
     const kind = this.images.validate(file);

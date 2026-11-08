@@ -34,6 +34,11 @@ export interface ApiQuestion
   created_at: string;
 }
 
+/** Resposta de `POST /questions/:id/image` (caminho relativo à raiz, como em `ApiQuestion.image_url`). */
+export interface ApiImageUpload {
+  image_url: string;
+}
+
 /** Corpo de `POST /questions` e `PUT /questions/:id`. */
 export interface QuestionPayload {
   subject_id: number;
