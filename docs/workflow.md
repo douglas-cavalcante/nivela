@@ -35,7 +35,7 @@ Publicação no GitHub (repositório público) apenas com autorização explíci
 Uma feature está pronta quando:
 
 1. os testes da feature passam (API: Jest; web: Vitest; mobile: jest-expo);
-2. lint e checagem de tipos estão limpos (`npm run lint` e `tsc --noEmit`, que na API é `npm run typecheck -w apps/api`);
+2. lint e checagem de tipos estão limpos (`npm run lint` e `npm run typecheck`, na raiz ou em cada workspace);
 3. a documentação foi atualizada quando a feature muda a estrutura (`docs/estruturaDePastas.md`, `docs/architecture.md`).
 
 ## Testes e CI
@@ -43,8 +43,8 @@ Uma feature está pronta quando:
 - **API (Jest + supertest):** testes unitários dos services (`*.spec.ts`, Prisma mockado) e e2e por feature (`test/*.e2e-spec.ts`, banco `nivela_test`) cobrindo sucesso, validação e permissão; testes dedicados às regras de negócio; ESLint com as regras de dependência entre features; Prettier.
 - **Web (Vitest + MSW)** e **Mobile (jest-expo)**: testes das telas e fluxos principais.
 - **CI** (`.github/workflows/ci.yml`, GitHub Actions): roda em `push` para `develop`/`main` e em todo `pull_request`; uma execução nova da mesma branch cancela a anterior. Cada job usa Node 22 e `npm ci` na raiz:
-  - `api`: serviço `postgres:17-alpine` (banco `nivela_test`, porta 5432, `DATABASE_URL` definido no job e prevalecendo sobre o `apps/api/.env.test`), com `lint`, `typecheck`, `test` (unitários) e `test:e2e` (aplica `prisma migrate deploy` e roda os e2e);
+  - `api`: serviço `postgres:17-alpine` (banco `nivela_test`, porta 5432, `DATABASE_URL` definido no job e prevalecendo sobre o `apps/api/.env.test`), com `lint`, `typecheck`, `test` (unitários), `test:e2e` (aplica `prisma migrate deploy` e roda os e2e) e `build`;
   - `web`: `typecheck` e `test` de `packages/design-tokens`, depois `lint`, `typecheck`, `test` e `build` do `apps/web`;
   - `mobile`: `lint`, `typecheck` e `test` do `apps/mobile`.
-  Para reproduzir localmente: `npm ci && npm run lint && npm test && npm run test:e2e -w apps/api`. O selo do CI no README é adicionado depois do primeiro push, quando o repositório no GitHub existir.
-- Na raiz: `npm run lint` e `npm run test` rodam os scripts de todos os workspaces.
+  Para reproduzir localmente: `npm ci && npm run lint && npm run typecheck && npm test && npm run test:e2e -w apps/api && npm run build`. O selo do CI no README é adicionado depois do primeiro push, quando o repositório no GitHub existir.
+- Na raiz: `npm run lint`, `npm run typecheck`, `npm run test` e `npm run build` rodam os scripts de todos os workspaces que os têm (`--if-present`).
