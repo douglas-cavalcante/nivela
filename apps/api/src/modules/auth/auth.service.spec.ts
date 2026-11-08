@@ -5,6 +5,7 @@ import { AuthService } from 'src/modules/auth/auth.service';
 import { LoginDto } from 'src/modules/auth/dto/login.dto';
 import { RegisterStudentDto } from 'src/modules/auth/dto/register-student.dto';
 import { TokenService } from 'src/modules/auth/token.service';
+import { ClassroomsService } from 'src/modules/classrooms/classrooms.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
 
@@ -30,9 +31,11 @@ describe('AuthService', () => {
     user: { findUnique },
     $transaction: transaction,
   } as unknown as PrismaService;
-  const service = new AuthService(prisma, {
-    issue,
-  } as unknown as TokenService);
+  const service = new AuthService(
+    prisma,
+    { issue } as unknown as TokenService,
+    { findJoinable: jest.fn() } as unknown as ClassroomsService,
+  );
 
   const loginDto = (overrides: Partial<LoginDto> = {}): LoginDto => ({
     email: 'ana@escola.com',

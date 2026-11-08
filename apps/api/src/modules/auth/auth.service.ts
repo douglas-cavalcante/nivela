@@ -5,13 +5,14 @@ import { LoginDto } from 'src/modules/auth/dto/login.dto';
 import { RegisterStudentDto } from 'src/modules/auth/dto/register-student.dto';
 import { presentUser } from 'src/modules/auth/presenters/user.presenter';
 import { TokenService } from 'src/modules/auth/token.service';
+import { ClassroomsService } from 'src/modules/classrooms/classrooms.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { ApiUser } from '@nivela/api-contract';
 import { Role } from 'src/shared/enums/role.enum';
 import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
 import { isUniqueViolation } from 'src/shared/prisma/unique-violation';
+import { BCRYPT_COST } from 'src/shared/security/password';
 
-const BCRYPT_COST = 10;
 // Hash de uma senha qualquer, comparado quando o e-mail não existe para que o
 // tempo de resposta não revele se o e-mail está cadastrado.
 const DUMMY_HASH = hashSync('nivela-dummy', BCRYPT_COST);
@@ -31,6 +32,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokens: TokenService,
+    private readonly classrooms: ClassroomsService,
   ) {}
 
   async login(dto: LoginDto): Promise<AuthResult> {
@@ -68,20 +70,7 @@ export class AuthService {
       return await this.prisma.$transaction(async (tx) => {
         // O código da turma é checado primeiro: sem um código válido, a
         // resposta não diz se o e-mail já existe (evita descobrir e-mails).
-        const classroom = await tx.classroom.findUnique({
-          where: { joinCode: dto.join_code },
-          select: { id: true, active: true },
-        });
-        if (!classroom) {
-          throw new FieldValidationException({
-            join_code: ['Código de turma inválido.'],
-          });
-        }
-        if (!classroom.active) {
-          throw new FieldValidationException({
-            join_code: ['Esta turma não está aceitando novos alunos.'],
-          });
-        }
+        const classroom = await this.classrooms.findJoinable(dto.join_code, tx);
 
         const emailTaken = await tx.user.findUnique({
           where: { email: dto.email },

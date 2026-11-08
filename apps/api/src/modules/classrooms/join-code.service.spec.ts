@@ -1,19 +1,41 @@
+import { Prisma } from 'src/generated/prisma/client';
 import { JoinCodeService } from 'src/modules/classrooms/join-code.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 
+const CODE = /^NIV-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/;
+
+function collision(constraint = 'classrooms_join_code_key') {
+  return new Prisma.PrismaClientKnownRequestError('duplicado', {
+    code: 'P2002',
+    clientVersion: 'teste',
+    meta: {
+      modelName: 'Classroom',
+      driverAdapterError: {
+        name: 'DriverAdapterError',
+        cause: {
+          kind: 'UniqueConstraintViolation',
+          constraint: { index: constraint },
+          table: 'classrooms',
+        },
+      },
+    },
+  });
+}
+
 describe('JoinCodeService', () => {
-  const makeService = (findUnique: jest.Mock) =>
-    new JoinCodeService({
-      classroom: { findUnique },
-    } as unknown as PrismaService);
+  const create = jest.fn();
+  const update = jest.fn();
+  const service = new JoinCodeService({
+    classroom: { create, update },
+  } as unknown as PrismaService);
 
-  it('gera no formato NIV-XXXX sem caracteres ambíguos', async () => {
-    const service = makeService(jest.fn().mockResolvedValue(null));
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
 
+  it('gera no formato NIV-XXXX sem caracteres ambíguos', () => {
     for (let i = 0; i < 50; i += 1) {
-      expect(await service.generate()).toMatch(
-        /^NIV-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/,
-      );
+      expect(JoinCodeService.randomCode()).toMatch(CODE);
     }
   });
 
@@ -28,22 +50,95 @@ describe('JoinCodeService', () => {
     expect(JoinCodeService.normalize(raw)).toBe(expected);
   });
 
-  it('tenta de novo se o código já existe', async () => {
-    const findUnique = jest
-      .fn()
-      .mockResolvedValueOnce({ id: 1 })
-      .mockResolvedValueOnce(null);
-    const service = makeService(findUnique);
+  describe('createWithUniqueCode', () => {
+    it('grava a turma com um código gerado', async () => {
+      create.mockImplementation(({ data }: { data: { joinCode: string } }) =>
+        Promise.resolve({ id: 1, ...data }),
+      );
 
-    const code = await service.generate();
+      const classroom = await service.createWithUniqueCode({
+        teacherId: 3,
+        name: '9º A',
+      });
 
-    expect(code).toMatch(/^NIV-/);
-    expect(findUnique).toHaveBeenCalledTimes(2);
+      expect(classroom.joinCode).toMatch(CODE);
+      expect(create).toHaveBeenCalledTimes(1);
+      expect(create).toHaveBeenCalledWith({
+        data: { teacherId: 3, name: '9º A', joinCode: classroom.joinCode },
+      });
+    });
+
+    it('tenta de novo quando o código colide (P2002) e grava na terceira tentativa', async () => {
+      create
+        .mockRejectedValueOnce(collision())
+        .mockRejectedValueOnce(collision())
+        .mockResolvedValueOnce({ id: 1, joinCode: 'NIV-OK23' });
+
+      const classroom = await service.createWithUniqueCode({
+        teacherId: 3,
+        name: '9º A',
+      });
+
+      expect(classroom).toEqual({ id: 1, joinCode: 'NIV-OK23' });
+      expect(create).toHaveBeenCalledTimes(3);
+      const codes = create.mock.calls.map(
+        ([arg]: [{ data: { joinCode: string } }]) => arg.data.joinCode,
+      );
+      codes.forEach((code: string) => expect(code).toMatch(CODE));
+    });
+
+    it('desiste depois de 10 colisões', async () => {
+      create.mockRejectedValue(collision());
+
+      await expect(
+        service.createWithUniqueCode({ teacherId: 3, name: '9º A' }),
+      ).rejects.toThrow('Não foi possível gerar um código de turma único.');
+      expect(create).toHaveBeenCalledTimes(10);
+    });
+
+    it('não engole outros erros nem outras colisões', async () => {
+      const other = collision('users_email_key');
+      create.mockRejectedValueOnce(other);
+
+      await expect(
+        service.createWithUniqueCode({ teacherId: 3, name: '9º A' }),
+      ).rejects.toBe(other);
+      expect(create).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('desiste depois de muitas colisões', async () => {
-    const service = makeService(jest.fn().mockResolvedValue({ id: 1 }));
+  describe('regenerate', () => {
+    it('troca o código da turma e devolve o novo', async () => {
+      update.mockImplementation(({ data }: { data: { joinCode: string } }) =>
+        Promise.resolve({ id: 5, joinCode: data.joinCode }),
+      );
 
-    await expect(service.generate()).rejects.toThrow();
+      const code = await service.regenerate(5);
+
+      expect(code).toMatch(CODE);
+      expect(update).toHaveBeenCalledWith({
+        where: { id: 5 },
+        data: { joinCode: code },
+        select: { joinCode: true },
+      });
+    });
+
+    it('tenta de novo quando o código colide', async () => {
+      update
+        .mockRejectedValueOnce(collision())
+        .mockResolvedValueOnce({ joinCode: 'NIV-OK23' });
+
+      await expect(service.regenerate(5)).resolves.toBe('NIV-OK23');
+      expect(update).toHaveBeenCalledTimes(2);
+    });
+
+    it('desiste depois de 10 colisões', async () => {
+      update.mockRejectedValue(collision());
+
+      await expect(service.regenerate(5)).rejects.toThrow(
+        'Não foi possível gerar um código de turma único.',
+      );
+      expect(update).toHaveBeenCalledTimes(10);
+    });
   });
 });

@@ -9,7 +9,9 @@ import { AuthLayout } from 'src/app/layouts/AuthLayout';
 import { ProtectedRoute } from 'src/app/routes/ProtectedRoute';
 import { Login, Profile } from 'src/features/auth';
 import { CategoryList } from 'src/features/categories';
+import { ClassroomDetail, ClassroomList } from 'src/features/classrooms';
 import { QuestionForm, QuestionList } from 'src/features/questions';
+import { StudentDetail, StudentList } from 'src/features/students';
 import { SubjectList } from 'src/features/subjects';
 import { TeacherList } from 'src/features/teachers';
 
@@ -39,7 +41,7 @@ function page(element: ReactNode) {
 }
 
 // As rotas das features entram aqui conforme forem construídas; até lá, "Em breve".
-const implemented = ['/', '/questoes', '/disciplinas', '/categorias', '/professores'];
+const implemented = ['/', '/questoes', '/disciplinas', '/categorias', '/turmas', '/alunos', '/professores'];
 const placeholders = menuItems.filter((item) => !implemented.includes(item.path));
 
 export function AppRoutes() {
@@ -58,6 +60,10 @@ export function AppRoutes() {
           <Route path="/questoes/:id" element={page(<QuestionForm />)} />
           <Route path="/disciplinas" element={page(<SubjectList />)} />
           <Route path="/categorias" element={page(<CategoryList />)} />
+          <Route path="/turmas" element={page(<ClassroomList />)} />
+          <Route path="/turmas/:id" element={page(<ClassroomDetail />)} />
+          <Route path="/alunos" element={page(<StudentList />)} />
+          <Route path="/alunos/:id" element={page(<StudentDetail />)} />
           {placeholders
             .filter((item) => item.roles.includes('teacher'))
             .map((item) => (

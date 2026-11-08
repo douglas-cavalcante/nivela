@@ -1,10 +1,11 @@
 import { radius, spacing } from '@nivela/design-tokens';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { AppText } from 'src/components/AppText';
 import { Button } from 'src/components/Button';
 import { PaperBackground } from 'src/components/PaperBackground';
 import { PenCard } from 'src/components/PenCard';
+import { MyClassroomsCard } from 'src/features/classrooms';
 import { useAuth } from 'src/lib/auth/AuthContext';
 import { useTheme } from 'src/lib/theme/useTheme';
 import type { Role } from '@nivela/api-contract';
@@ -34,7 +35,7 @@ export function Profile() {
 
   return (
     <PaperBackground>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <AppText variant="heading" size={40}>
           Perfil
         </AppText>
@@ -56,14 +57,15 @@ export function Profile() {
             </AppText>
           </View>
         </PenCard>
+        {user.role === 'student' ? <MyClassroomsCard /> : null}
         <Button title={leaving ? 'Saindo…' : 'Sair'} variant="outline" loading={leaving} onPress={leave} />
-      </View>
+      </ScrollView>
     </PaperBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { flex: 1, gap: spacing(5), padding: spacing(5) },
+  content: { gap: spacing(5), padding: spacing(5) },
   card: { alignItems: 'center', gap: spacing(2) },
   center: { textAlign: 'center' },
   avatar: {

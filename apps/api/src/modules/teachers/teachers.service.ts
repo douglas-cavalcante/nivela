@@ -17,11 +17,11 @@ import {
   RECORD_NOT_FOUND,
 } from 'src/shared/prisma/prisma-error';
 import { isUniqueViolation } from 'src/shared/prisma/unique-violation';
+import { BCRYPT_COST } from 'src/shared/security/password';
 
 const NOT_FOUND = 'Professor não encontrado.';
 const EMAIL_TAKEN = 'Este e-mail já está cadastrado.';
 const EMAIL_UNIQUE_CONSTRAINT = 'users_email_key';
-const BCRYPT_COST = 10;
 
 const WITH_COUNT = { _count: { select: { classrooms: true } } } as const;
 
