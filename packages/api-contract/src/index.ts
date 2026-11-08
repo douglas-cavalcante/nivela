@@ -11,3 +11,10 @@ export type {
   OptionLetter,
   QuestionPayload,
 } from './questions';
+export type {
+  ApiClassroom,
+  ApiClassroomStudent,
+  ApiClassroomSummary,
+  ApiMyClassroom,
+} from './classrooms';
+export type { ApiStudent, ApiStudentSummary } from './students';
