@@ -65,7 +65,7 @@ Scripts na raiz: `db:up`, `db:down`, `dev:api`, `dev:web`, `dev:mobile`, `lint`,
 
 ### 3.2 API — `apps/api`
 
-- **Laravel 12**, PHP 8.2+, PostgreSQL 17 (Docker, porta host 5433).
+- **Laravel 12** (suporte de segurança até fev/2027; o Laravel 13 exige PHP 8.3), PHP 8.2+, PostgreSQL 17 (Docker, porta host 5433).
 - **Autenticação:** Laravel Sanctum com *personal access tokens* (Bearer) para web e mobile. Login informa o canal (`web` | `mobile`) e a API valida o perfil do canal.
 - **Rotas:** prefixo `/api/v1`. Públicas: `POST /auth/login`, `POST /auth/register-student`, `GET /health`. Demais exigem `auth:sanctum`.
 - **Autorização:** middleware de perfil (`role:admin,teacher`) + *Policies* por model (ex.: professor só edita a própria questão e as próprias turmas).
@@ -96,7 +96,7 @@ app/
 
 ### 3.3 Web — `apps/web` (professor/admin)
 
-- Vite, React 19, TypeScript estrito, **Material UI v7**, React Router 7, Axios, react-hook-form + zod, Recharts.
+- Vite, React 19, TypeScript estrito, **Material UI v9**, React Router 8, Axios, react-hook-form + zod, Recharts.
 - Estrutura por feature (modelo do projeto Estagius / bulletproof-react):
 
 ```
@@ -116,7 +116,7 @@ src/
 
 ### 3.4 Mobile — `apps/mobile` (aluno)
 
-- Expo (SDK estável mais recente), **Expo Router**, TypeScript estrito, Axios, `expo-secure-store` (token), `react-native-reanimated` (microanimações), `react-native-svg` (mascote), fontes Caveat + Nunito (`@expo-google-fonts`).
+- Expo SDK 58, **Expo Router**, TypeScript estrito, Axios, `expo-secure-store` (token), `react-native-reanimated` (microanimações), `react-native-svg` (mascote), fontes Caveat + Nunito (`@expo-google-fonts`).
 - Rotas em `app/` (Expo Router): `(auth)/welcome`, `(auth)/login`, `(auth)/register`, `(tabs)/index`, `(tabs)/study`, `(tabs)/store`, `(tabs)/profile`, `plans/[id]`, `questions/[id]`.
 - Lógica em `src/features/<feature>/` com a mesma anatomia e as mesmas regras de import da web.
 - Testes: jest-expo + Testing Library.
