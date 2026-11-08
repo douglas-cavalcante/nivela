@@ -8,3 +8,92 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum Role {
+  admin
+  teacher
+  student
+
+  @@map("role")
+}
+
+enum TokenChannel {
+  web
+  mobile
+
+  @@map("token_channel")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(120)
+  email     String   @unique @db.VarChar(190)
+  password  String   @db.VarChar(100)
+  role      Role     @default(student)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  studentProfile StudentProfile?
+  accessTokens   AccessToken[]
+  classrooms     Classroom[]
+  enrollments    ClassroomStudent[]
+
+  @@map("users")
+}
+
+model StudentProfile {
+  userId        Int       @id @map("user_id")
+  coinsBalance  Int       @default(0) @map("coins_balance")
+  currentStreak Int       @default(0) @map("current_streak")
+  bestStreak    Int       @default(0) @map("best_streak")
+  lastStudyDate DateTime? @map("last_study_date") @db.Date
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("student_profiles")
+}
+
+model AccessToken {
+  id         Int          @id @default(autoincrement())
+  userId     Int          @map("user_id")
+  tokenHash  String       @unique @map("token_hash") @db.Char(64)
+  channel    TokenChannel
+  lastUsedAt DateTime?    @map("last_used_at")
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("access_tokens")
+}
+
+model Classroom {
+  id         Int      @id @default(autoincrement())
+  teacherId  Int      @map("teacher_id")
+  name       String   @db.VarChar(120)
+  schoolYear String?  @map("school_year") @db.VarChar(40)
+  joinCode   String   @unique @map("join_code") @db.VarChar(8)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  teacher  User               @relation(fields: [teacherId], references: [id])
+  students ClassroomStudent[]
+
+  @@index([teacherId])
+  @@map("classrooms")
+}
+
+model ClassroomStudent {
+  classroomId Int      @map("classroom_id")
+  studentId   Int      @map("student_id")
+  joinedAt    DateTime @default(now()) @map("joined_at")
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  student   User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([classroomId, studentId])
+  @@index([studentId])
+  @@map("classroom_student")
+}
