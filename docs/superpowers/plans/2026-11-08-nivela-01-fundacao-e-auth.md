@@ -2,11 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Monorepo funcionando com API Laravel, painel web e app Expo integrados, identidade "Caderno Vivo" aplicada e login/cadastro de ponta a ponta para os três perfis.
+**Goal:** Monorepo funcionando com API NestJS, painel web e app Expo integrados, identidade "Caderno Vivo" aplicada e login/cadastro de ponta a ponta para os três perfis.
 
-**Architecture:** npm workspaces (`apps/web`, `apps/mobile`, `packages/*`) + `apps/api` em Composer. Web e mobile consomem `@nivela/design-tokens` (TS puro, sem build). API REST `/api/v1` com Sanctum Bearer; código por feature em `app/Modules/<Feature>`.
+**Architecture:** npm workspaces (`apps/*`, `packages/*`). Web e mobile consomem `@nivela/design-tokens` (TS puro, sem build). API REST `/api/v1` com token Bearer opaco (hash em `access_tokens`); código por feature em `src/modules/<feature>`, no modelo do backend do Estagius.
 
-**Tech Stack:** Laravel 12.x (PHP 8.2), Sanctum, Pest 3, Scribe, PostgreSQL 17 (Docker) · React 19 + Vite 8 + TS + MUI 9 + React Router 8 + Axios + react-hook-form + zod + Vitest + MSW · Expo SDK 58 + Expo Router + expo-secure-store + react-native-svg + jest-expo.
+> **Revisão 2 (2026-11-08):** o usuário trocou o backend de Laravel 12 para **NestJS 12 + Prisma 7**. Tasks 1 e 2 já estavam concluídas; as Tasks 3, 6 e 9 e as Global Constraints foram reescritas. A Task 3 também atualiza os docs/README/package.json criados na Task 1.
+
+**Tech Stack:** NestJS 12 (Node 22, TypeScript ~6.0), Prisma 7 + `@prisma/adapter-pg`, class-validator, bcryptjs, Jest + supertest, Swagger, PostgreSQL 17 (Docker) · React 19 + Vite 8 + TS + MUI 9 + React Router 8 + Axios + react-hook-form + zod + Vitest + MSW · Expo SDK 58 + Expo Router + expo-secure-store + react-native-svg + jest-expo.
 
 **Spec:** `docs/superpowers/specs/2026-11-08-nivela-design.md`
 
@@ -24,10 +26,10 @@ Este é o plano 1 de 5. Cada plano seguinte é escrito **depois** que o anterior
 
 ## Global Constraints
 
-- Ambiente: Windows 11, comandos em Git Bash; PHP 8.2.12 (XAMPP, `pdo_pgsql` habilitado), Composer 2.6, Node 22, npm 10. **Docker Desktop precisa estar aberto** antes da Task 1.
-- Laravel `^12.0` (não 13 — exige PHP 8.3). Pest `^3.8` (Pest 4/5 exigem PHP ≥ 8.3/8.4).
+- Ambiente: Windows 11, comandos em Git Bash; Node 22, npm 10. **Docker Desktop precisa estar aberto** antes da Task 1.
+- API: NestJS `^12`, Prisma `^7` (não usar o 8, ainda em RC), TypeScript `~6.0` **só no workspace da API** (a CLI do Nest 12 exige; web, mobile e tokens podem usar o TS 7). Testes da API com Jest (+ supertest no e2e).
 - Banco: `postgres:17-alpine`, porta host **5433**, usuário/senha `nivela`/`nivela`, bancos `nivela` e `nivela_test`.
-- API em `http://localhost:8000/api/v1` (`php artisan serve --host=0.0.0.0 --port=8000`).
+- API em `http://localhost:8000/api/v1` (`npm run start:dev -w apps/api`, escutando em `0.0.0.0:8000`).
 - TypeScript estrito; sem `any` explícito; imports que saem da pasta usam alias `src/`.
 - Cores só via tokens/tema — nenhum hex fora de `packages/design-tokens`.
 - Textos de interface e mensagens de erro da API em **português do Brasil**.
@@ -132,46 +134,48 @@ Este é o plano 1 de 5. Cada plano seguinte é escrito **depois** que o anterior
 
 ---
 
-### Task 3: Fundação da API
+### Task 3: Fundação da API (NestJS)
 
 **Branch:** `feature/api-foundation`
 
 **Files:**
-- Create: `apps/api/` via `composer create-project laravel/laravel:^12.0 apps/api`
-- Create: `app/Support/Http/Middleware/EnsureRole.php`, `app/Shared/Enums/Role.php`, `app/Shared/Exceptions/BusinessRuleException.php`, `app/Modules/System/Controllers/HealthController.php`, `app/Modules/System/routes.php`
-- Modify: `routes/api.php`, `bootstrap/app.php`, `.env.example`, `phpunit.xml`, `config/database.php` (default `pgsql`), `lang/pt_BR/*` (via `laravel-lang/common` ou arquivos próprios), `config/app.php` (`locale=pt_BR`, `timezone=America/Fortaleza`)
-- Test: `tests/Feature/System/HealthTest.php`, `tests/Arch/ModulesTest.php`
+- Create: `apps/api/` via `npx @nestjs/cli@12 new api --directory apps/api --package-manager npm --skip-git --strict` (depois ajustar `package.json`: `"name": "@nivela/api"`, `"private": true`; remover o `package-lock.json` interno — o lock é o da raiz)
+- Create: `src/prisma/prisma.module.ts`, `src/prisma/prisma.service.ts`, `prisma/schema.prisma` (só `datasource`/`generator` nesta task), `prisma.config.ts` (se exigido pelo Prisma 7), `src/common/filters/http-exception.filter.ts`, `src/common/pipes/validation.pipe.ts` (factory), `src/common/decorators/public.decorator.ts`, `src/common/decorators/roles.decorator.ts`, `src/common/guards/roles.guard.ts`, `src/shared/enums/role.enum.ts`, `src/shared/exceptions/business-rule.exception.ts`, `src/modules/health/health.controller.ts`, `src/modules/health/health.module.ts`, `src/app.module.ts`, `src/main.ts`, `src/app.factory.ts`, `.env.example`, `.env.test`, `test/jest-e2e.json`, `test/helpers/create-test-app.ts`, `scripts/test-db-reset.js`
+- Modify (docs da Task 1, que ainda falam de Laravel): `package.json` raiz (`workspaces: ["apps/*", "packages/*"]`, `dev:api` → `npm run start:dev -w apps/api`, `description`), `README.md`, `CLAUDE.md`, `docs/architecture.md`, `docs/estruturaDePastas.md`, `docs/workflow.md` — tudo conforme a spec §3.2 revisada (NestJS 12, Prisma 7, token opaco, Jest, Swagger, regras de import por ESLint). Aproveitar e registrar em `docs/workflow.md` que todo commit termina com o trailer `Co-Authored-By` (minor deferido da Task 1).
+- Test: `src/modules/health/health.controller.spec.ts`, `test/health.e2e-spec.ts`, `test/errors.e2e-spec.ts`
 
 **Interfaces:**
 - Produces:
-  - `routes/api.php`: `Route::prefix('v1')->group(fn () => collect(glob(app_path('Modules/*/routes.php')))->each(fn ($f) => require $f));` — cada feature registra suas rotas em `app/Modules/<Feature>/routes.php`.
-  - `enum App\Shared\Enums\Role: string { case Admin = 'admin'; case Teacher = 'teacher'; case Student = 'student'; }`
-  - Middleware alias `role` → `EnsureRole::handle($request, $next, string ...$roles)`; 403 `{"message":"Você não tem permissão para acessar este recurso."}`.
-  - `BusinessRuleException(string $message)` → renderiza `409 {"message": $message}` (registrado em `bootstrap/app.php` → `withExceptions`).
-  - Todas as respostas de erro em JSON para rotas `api/*` (`shouldRenderJsonWhen`).
-  - `GET /api/v1/health` → `200 {"status":"ok"}`.
-- `.env.example`: `DB_CONNECTION=pgsql`, `DB_PORT=5433`, `DB_DATABASE=nivela`, `DB_USERNAME=nivela`, `DB_PASSWORD=nivela`, `APP_LOCALE=pt_BR`, `ADMIN_NAME="Administrador"`, `ADMIN_EMAIL=admin@nivela.test`, `ADMIN_PASSWORD=nivela123`. `phpunit.xml`: `DB_DATABASE=nivela_test`.
+  - `src/app.factory.ts`: `configureApp(app: INestApplication): INestApplication` — aplica `setGlobalPrefix('api/v1')`, `ValidationPipe` global (whitelist, transform, `exceptionFactory` → 422), `HttpExceptionFilter` global, CORS liberado (origens de dev), Swagger em `/docs`. `main.ts` e os testes e2e usam a mesma função.
+  - Formato de erro (filtro global, todas as exceções): `{ "message": string, "errors"?: Record<string, string[]> }`. Validação → **422** `{ message: "Os dados enviados são inválidos.", errors: { campo: ["mensagem"] } }`; 404 de rota → `{ message: "Recurso não encontrado." }`; 500 → `{ message: "Erro interno do servidor." }` (sem stack).
+  - `enum Role { Admin = 'admin', Teacher = 'teacher', Student = 'student' }` em `src/shared/enums/role.enum.ts`.
+  - `@Public()` (metadata `isPublic`) e `@Roles(...roles: Role[])`; `RolesGuard` lê `request.user.role` e responde 403 `{ message: "Você não tem permissão para acessar este recurso." }`. (O `AuthGuard` global vem na Task 6; nesta task o `RolesGuard` já existe e é testado isoladamente.)
+  - `class BusinessRuleException extends HttpException` → **409** `{ message }`.
+  - `PrismaService extends PrismaClient` com `@prisma/adapter-pg` (connection string de `DATABASE_URL`), `onModuleInit` conecta; `PrismaModule` `@Global()`.
+  - `GET /api/v1/health` (`@Public()`) → `200 { "status": "ok" }`.
+  - `.env.example`: `PORT=8000`, `DATABASE_URL=postgresql://nivela:nivela@localhost:5433/nivela`, `TZ=America/Fortaleza`, `ADMIN_NAME="Administrador"`, `ADMIN_EMAIL=admin@nivela.test`, `ADMIN_PASSWORD=nivela123`. `.env.test`: mesmo, com banco `nivela_test`.
+  - Scripts do workspace: `build`, `start:dev`, `lint` (`eslint "{src,test}/**/*.ts"`), `typecheck` (`tsc --noEmit`), `test` (unit), `test:e2e` (roda `scripts/test-db-reset.js` — `prisma migrate reset --force --skip-seed` no `nivela_test` — e depois `jest --config test/jest-e2e.json --runInBand`), `db:migrate` (`prisma migrate dev`), `db:seed`.
+  - Alias `src/*` no `tsconfig.json` + `moduleNameMapper` no Jest (unit e e2e).
+- ESLint (adaptar de `backend_estagius_nest/.eslintrc.js` para o flat config gerado pelo Nest 12): imports que saem da pasta usam `src/...` (nunca `../`); nenhum arquivo em `src/modules/A/` importa de `src/modules/B/` exceto `src/modules/B/B.module` e `src/modules/B/B.service`; `src/common`, `src/shared` e `src/prisma` não importam de `src/modules`; arquivos `*.controller.ts` não importam `PrismaService`; `@typescript-eslint/no-explicit-any` como erro.
 
-- [ ] **Step 1:** branch; `composer create-project laravel/laravel:^12.0 apps/api`; `cd apps/api && php artisan install:api` (Sanctum + `routes/api.php`); `composer require --dev pestphp/pest:^3.8 pestphp/pest-plugin-laravel:^3.0 laravel/pint knuckleswtf/scribe`; `./vendor/bin/pest --init`. Remover `tests/Unit/ExampleTest.php` e `tests/Feature/ExampleTest.php`.
-- [ ] **Step 2:** Configurar `.env`/`.env.example`/`phpunit.xml`/locale/timezone conforme acima; `php artisan migrate` → tabelas criadas no `nivela`.
-- [ ] **Step 3: Testes que falham**
-  ```php
-  // tests/Feature/System/HealthTest.php
-  it('responde o health check', fn () => $this->getJson('/api/v1/health')->assertOk()->assertExactJson(['status' => 'ok']));
-  it('responde 404 em JSON', fn () => $this->getJson('/api/v1/nao-existe')->assertNotFound()->assertJsonStructure(['message']));
-  // tests/Arch/ModulesTest.php
-  arch('núcleo não depende de features')->expect(['App\Shared', 'App\Support'])->not->toUse('App\Modules');
+- [ ] **Step 1:** `git checkout develop && git checkout -b feature/api-foundation`; gerar o projeto; `npm i @prisma/client@^7 @prisma/adapter-pg pg class-validator class-transformer @nestjs/swagger @nestjs/config -w apps/api`; `npm i -D prisma@^7 supertest @types/supertest @types/pg dotenv-cli -w apps/api`; `npx prisma init` (em `apps/api`) e ajustar para o Prisma 7 com adapter.
+- [ ] **Step 2: Testes que falham**
+  ```ts
+  // test/health.e2e-spec.ts (createTestApp() usa configureApp)
+  it('GET /api/v1/health → 200 {status:"ok"}', () => request(app.getHttpServer()).get('/api/v1/health').expect(200).expect({ status: 'ok' }));
+  // test/errors.e2e-spec.ts — rotas de teste registradas só no módulo de teste (TestErrorsController)
+  it('rota inexistente → 404 {message}', /* GET /api/v1/nao-existe → 404, body.message === 'Recurso não encontrado.' */);
+  it('DTO inválido → 422 com errors por campo', /* POST /api/v1/__test/validation {} → 422, body.errors.name[0] em pt-BR */);
+  it('BusinessRuleException → 409', /* GET /api/v1/__test/conflict → 409 {message:'Saldo insuficiente.'} */);
+  it('erro inesperado → 500 sem stack', /* body === { message: 'Erro interno do servidor.' } */);
+  // src/common/guards/roles.guard.spec.ts
+  it('libera quando o papel do usuário está em @Roles', ...); it('nega com 403 quando não está', ...); it('libera rota sem @Roles', ...);
   ```
-  Mais dois testes no mesmo arquivo, como **varredura de arquivos** (a API de arch do Pest não filtra por subpasta de cada módulo):
-  - `it('controllers não acessam o banco direto')`: nenhum `app/Modules/*/Controllers/*.php` contém `Illuminate\Support\Facades\DB`.
-  - `it('features não usam internos de outras features')`: nenhum arquivo em `app/Modules/A/` contém `use App\Modules\B\(Controllers|Requests|Resources|Policies)\` com `A ≠ B`.
-  Ambos devem passar com o código atual e ter um caso negativo verificado à mão uma vez (criar violação, ver falhar, desfazer).
-- [ ] **Step 4:** Run `./vendor/bin/pest` → FAIL.
-- [ ] **Step 5:** Implementar roteamento por módulos, `HealthController` (invokable), `Role`, `EnsureRole`, `BusinessRuleException` e o render JSON.
-- [ ] **Step 6:** Run `./vendor/bin/pest && ./vendor/bin/pint --test` → PASS.
-- [ ] **Step 7:** Configurar Scribe (`php artisan vendor:publish --tag=scribe-config`; `type: laravel`, rotas `api/v1/*`, título "API Nivela"); `php artisan scribe:generate` sem erros; `/docs` abre. Adicionar `composer` scripts `test` (`pest`), `lint` (`pint --test`).
-- [ ] **Step 8: Commits** `feat(api): cria projeto Laravel 12 com Sanctum e PostgreSQL` · `feat(api): organiza rotas por módulos e adiciona health check` · `feat(api): padroniza erros JSON e middleware de perfil` · `test(api): adiciona testes de arquitetura dos módulos` · `docs(api): gera documentação com Scribe`
-- [ ] **Step 9:** merge `--no-ff` em `develop`.
+- [ ] **Step 3:** Run `npm run test -w apps/api && npm run test:e2e -w apps/api` → FAIL.
+- [ ] **Step 4:** Implementar os arquivos da lista.
+- [ ] **Step 5:** Run `npm run lint -w apps/api && npm run typecheck -w apps/api && npm run test -w apps/api && npm run test:e2e -w apps/api` → PASS; `npm run dev:api` (raiz) sobe e `curl http://localhost:8000/api/v1/health` → `{"status":"ok"}`; `/docs` abre. Criar uma violação de import entre features à mão, ver o lint falhar, desfazer.
+- [ ] **Step 6:** Atualizar os docs listados em Modify.
+- [ ] **Step 7: Commits** `feat(api): cria projeto NestJS 12 com Prisma 7 e PostgreSQL` · `feat(api): padroniza erros JSON, validação e guard de perfil` · `feat(api): adiciona health check e documentação Swagger` · `chore(api): configura ESLint com regras de features` · `test(api): adiciona testes e2e da fundação` · `docs: atualiza documentação para o backend NestJS`
 
 ---
 
@@ -258,60 +262,65 @@ Este é o plano 1 de 5. Cada plano seguinte é escrito **depois** que o anterior
 **Branch:** `feature/auth` (as Tasks 6, 7 e 8 usam a mesma branch; o merge acontece no fim da Task 8)
 
 **Files:**
-- Create: `database/migrations/*_add_role_and_active_to_users_table.php`, `*_create_student_profiles_table.php`, `*_create_classrooms_table.php`, `*_create_classroom_student_table.php`
-- Create (mover): `app/Modules/Users/Models/User.php` (de `app/Models/User.php`; atualizar `config/auth.php` e `UserFactory`), `app/Modules/Students/Models/StudentProfile.php`, `app/Modules/Classrooms/Models/Classroom.php`, `app/Modules/Classrooms/Services/JoinCodeGenerator.php`
-- Create: `app/Modules/Auth/{Controllers/AuthController.php, Requests/LoginRequest.php, Requests/RegisterStudentRequest.php, Requests/ChangePasswordRequest.php, Resources/UserResource.php, Services/AuthService.php, routes.php}`, `database/seeders/AdminSeeder.php`, factories `ClassroomFactory`, `StudentProfileFactory`
-- Test: `tests/Feature/Auth/LoginTest.php`, `RegisterStudentTest.php`, `MeLogoutPasswordTest.php`, `tests/Unit/Classrooms/JoinCodeGeneratorTest.php`
+- Modify: `prisma/schema.prisma` (models `User`, `StudentProfile`, `AccessToken`, `Classroom`, `ClassroomStudent` + enum `Role`) → migration `prisma/migrations/<timestamp>_auth/` via `npm run db:migrate -w apps/api -- --name auth`
+- Create: `src/modules/auth/{auth.module.ts, auth.controller.ts, auth.service.ts, auth.service.spec.ts, token.service.ts, dto/login.dto.ts, dto/register-student.dto.ts, dto/change-password.dto.ts, presenters/user.presenter.ts}`, `src/common/guards/auth.guard.ts` (registrado como `APP_GUARD` antes do `RolesGuard`), `src/common/decorators/current-user.decorator.ts`, `src/modules/classrooms/{classrooms.module.ts, join-code.service.ts, join-code.service.spec.ts}`, `prisma/seed.ts`, `test/helpers/factories.ts`
+- Test: `test/auth-login.e2e-spec.ts`, `test/auth-register.e2e-spec.ts`, `test/auth-session.e2e-spec.ts`
 
 **Interfaces:**
-- Consumes: `Role`, `role` middleware, `BusinessRuleException` (Task 3).
+- Consumes: `configureApp`, `Role`, `@Public()`, `@Roles()`, `RolesGuard`, `BusinessRuleException`, `PrismaService`, formato de erro 422 (Task 3).
 - Produces (Plano 2 depende disto):
-  - `users`: + `role` (string, default `student`, cast `Role`), `active` (bool, default true). `User::isAdmin()`, `isTeacher()`, `isStudent()`; relação `studentProfile(): HasOne`, `classrooms(): BelongsToMany` (alunos), `ownedClassrooms(): HasMany` (professor).
-  - `student_profiles`: `user_id` PK/FK cascade, `coins_balance` int default 0, `current_streak`/`best_streak` int default 0, `last_study_date` date null.
-  - `classrooms`: `id`, `teacher_id` FK users, `name`, `school_year` (string null), `join_code` string(8) único, `active` bool default true, timestamps. `classroom_student`: `classroom_id`, `student_id`, `joined_at`, PK composta.
-  - `JoinCodeGenerator::generate(): string` → `NIV-` + 4 caracteres de `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, único na tabela. `JoinCodeGenerator::normalize(string $raw): string` → trim + maiúsculas.
-  - `UserResource` → `{ id, name, email, role }`.
-  - Rotas (`app/Modules/Auth/routes.php`):
+  - Tabelas (spec §6): `users` (+ `role` enum `admin|teacher|student` default `student`, `active` default true, `email` único), `student_profiles` (`user_id` PK/FK cascade, `coins_balance`/`current_streak`/`best_streak` int default 0, `last_study_date` date null), `access_tokens` (`id`, `user_id` FK cascade, `token_hash` char(64) único, `channel` `web|mobile`, `last_used_at` null, `created_at`), `classrooms` (`id`, `teacher_id` FK users, `name`, `school_year` null, `join_code` varchar(8) único, `active` default true, timestamps), `classroom_student` (`classroom_id`, `student_id`, `joined_at`, PK composta).
+  - `TokenService`: `issue(userId: number, channel: 'web' | 'mobile'): Promise<string>` (32 bytes aleatórios em hex; grava o SHA-256), `resolve(plain: string): Promise<AuthUser | null>` (atualiza `last_used_at`), `revoke(plain: string): Promise<void>`.
+  - `type AuthUser = { id: number; name: string; email: string; role: Role }`; `@CurrentUser()` devolve o `AuthUser`; o token atual fica em `request.accessToken` para o logout.
+  - `AuthGuard` (global): rota `@Public()` passa; senão exige `Authorization: Bearer <token>` válido de usuário ativo, senão 401 `{ message: "Não autenticado." }`.
+  - `JoinCodeService`: `generate(): Promise<string>` → `NIV-` + 4 caracteres de `ABCDEFGHJKMNPQRSTUVWXYZ23456789`, único na tabela; `static normalize(raw: string): string` → trim + maiúsculas. Exportado pelo `ClassroomsModule`.
+  - `presentUser(user) → { id, name, email, role }`.
+  - Rotas (`AuthController`, prefixo `auth`):
     | Método e rota | Corpo | Sucesso | Erros |
     |---|---|---|---|
-    | `POST /auth/login` | `email`, `password`, `channel` (`web`\|`mobile`) | `200 { token, user }` | 422 `errors.email=["E-mail ou senha inválidos."]`; 403 `"Usuário desativado."`; 403 aluno no web: `"Alunos acessam pelo aplicativo Nivela."`; 403 professor/admin no mobile: `"Professores e administradores acessam pelo painel web."` |
-    | `POST /auth/register-student` | `name`, `email`, `password` (min 8), `password_confirmation`, `join_code` | `201 { token, user }` + `student_profile` criado + vínculo na turma | 422 `email` duplicado `"Este e-mail já está cadastrado."`; `join_code` inexistente `"Código de turma inválido."`; turma inativa `"Esta turma não está aceitando novos alunos."` |
-    | `GET /auth/me` (auth) | — | `200 { user }` | 401 |
-    | `POST /auth/logout` (auth) | — | `204`, token atual revogado | 401 |
-    | `PUT /auth/password` (auth) | `current_password`, `password`, `password_confirmation` | `204` | 422 `current_password=["A senha atual está incorreta."]` |
-  - E-mail sempre normalizado (trim + minúsculas) em login e cadastro (`prepareForValidation`).
-  - `AdminSeeder` cria o admin a partir de `ADMIN_*` do `.env` se não existir; chamado pelo `DatabaseSeeder`.
+    | `POST /auth/login` (`@Public`) | `email`, `password`, `channel` (`web`\|`mobile`) | `200 { token, user }` | 422 `errors.email=["E-mail ou senha inválidos."]`; 403 `"Usuário desativado."`; 403 aluno no web: `"Alunos acessam pelo aplicativo Nivela."`; 403 professor/admin no mobile: `"Professores e administradores acessam pelo painel web."` |
+    | `POST /auth/register-student` (`@Public`) | `name`, `email`, `password` (min 8), `password_confirmation`, `join_code` | `201 { token, user }` + `student_profile` criado + vínculo na turma (canal `mobile`) | 422 `email` duplicado `"Este e-mail já está cadastrado."`; `join_code` inexistente `"Código de turma inválido."`; turma inativa `"Esta turma não está aceitando novos alunos."`; `password_confirmation` diferente `"A confirmação de senha não confere."` |
+    | `GET /auth/me` | — | `200 { user }` | 401 |
+    | `POST /auth/logout` | — | `204`, token atual apagado | 401 |
+    | `PUT /auth/password` | `current_password`, `password`, `password_confirmation` | `204` | 422 `current_password=["A senha atual está incorreta."]` |
+  - Campos do JSON em `snake_case` (como na tabela acima) — os DTOs usam esses nomes.
+  - E-mail sempre normalizado (trim + minúsculas) em login e cadastro (`@Transform` no DTO); código da turma normalizado com `JoinCodeService.normalize`.
+  - `prisma/seed.ts` cria o admin a partir de `ADMIN_*` se não existir (`npm run db:seed -w apps/api`; `prisma.seed` configurado).
 
 - [ ] **Step 1:** `git checkout develop && git checkout -b feature/auth`
-- [ ] **Step 2: Testes que falham** (todos com `RefreshDatabase`)
-  ```php
-  // LoginTest.php
-  it('faz login do professor pelo web', fn () => /* teacher factory, senha 'segredo123' */ postJson('/api/v1/auth/login', [...,'channel'=>'web'])->assertOk()->assertJsonPath('user.role','teacher')->assertJsonStructure(['token']));
-  it('aceita e-mail com maiúsculas e espaços', /* email cadastrado 'ana@escola.com', login com ' Ana@Escola.com ' → 200 */);
-  it('recusa senha errada', /* 422, errors.email[0] === 'E-mail ou senha inválidos.' */);
-  it('recusa usuário desativado', /* 403, message 'Usuário desativado.' */);
+- [ ] **Step 2: Testes que falham** (e2e com banco limpo por arquivo; factories criam usuários/turmas direto no Prisma)
+  ```ts
+  // test/auth-login.e2e-spec.ts
+  it('faz login do professor pelo web', /* teacher com senha 'segredo123' → POST /api/v1/auth/login {channel:'web'} → 200, body.user.role === 'teacher', typeof body.token === 'string' */);
+  it('aceita e-mail com maiúsculas e espaços', /* cadastrado 'ana@escola.com', login com ' Ana@Escola.com ' → 200 */);
+  it('recusa senha errada', /* 422, body.errors.email[0] === 'E-mail ou senha inválidos.' */);
+  it('recusa usuário desativado', /* 403, body.message === 'Usuário desativado.' */);
   it('recusa aluno no canal web', /* 403, 'Alunos acessam pelo aplicativo Nivela.' */);
   it('recusa professor no canal mobile', /* 403, 'Professores e administradores acessam pelo painel web.' */);
-  // RegisterStudentTest.php
-  it('cadastra aluno com código da turma', /* turma ativa 'NIV-4K7Q' → 201, user.role 'student', student_profiles com coins_balance 0, classroom_student com o vínculo */);
+  it('guarda só o hash do token', /* access_tokens.token_hash !== body.token e === sha256(body.token) */);
+  // test/auth-register.e2e-spec.ts
+  it('cadastra aluno com código da turma', /* turma ativa 'NIV-4K7Q' → 201, user.role 'student', student_profiles.coins_balance 0, classroom_student com o vínculo */);
   it('aceita código em minúsculas com espaços', /* join_code ' niv-4k7q ' → 201 */);
   it('recusa código inexistente', /* 422 errors.join_code[0] === 'Código de turma inválido.' */);
   it('recusa turma inativa', /* 422 errors.join_code[0] === 'Esta turma não está aceitando novos alunos.' */);
-  it('recusa e-mail já cadastrado', /* 422 errors.email[0] === 'Este e-mail já está cadastrado.' (inclusive com maiúsculas) */);
-  it('exige senha de 8 caracteres e confirmação', /* 422 em password */);
-  // MeLogoutPasswordTest.php
+  it('recusa e-mail já cadastrado, inclusive com maiúsculas', /* 422 errors.email[0] === 'Este e-mail já está cadastrado.' */);
+  it('exige senha de 8 caracteres e confirmação igual', /* 422 em password e em password_confirmation */);
+  it('não cria nada se o vínculo falhar', /* cadastro é transacional: código inválido → nenhum user criado */);
+  // test/auth-session.e2e-spec.ts
   it('retorna o usuário logado', ...); it('logout revoga o token', /* depois do logout, GET /auth/me com o mesmo token → 401 */);
-  it('troca a senha', ...); it('recusa senha atual errada', /* 422 'A senha atual está incorreta.' */);
-  it('exige autenticação', /* GET /auth/me sem token → 401 */);
-  // JoinCodeGeneratorTest.php
-  it('gera no formato NIV-XXXX sem caracteres ambíguos', fn () => expect(app(JoinCodeGenerator::class)->generate())->toMatch('/^NIV-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/'));
-  it('normaliza', fn () => expect(JoinCodeGenerator::normalize(' niv-4k7q '))->toBe('NIV-4K7Q'));
+  it('troca a senha', /* login com a nova senha funciona */); it('recusa senha atual errada', /* 422 'A senha atual está incorreta.' */);
+  it('exige autenticação', /* GET /auth/me sem token → 401 {message:'Não autenticado.'}; com token inventado → 401 */);
+  it('usuário desativado depois do login perde o acesso', /* active=false → GET /auth/me → 401 */);
+  // src/modules/classrooms/join-code.service.spec.ts
+  it('gera no formato NIV-XXXX sem caracteres ambíguos', /* toMatch(/^NIV-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/) */);
+  it('normaliza', () => expect(JoinCodeService.normalize(' niv-4k7q ')).toBe('NIV-4K7Q'));
+  it('tenta de novo se o código já existe', /* prisma mock: primeiro código existe, segundo não */);
   ```
-- [ ] **Step 3:** Run `./vendor/bin/pest tests/Feature/Auth tests/Unit/Classrooms` → FAIL.
-- [ ] **Step 4:** Migrations, models e mover `User`; `JoinCodeGenerator`.
-- [ ] **Step 5:** `AuthService` (`login(string $email, string $password, string $channel): array{token:string,user:User}`, `registerStudent(array $data): array{…}` em `DB::transaction`), requests, resource, controller, rotas; `AdminSeeder`.
-- [ ] **Step 6:** Run `./vendor/bin/pest && ./vendor/bin/pint --test` → PASS; `php artisan migrate:fresh --seed` cria o admin.
-- [ ] **Step 7: Commits** `feat(api): adiciona perfis e status aos usuários` · `feat(api): cria turmas com código de entrada` · `feat(api): implementa login por canal com Sanctum` · `feat(api): implementa cadastro de aluno por código da turma` · `feat(api): adiciona perfil, logout e troca de senha` · `test(api): cobre regras de autenticação`
+- [ ] **Step 3:** Run `npm run test -w apps/api && npm run test:e2e -w apps/api` → FAIL.
+- [ ] **Step 4:** Schema + migration; `TokenService`, `AuthGuard`, `@CurrentUser`; `JoinCodeService`.
+- [ ] **Step 5:** `AuthService` (`login(dto): Promise<{ token: string; user: AuthUser }>`, `registerStudent(dto)` em `prisma.$transaction`, `changePassword(userId, dto)`), DTOs, controller; seed.
+- [ ] **Step 6:** Run `npm run lint -w apps/api && npm run typecheck -w apps/api && npm run test -w apps/api && npm run test:e2e -w apps/api` → PASS; `npx prisma migrate reset --force` (em `apps/api`) recria o banco e o seed cria o admin.
+- [ ] **Step 7: Commits** `feat(api): adiciona perfis, tokens de acesso e turmas ao schema` · `feat(api): implementa guard de autenticação por token` · `feat(api): implementa login por canal` · `feat(api): implementa cadastro de aluno por código da turma` · `feat(api): adiciona perfil, logout e troca de senha` · `feat(api): cria seed do administrador` · `test(api): cobre regras de autenticação`
 
 ---
 
@@ -368,7 +377,7 @@ Este é o plano 1 de 5. Cada plano seguinte é escrito **depois** que o anterior
   ```
 - [ ] **Step 2:** Run `npm test -w apps/mobile` → FAIL.
 - [ ] **Step 3:** Implementar.
-- [ ] **Step 4:** Run `npm test -w apps/mobile && npm run lint -w apps/mobile && npm run typecheck -w apps/mobile` → PASS. Manual (se houver emulador/Expo Go): cadastro com uma turma criada via `php artisan tinker`.
+- [ ] **Step 4:** Run `npm test -w apps/mobile && npm run lint -w apps/mobile && npm run typecheck -w apps/mobile` → PASS. Manual (se houver emulador/Expo Go): cadastro com uma turma criada direto no banco (`npx prisma studio` em `apps/api`).
 - [ ] **Step 5: Commits** `feat(mobile): adiciona boas-vindas com o mascote` · `feat(mobile): adiciona login e cadastro por código da turma` · `feat(mobile): adiciona perfil com sair` · `test(mobile): cobre cadastro e login`
 - [ ] **Step 6:** `git checkout develop && git merge --no-ff feature/auth && git branch -d feature/auth`
 
@@ -383,14 +392,13 @@ Este é o plano 1 de 5. Cada plano seguinte é escrito **depois** que o anterior
 - Modify: `README.md` (badge do CI e comandos de teste), `docs/workflow.md` (o que o CI verifica)
 
 **Interfaces:**
-- Jobs em `push` para `develop`/`main` e `pull_request`, com `concurrency` cancelando execuções antigas:
-  - `api`: `ubuntu-latest`, serviço `postgres:17-alpine` (db `nivela_test`), `shivammathur/setup-php` PHP 8.2 com `pdo_pgsql`, `composer install`, `cp .env.example .env`, `php artisan key:generate`, `pint --test`, `pest` (env `DB_HOST=127.0.0.1`, `DB_PORT=5432`).
-  - `web`: Node 22, `npm ci` na raiz, `lint`, `typecheck`, `test`, `build` do workspace web; `test` do `packages/design-tokens`.
-  - `mobile`: Node 22, `npm ci`, `lint`, `typecheck`, `test` do workspace mobile.
+- Jobs em `push` para `develop`/`main` e `pull_request`, com `concurrency` cancelando execuções antigas; todos com Node 22 e `npm ci` na raiz:
+  - `api`: serviço `postgres:17-alpine` (usuário/senha `nivela`, banco `nivela_test`, porta 5432); env `DATABASE_URL=postgresql://nivela:nivela@localhost:5432/nivela_test`; `lint`, `typecheck`, `test`, `test:e2e` do workspace `apps/api`.
+  - `web`: `lint`, `typecheck`, `test`, `build` do workspace web; `test` e `typecheck` de `packages/design-tokens`.
+  - `mobile`: `lint`, `typecheck`, `test` do workspace mobile.
 
-- [ ] **Step 1:** Escrever o workflow.
+- [ ] **Step 1:** `git checkout develop && git checkout -b feature/ci`; escrever o workflow.
 - [ ] **Step 2: Verificar localmente o que o CI roda**
-  Run: `npm ci && npm run lint && npm test && (cd apps/api && ./vendor/bin/pint --test && ./vendor/bin/pest)`
-  Expected: tudo PASS. Validar o YAML com `npx --yes @action-validator/cli .github/workflows/ci.yml` (ou equivalente) sem erros.
+  Run: `npm ci && npm run lint && npm test && npm run test:e2e -w apps/api`
+  Expected: tudo PASS. Validar o YAML com `npx --yes @action-validator/cli .github/workflows/ci.yml` sem erros.
 - [ ] **Step 3: Commits** `ci: adiciona pipeline de lint, tipos, testes e build` · `docs: documenta o pipeline de CI`
-- [ ] **Step 4:** merge `--no-ff` em `develop`. (O CI só roda de verdade quando o usuário autorizar o push para o GitHub.)
