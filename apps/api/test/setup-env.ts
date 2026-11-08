@@ -1,12 +1,12 @@
 // Roda antes de cada arquivo e2e (setupFiles do jest-e2e.json).
-// Carrega o .env.test e garante que os testes só toquem em um banco "_test",
-// já que os testes apagam dados.
+// Carrega o .env.test (sem sobrescrever o DATABASE_URL já definido, como no CI) e
+// garante que os testes só toquem em um banco "_test", já que os testes apagam dados.
 import { config } from 'dotenv';
 import { join } from 'node:path';
 
 config({
   path: join(__dirname, '..', '.env.test'),
-  override: true,
+  override: false,
   quiet: true,
 });
 process.env.NODE_ENV = 'test';
