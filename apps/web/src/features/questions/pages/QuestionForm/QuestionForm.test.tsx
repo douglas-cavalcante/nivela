@@ -171,7 +171,7 @@ describe('QuestionForm', () => {
 
       expect(await screen.findByText('Escolha a disciplina.')).toBeInTheDocument();
       expect(screen.getByText('Escolha a dificuldade.')).toBeInTheDocument();
-      expect(screen.getByText('Informe o enunciado.')).toBeInTheDocument();
+      expect(screen.getByText('O enunciado deve ter pelo menos 10 caracteres.')).toBeInTheDocument();
       expect(screen.getByText('Informe a explicação.')).toBeInTheDocument();
       expect(screen.getAllByText('Informe o texto da alternativa.')).toHaveLength(5);
     });
@@ -323,6 +323,74 @@ describe('QuestionForm', () => {
       lookups();
       renderPage('/questoes/abc');
       expect(await screen.findByText('Questão não encontrada.')).toBeInTheDocument();
+    });
+  });
+
+  describe('situação', () => {
+    function statusPage(extra: Record<string, unknown> = {}) {
+      lookups();
+      server.use(http.get(`${API_URL}/questions/7`, () => HttpResponse.json(stored(extra))));
+      renderPage('/questoes/7');
+    }
+
+    it('desativa depois de confirmar e envia { active: false }', async () => {
+      const body = vi.fn();
+      server.use(
+        http.patch(`${API_URL}/questions/7/status`, async ({ request }) => {
+          body(await request.json());
+          return HttpResponse.json(stored({ active: false }));
+        }),
+      );
+      statusPage();
+
+      await userEvent.click(await screen.findByRole('switch', { name: 'Questão ativa' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('Questões inativas não aparecem para os alunos.')).toBeInTheDocument();
+      expect(body).not.toHaveBeenCalled();
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Desativar' }));
+
+      expect(await screen.findByText('Questão desativada.')).toBeInTheDocument();
+      expect(body).toHaveBeenCalledWith({ active: false });
+      await waitFor(() => expect(screen.getByRole('switch', { name: 'Questão ativa' })).not.toBeChecked());
+      expect(screen.getByText('Inativo')).toBeInTheDocument();
+    });
+
+    it('ativa sem pedir confirmação e envia { active: true }', async () => {
+      const body = vi.fn();
+      server.use(
+        http.patch(`${API_URL}/questions/7/status`, async ({ request }) => {
+          body(await request.json());
+          return HttpResponse.json(stored({ active: true }));
+        }),
+      );
+      statusPage({ active: false });
+
+      await userEvent.click(await screen.findByRole('switch', { name: 'Questão ativa' }));
+
+      expect(await screen.findByText('Questão ativada.')).toBeInTheDocument();
+      expect(body).toHaveBeenCalledWith({ active: true });
+      expect(screen.getByText('Ativo')).toBeInTheDocument();
+    });
+
+    it('mostra a mensagem da API quando é negado (403) e mantém a situação', async () => {
+      server.use(
+        http.patch(`${API_URL}/questions/7/status`, () =>
+          HttpResponse.json({ message: 'Só o autor ou um administrador pode editar esta questão.' }, { status: 403 }),
+        ),
+      );
+      statusPage();
+
+      await userEvent.click(await screen.findByRole('switch', { name: 'Questão ativa' }));
+      await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Desativar' }));
+
+      expect(await screen.findByText('Só o autor ou um administrador pode editar esta questão.')).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole('switch', { name: 'Questão ativa' })).toBeChecked());
+    });
+
+    it('não mostra o controle em modo leitura', async () => {
+      statusPage({ can_edit: false });
+      await screen.findByText(/Paulo Professor/);
+      expect(screen.queryByRole('switch', { name: 'Questão ativa' })).toBeNull();
     });
   });
 

@@ -43,7 +43,6 @@ export const questionSchema = z.object({
   statement: z
     .string()
     .trim()
-    .min(1, 'Informe o enunciado.')
     .min(10, 'O enunciado deve ter pelo menos 10 caracteres.')
     .max(5000, 'O enunciado deve ter no máximo 5000 caracteres.'),
   explanation: z

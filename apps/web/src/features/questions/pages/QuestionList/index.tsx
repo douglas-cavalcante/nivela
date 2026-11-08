@@ -1,14 +1,19 @@
 import AddIcon from '@mui/icons-material/Add';
+import BlockIcon from '@mui/icons-material/BlockOutlined';
+import CheckCircleIcon from '@mui/icons-material/CheckCircleOutlined';
 import ImageIcon from '@mui/icons-material/ImageOutlined';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Button, IconButton, Tooltip, Typography } from '@mui/material';
+import { parseApiError } from '@nivela/api-contract';
 import type { ApiQuestionSummary, Difficulty } from '@nivela/api-contract';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { ConfirmDialog } from 'src/components/ConfirmDialog';
 import { DataTable } from 'src/components/DataTable';
 import type { DataTableColumn } from 'src/components/DataTable';
 import { PageHeader } from 'src/components/PageHeader';
 import { StatusChip } from 'src/components/StatusChip';
 import { listCategoriesAction } from 'src/features/categories';
-import { listQuestionsAction } from 'src/features/questions/api/questions.action';
+import { listQuestionsAction, setQuestionStatusAction } from 'src/features/questions/api/questions.action';
 import { DifficultyChip } from 'src/features/questions/components/DifficultyChip';
 import { QuestionFilters } from 'src/features/questions/components/QuestionFilters';
 import type { QuestionFilterValues } from 'src/features/questions/components/QuestionFilters';
@@ -16,14 +21,17 @@ import { SubjectBadge, listSubjectsAction } from 'src/features/subjects';
 import { useListQuery } from 'src/hooks/useListQuery';
 import { usePaginatedList } from 'src/hooks/usePaginatedList';
 import { useRemoteList } from 'src/hooks/useRemoteList';
-
-const MAX_ID = 2_147_483_647;
-/** Id válido na URL: inteiro positivo dentro do INTEGER do banco; o resto é ignorado. */
-const validId = (value: string): string => (/^[1-9]\d{0,9}$/.test(value) && Number(value) <= MAX_ID ? value : '');
+import { useAuth } from 'src/lib/auth/AuthContext';
+import { useNotify } from 'src/lib/notify/useNotify';
+import { validId } from 'src/utils/ids';
 
 /** Banco de questões: tabela paginada com filtros na URL (`?subject_id=1&category_id=3&difficulty=hard`). */
 export function QuestionList() {
   const navigate = useNavigate();
+  const notify = useNotify();
+  const { user } = useAuth();
+  const [toggling, setToggling] = useState<ApiQuestionSummary | null>(null);
+  const [saving, setSaving] = useState(false);
   const { page, filters, setPage, setFilters } = useListQuery({
     search: '',
     subject_id: '',
@@ -60,6 +68,29 @@ export function QuestionList() {
     JSON.stringify([page, search, subjectId, categoryId, difficulty, status]),
   );
 
+  /** A lista não traz `can_edit`: o autor e o administrador podem mudar a situação. */
+  const canEdit = (row: ApiQuestionSummary) => user?.role === 'admin' || (user !== null && row.author.id === user.id);
+
+  async function changeStatus(row: ApiQuestionSummary) {
+    const activate = !row.active;
+    setSaving(true);
+    try {
+      await setQuestionStatusAction(row.id, activate);
+      notify.success(activate ? 'Questão ativada.' : 'Questão desativada.');
+      await reload();
+    } catch (err) {
+      notify.error(parseApiError(err).message);
+    } finally {
+      setSaving(false);
+      setToggling(null);
+    }
+  }
+
+  function askToggle(row: ApiQuestionSummary) {
+    if (!row.active) void changeStatus(row); // ativar não precisa de confirmação
+    else setToggling(row);
+  }
+
   const values: QuestionFilterValues = {
     search: filters.search,
     subject_id: subjectId,
@@ -89,6 +120,23 @@ export function QuestionList() {
     },
     { key: 'author', header: 'Autor', render: (row) => row.author.name },
     { key: 'status', header: 'Situação', width: 120, render: (row) => <StatusChip active={row.active} /> },
+    {
+      key: 'actions',
+      header: 'Ações',
+      width: 90,
+      render: (row) =>
+        canEdit(row) ? (
+          <Tooltip title={row.active ? 'Desativar questão' : 'Ativar questão'}>
+            <IconButton
+              aria-label={`${row.active ? 'Desativar' : 'Ativar'} questão ${row.id}`}
+              disabled={saving}
+              onClick={() => askToggle(row)}
+            >
+              {row.active ? <BlockIcon /> : <CheckCircleIcon />}
+            </IconButton>
+          </Tooltip>
+        ) : null,
+    },
   ];
 
   const filtered = Boolean(search || subjectId || categoryId || difficulty || status);
@@ -121,6 +169,19 @@ export function QuestionList() {
         emptyDescription={
           filtered ? 'Tente outra busca ou limpe os filtros.' : 'Cadastre a primeira questão para começar o banco.'
         }
+      />
+
+      <ConfirmDialog
+        open={toggling !== null}
+        title="Desativar a questão?"
+        description="Questões inativas não aparecem para os alunos."
+        confirmLabel="Desativar"
+        tone="danger"
+        loading={saving}
+        onConfirm={() => {
+          if (toggling) void changeStatus(toggling);
+        }}
+        onClose={() => setToggling(null)}
       />
     </>
   );

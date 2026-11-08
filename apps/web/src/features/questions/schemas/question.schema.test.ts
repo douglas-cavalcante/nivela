@@ -50,7 +50,7 @@ describe('questionSchema', () => {
       subject_id: 'Escolha a disciplina.',
       category_id: 'Escolha a categoria.',
       difficulty: 'Escolha a dificuldade.',
-      statement: 'Informe o enunciado.',
+      statement: 'O enunciado deve ter pelo menos 10 caracteres.',
       explanation: 'Informe a explicação.',
       correct_letter: 'Escolha a alternativa correta.',
       'options.0.text': 'Informe o texto da alternativa.',

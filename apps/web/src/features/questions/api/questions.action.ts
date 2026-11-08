@@ -16,6 +16,9 @@ export const createQuestionAction = async (data: QuestionPayload): Promise<ApiQu
 export const updateQuestionAction = async (id: number, data: QuestionPayload): Promise<ApiQuestion> =>
   (await questionsApi.updateQuestion(id, data)).data;
 
+export const setQuestionStatusAction = async (id: number, active: boolean): Promise<ApiQuestion> =>
+  (await questionsApi.setQuestionStatus(id, active)).data;
+
 /** Devolve a URL pública da imagem gravada. */
 export const uploadQuestionImageAction = async (id: number, file: File): Promise<string> =>
   (await questionsApi.uploadQuestionImage(id, file)).data.image_url;

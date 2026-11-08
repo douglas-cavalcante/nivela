@@ -4,9 +4,11 @@ import {
   Box,
   Button,
   CircularProgress,
+  FormControlLabel,
   FormHelperText,
   FormLabel,
   MenuItem,
+  Switch,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -18,12 +20,15 @@ import { useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import type { FieldPath } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router';
+import { ConfirmDialog } from 'src/components/ConfirmDialog';
 import { EmptyState } from 'src/components/EmptyState';
 import { PageHeader } from 'src/components/PageHeader';
+import { StatusChip } from 'src/components/StatusChip';
 import { listCategoriesAction } from 'src/features/categories';
 import {
   createQuestionAction,
   getQuestionAction,
+  setQuestionStatusAction,
   updateQuestionAction,
 } from 'src/features/questions/api/questions.action';
 import { difficultyLabels } from 'src/features/questions/components/DifficultyChip';
@@ -39,6 +44,7 @@ import type { QuestionFormOutput, QuestionFormValues } from 'src/features/questi
 import { listSubjectsAction } from 'src/features/subjects';
 import { useRemoteList } from 'src/hooks/useRemoteList';
 import { useNotify } from 'src/lib/notify/useNotify';
+import { validId } from 'src/utils/ids';
 import { useNivelaColors } from 'src/lib/theme/useNivelaColors';
 
 const EXPLANATION_HELPER = 'Explique a resolução — o aluno vê depois de responder.';
@@ -100,6 +106,24 @@ function QuestionEditor({ question }: QuestionEditorProps) {
   const [imageUrl, setImageUrl] = useState(question?.image_url ?? null);
   const [formError, setFormError] = useState<string | null>(null);
   const readOnly = current ? !current.can_edit : false;
+  const [confirmingDeactivate, setConfirmingDeactivate] = useState(false);
+  const [togglingStatus, setTogglingStatus] = useState(false);
+
+  async function changeStatus(active: boolean) {
+    if (!current) return;
+    setTogglingStatus(true);
+    try {
+      const saved = await setQuestionStatusAction(current.id, active);
+      // só a situação muda: o que está digitado no formulário não é tocado
+      setCurrent((previous) => (previous ? { ...previous, active: saved.active } : previous));
+      notify.success(active ? 'Questão ativada.' : 'Questão desativada.');
+    } catch (error) {
+      notify.error(parseApiError(error).message);
+    } finally {
+      setTogglingStatus(false);
+      setConfirmingDeactivate(false);
+    }
+  }
 
   const {
     control,
@@ -169,10 +193,39 @@ function QuestionEditor({ question }: QuestionEditorProps) {
         title={title}
         subtitle={current ? `Autor: ${current.author.name}` : 'Preencha o enunciado, as cinco alternativas e a explicação.'}
         actions={
-          <Button variant="outlined" component={Link} to="/questoes">
-            Voltar
-          </Button>
+          <>
+            {current ? <StatusChip active={current.active} /> : null}
+            {current?.can_edit ? (
+              <FormControlLabel
+                label="Questão ativa"
+                control={
+                  <Switch
+                    checked={current.active}
+                    disabled={togglingStatus}
+                    onChange={(_event, checked) => {
+                      if (checked) void changeStatus(true);
+                      else setConfirmingDeactivate(true);
+                    }}
+                  />
+                }
+              />
+            ) : null}
+            <Button variant="outlined" component={Link} to="/questoes">
+              Voltar
+            </Button>
+          </>
         }
+      />
+
+      <ConfirmDialog
+        open={confirmingDeactivate}
+        title="Desativar a questão?"
+        description="Questões inativas não aparecem para os alunos."
+        confirmLabel="Desativar"
+        tone="danger"
+        loading={togglingStatus}
+        onConfirm={() => void changeStatus(false)}
+        onClose={() => setConfirmingDeactivate(false)}
       />
 
       {readOnly ? (
@@ -380,6 +433,6 @@ function QuestionLoader({ id }: { id: number }) {
 export function QuestionForm() {
   const { id } = useParams();
   if (id === undefined) return <QuestionEditor key="new" />;
-  if (!/^[1-9]\d{0,9}$/.test(id) || Number(id) > 2_147_483_647) return <NotFound message="Questão não encontrada." />;
+  if (!validId(id)) return <NotFound message="Questão não encontrada." />;
   return <QuestionLoader key={id} id={Number(id)} />;
 }

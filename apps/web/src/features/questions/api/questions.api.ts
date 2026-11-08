@@ -26,6 +26,9 @@ export const createQuestion = (data: QuestionPayload): Promise<AxiosResponse<Api
 export const updateQuestion = (id: number, data: QuestionPayload): Promise<AxiosResponse<ApiQuestion>> =>
   api.put<ApiQuestion>(`/questions/${id}`, data);
 
+export const setQuestionStatus = (id: number, active: boolean): Promise<AxiosResponse<ApiQuestion>> =>
+  api.patch<ApiQuestion>(`/questions/${id}/status`, { active });
+
 /** Multipart com o arquivo no campo `image` (o navegador define o Content-Type com o boundary). */
 export const uploadQuestionImage = (id: number, file: File): Promise<AxiosResponse<{ image_url: string }>> => {
   const body = new FormData();

@@ -6,7 +6,7 @@ import { QuestionList } from 'src/features/questions/pages/QuestionList';
 import { NotifyProvider } from 'src/lib/notify/NotifyProvider';
 import { renderWithProviders } from 'src/test/render';
 import { API_URL, server } from 'src/test/server';
-import { teacher } from 'src/test/users';
+import { admin, teacher } from 'src/test/users';
 
 const math = { id: 1, name: 'Matemática', color: 'teal', icon: 'calculator', categories_count: 1, questions_count: 2 };
 const history = { id: 2, name: 'História', color: 'amber', icon: 'book', categories_count: 1, questions_count: 0 };
@@ -31,7 +31,7 @@ function LocationProbe() {
   return <output aria-label="url">{location.pathname + location.search}</output>;
 }
 
-function renderPage(route = '/questoes') {
+function renderPage(route = '/questoes', user = teacher) {
   return renderWithProviders(
     <NotifyProvider>
       <Routes>
@@ -48,7 +48,7 @@ function renderPage(route = '/questoes') {
         <Route path="/questoes/:id" element={<p>Tela da questão</p>} />
       </Routes>
     </NotifyProvider>,
-    { user: teacher, route },
+    { user, route },
   );
 }
 
@@ -187,5 +187,83 @@ describe('QuestionList', () => {
     );
     renderPage('/questoes?difficulty=hard');
     expect(await screen.findByText('Nenhuma questão encontrada')).toBeInTheDocument();
+  });
+
+  describe('situação', () => {
+    const own = summary(1);
+    const foreign = summary(2, { author: { id: 9, name: 'Outra Pessoa' } });
+    const inactive = summary(3, { active: false });
+
+    function statusHandlers(onPatch: (id: string, body: unknown) => void, rows = [own, foreign, inactive]) {
+      server.use(
+        http.get(`${API_URL}/subjects`, () => HttpResponse.json({ data: [math] })),
+        http.get(`${API_URL}/questions`, () =>
+          HttpResponse.json({ data: rows, meta: { page: 1, per_page: 15, total: rows.length, last_page: 1 } }),
+        ),
+        http.patch(`${API_URL}/questions/:id/status`, async ({ request, params }) => {
+          onPatch(String(params.id), await request.json());
+          return HttpResponse.json({});
+        }),
+      );
+    }
+
+    it('professor só vê a ação nas questões que ele escreveu', async () => {
+      statusHandlers(vi.fn());
+      renderPage();
+      await screen.findByText('Enunciado da questão 1');
+      expect(screen.getByRole('button', { name: 'Desativar questão 1' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Desativar questão 2' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Ativar questão 3' })).toBeInTheDocument();
+    });
+
+    it('administrador vê a ação em todas as questões', async () => {
+      statusHandlers(vi.fn());
+      renderPage('/questoes', admin);
+      await screen.findByText('Enunciado da questão 1');
+      expect(screen.getByRole('button', { name: 'Desativar questão 2' })).toBeInTheDocument();
+    });
+
+    it('desativa depois de confirmar, envia { active: false } e recarrega a lista', async () => {
+      const patch = vi.fn();
+      const listed = vi.fn();
+      statusHandlers(patch);
+      server.use(
+        http.get(`${API_URL}/questions`, () => {
+          listed();
+          return HttpResponse.json({ data: [own], meta: { page: 1, per_page: 15, total: 1, last_page: 1 } });
+        }),
+      );
+      renderPage();
+      await userEvent.click(await screen.findByRole('button', { name: 'Desativar questão 1' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('Questões inativas não aparecem para os alunos.')).toBeInTheDocument();
+      expect(patch).not.toHaveBeenCalled();
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Desativar' }));
+
+      expect(await screen.findByText('Questão desativada.')).toBeInTheDocument();
+      expect(patch).toHaveBeenCalledWith('1', { active: false });
+      expect(listed).toHaveBeenCalledTimes(2);
+    });
+
+    it('ativa direto e envia { active: true }', async () => {
+      const patch = vi.fn();
+      statusHandlers(patch);
+      renderPage();
+      await userEvent.click(await screen.findByRole('button', { name: 'Ativar questão 3' }));
+      expect(await screen.findByText('Questão ativada.')).toBeInTheDocument();
+      expect(patch).toHaveBeenCalledWith('3', { active: true });
+    });
+
+    it('mostra a mensagem da API quando é negado (403)', async () => {
+      statusHandlers(vi.fn());
+      server.use(
+        http.patch(`${API_URL}/questions/:id/status`, () =>
+          HttpResponse.json({ message: 'Só o autor ou um administrador pode editar esta questão.' }, { status: 403 }),
+        ),
+      );
+      renderPage();
+      await userEvent.click(await screen.findByRole('button', { name: 'Ativar questão 3' }));
+      expect(await screen.findByText('Só o autor ou um administrador pode editar esta questão.')).toBeInTheDocument();
+    });
   });
 });
