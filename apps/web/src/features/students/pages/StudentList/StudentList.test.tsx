@@ -122,6 +122,6 @@ describe('StudentList', () => {
   it('sem alunos mostra o estado vazio', async () => {
     listHandler(undefined, []);
     renderPage();
-    expect(await screen.findByText('Nenhum aluno ainda')).toBeInTheDocument();
+    expect(await screen.findByText('Nenhum aluno ainda.')).toBeInTheDocument();
   });
 });

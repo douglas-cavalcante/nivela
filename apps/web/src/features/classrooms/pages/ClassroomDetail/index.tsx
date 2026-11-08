@@ -29,7 +29,7 @@ import { validId } from 'src/utils/ids';
 function NotFound({ message }: { message: string }) {
   return (
     <EmptyState
-      title="Não deu para carregar"
+      title="Não deu para carregar."
       description={message}
       action={
         <Button variant="contained" component={Link} to="/turmas">
@@ -148,7 +148,7 @@ function ClassroomView({ classroom, reload }: ClassroomViewProps) {
             rows={classroom.students}
             getRowId={(row) => row.id}
             loading={false}
-            emptyTitle="Nenhum aluno nesta turma ainda"
+            emptyTitle="Nenhum aluno nesta turma ainda."
             emptyDescription="Adicione um aluno ou passe o código da turma para que ele entre pelo app."
           />
         </Box>

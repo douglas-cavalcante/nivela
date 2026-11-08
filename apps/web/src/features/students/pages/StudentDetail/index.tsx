@@ -15,7 +15,7 @@ import { validId } from 'src/utils/ids';
 function NotFound({ message }: { message: string }) {
   return (
     <EmptyState
-      title="Não deu para carregar"
+      title="Não deu para carregar."
       description={message}
       action={
         <Button variant="contained" component={Link} to="/alunos">

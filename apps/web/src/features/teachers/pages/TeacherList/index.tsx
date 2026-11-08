@@ -161,7 +161,7 @@ export function TeacherList() {
         onRetry={() => void reload()}
         meta={meta}
         onPageChange={setPage}
-        emptyTitle={filtered ? 'Nenhum professor encontrado' : 'Nenhum professor ainda'}
+        emptyTitle={filtered ? 'Nenhum professor encontrado.' : 'Nenhum professor ainda.'}
         emptyDescription={
           filtered ? 'Tente outra busca ou limpe os filtros.' : 'Cadastre o primeiro professor para começar.'
         }

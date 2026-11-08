@@ -91,7 +91,7 @@ describe('AppRoutes', () => {
       { user: teacher, route: '/questoes' },
     );
     expect(await screen.findByRole('heading', { name: 'Questões' })).toBeInTheDocument();
-    expect(await screen.findByText('Nenhuma questão ainda')).toBeInTheDocument();
+    expect(await screen.findByText('Nenhuma questão ainda.')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Nova questão' }));
     expect(await screen.findByRole('heading', { name: 'Nova questão' })).toBeInTheDocument();

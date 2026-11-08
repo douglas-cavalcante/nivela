@@ -157,7 +157,7 @@ features/auth/
 ```
 
 - **Rotas protegidas:** `app/_layout.tsx` usa `Stack.Protected` — o grupo `(tabs)` só existe com usuário logado e `(auth)` só sem usuário; o redirecionamento acontece sozinho quando o login muda (inclusive no 401 que expira a sessão).
-- **Sem conexão:** na abertura, se há token salvo e o `GET /auth/me` falha por rede, tempo esgotado (15 s) ou 5xx, o token é mantido e `app/_layout.tsx` mostra a `OfflineScreen` ("Sem conexão com o servidor" + "Tentar de novo"); só o 401 encerra a sessão.
+- **Sem conexão:** na abertura, se há token salvo e o `GET /auth/me` falha por rede, tempo esgotado (15 s) ou 5xx, o token é mantido e `app/_layout.tsx` mostra a `OfflineScreen` ("Sem conexão com o servidor." + "Tentar de novo"); só o 401 encerra a sessão.
 - **Testes** ficam em `__tests__/` ao lado do código (`app/(tabs)/__tests__`, `src/lib/__tests__`); o Metro não os inclui no bundle.
 - O ESLint do mobile (`apps/mobile/eslint.config.mjs`) tem as mesmas regras da web; `app/` conta como camada de rotas (`src/` nunca importa de `app/`) e `src/lib/theme` é o único lugar com cor hexadecimal permitida.
 - Diferença em relação à web: o `tokenStorage` é assíncrono (`expo-secure-store`), então `signIn` retorna `Promise<void>`.
@@ -178,7 +178,7 @@ features/auth/
 
 ## Textos e mensagens
 
-- Interface e mensagens da API em português do Brasil, sempre **frases completas terminadas em ponto**.
+- Interface e mensagens da API em português do Brasil, sempre **frases completas terminadas em ponto** — **toda frase visível**, inclusive títulos de estado vazio/erro (`EmptyState`, `emptyTitle` da `DataTable`, tela de sem conexão), descrições e dicas de campo: `Nenhuma categoria por aqui.`, `Nenhum aluno nesta turma ainda.`, `Nenhuma turma ainda.`, `Não deu para carregar.`, `Em breve.`, `Peça ao seu professor. Ex.: NIV-4K7Q.`. Ficam de fora só rótulos curtos que não são frases: títulos de página e de diálogo, cabeçalhos de seção/card, rótulos de campo, botões, links, abas e dicas de ícone (`Turmas`, `Adicionar aluno`, `Tentar de novo`).
 - Campo vazio: **"Informe …"** (`Informe seu e-mail.`, `Informe sua senha.`, `Informe seu nome.`, `Informe o código da turma.`, `Informe sua senha atual.`); confirmação vazia: `Confirme sua senha.` / `Confirme a nova senha.`.
 - A mesma regra usa **o mesmo texto** na API, na web e no mobile: `A senha deve ter pelo menos 8 caracteres.`, `A confirmação de senha não confere.`, `Informe um e-mail válido.`.
 - Na API, cada campo devolve as mensagens sem repetição (`@IsString` e `@IsNotEmpty` podem usar a mesma frase).

@@ -165,7 +165,7 @@ export function QuestionList() {
         meta={meta}
         onPageChange={setPage}
         onRowClick={(row) => void navigate(`/questoes/${row.id}`)}
-        emptyTitle={filtered ? 'Nenhuma questão encontrada' : 'Nenhuma questão ainda'}
+        emptyTitle={filtered ? 'Nenhuma questão encontrada.' : 'Nenhuma questão ainda.'}
         emptyDescription={
           filtered ? 'Tente outra busca ou limpe os filtros.' : 'Cadastre a primeira questão para começar o banco.'
         }

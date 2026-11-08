@@ -223,14 +223,14 @@ describe('ClassroomDetail', () => {
     expect(await screen.findByText('Falha ao recarregar.')).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: '9º A' })).toBeInTheDocument();
     expect(screen.getByText('Lucas Lima')).toBeInTheDocument();
-    expect(screen.queryByText('Não deu para carregar')).toBeNull();
+    expect(screen.queryByText('Não deu para carregar.')).toBeNull();
   });
 
   it('turma sem alunos mostra o estado vazio', async () => {
     detailHandler({ ...classroom, students: [], students_count: 0 });
     renderPage();
 
-    expect(await screen.findByText('Nenhum aluno nesta turma ainda')).toBeInTheDocument();
+    expect(await screen.findByText('Nenhum aluno nesta turma ainda.')).toBeInTheDocument();
   });
 
   it('404 da API mostra "não encontrada" com botão de voltar', async () => {

@@ -41,6 +41,7 @@ describe('DataTable', () => {
   it('mostra o erro e tenta de novo', async () => {
     const onRetry = vi.fn();
     renderWithProviders(<DataTable {...base} rows={[]} error="Não deu certo." onRetry={onRetry} />);
+    expect(screen.getByText('Não deu para carregar.')).toBeInTheDocument();
     expect(screen.getByText('Não deu certo.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
@@ -93,6 +94,7 @@ describe('DataTable - casos de borda', () => {
     renderWithProviders(
       <DataTable {...base} rows={[]} meta={{ page: 9, per_page: 15, total: 20, last_page: 2 }} onPageChange={onPageChange} />,
     );
+    expect(screen.getByText('Esta página está vazia.')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Voltar para a primeira página' }));
     expect(onPageChange).toHaveBeenCalledWith(1);
   });

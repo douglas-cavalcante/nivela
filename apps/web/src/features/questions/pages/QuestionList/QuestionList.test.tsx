@@ -186,7 +186,7 @@ describe('QuestionList', () => {
       ),
     );
     renderPage('/questoes?difficulty=hard');
-    expect(await screen.findByText('Nenhuma questão encontrada')).toBeInTheDocument();
+    expect(await screen.findByText('Nenhuma questão encontrada.')).toBeInTheDocument();
   });
 
   describe('situação', () => {

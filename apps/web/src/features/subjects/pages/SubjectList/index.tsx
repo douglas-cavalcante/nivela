@@ -144,7 +144,7 @@ export function SubjectList() {
   if (error) {
     content = (
       <EmptyState
-        title="Não deu para carregar"
+        title="Não deu para carregar."
         description={error}
         action={
           <Button variant="contained" onClick={() => void reload()}>
