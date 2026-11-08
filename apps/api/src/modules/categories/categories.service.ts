@@ -95,15 +95,16 @@ export class CategoriesService {
     }
   }
 
-  /**
-   * Quantidade de questões por categoria. Ainda não há tabela de questões:
-   * a Task 8 troca este corpo por uma contagem agrupada.
-   */
-  private questionsCountByCategory(
+  /** Quantidade de questões (ativas ou não) por categoria. */
+  private async questionsCountByCategory(
     categoryIds: number[],
   ): Promise<Map<number, number>> {
-    void categoryIds;
-    return Promise.resolve(new Map());
+    const groups = await this.prisma.question.groupBy({
+      by: ['categoryId'],
+      where: { categoryId: { in: categoryIds } },
+      _count: { _all: true },
+    });
+    return new Map(groups.map((g) => [g.categoryId, g._count._all]));
   }
 
   private translate(error: unknown): unknown {

@@ -101,3 +101,54 @@ export async function createCategory(
     data: { subjectId, name: overrides.name ?? `Categoria ${sequence}` },
   });
 }
+
+interface QuestionOverrides {
+  authorId?: number;
+  subjectId?: number;
+  categoryId?: number;
+  statement?: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  active?: boolean;
+  imagePath?: string | null;
+}
+
+/** Cria uma questão com as 5 alternativas (correta: A). Cria autor, disciplina e categoria se faltarem. */
+export async function createQuestion(
+  prisma: PrismaService,
+  overrides: QuestionOverrides = {},
+) {
+  sequence += 1;
+  const authorId =
+    overrides.authorId ?? (await createUser(prisma, { role: Role.Teacher })).id;
+  let subjectId = overrides.subjectId;
+  let categoryId = overrides.categoryId;
+  if (categoryId === undefined) {
+    const category = await createCategory(prisma, { subjectId });
+    categoryId = category.id;
+    subjectId = category.subjectId;
+  }
+  subjectId ??= (
+    await prisma.category.findUniqueOrThrow({
+      where: { id: categoryId },
+    })
+  ).subjectId;
+  return prisma.question.create({
+    data: {
+      authorId,
+      subjectId,
+      categoryId,
+      statement: overrides.statement ?? `Enunciado da questão ${sequence}?`,
+      difficulty: overrides.difficulty ?? 'medium',
+      explanation: 'Explicação da resposta.',
+      active: overrides.active ?? true,
+      imagePath: overrides.imagePath ?? null,
+      options: {
+        create: ['A', 'B', 'C', 'D', 'E'].map((letter) => ({
+          letter,
+          text: `Alternativa ${letter}`,
+          isCorrect: letter === 'A',
+        })),
+      },
+    },
+  });
+}

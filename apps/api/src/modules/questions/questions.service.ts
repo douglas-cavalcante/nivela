@@ -1,0 +1,259 @@
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import type {
+  ApiQuestion,
+  ApiQuestionSummary,
+  Paginated,
+} from '@nivela/api-contract';
+import { Prisma } from 'src/generated/prisma/client';
+import { ListQuestionsQuery } from 'src/modules/questions/dto/list-questions.query';
+import { QuestionDto } from 'src/modules/questions/dto/question.dto';
+import {
+  presentQuestion,
+  presentQuestionSummary,
+} from 'src/modules/questions/presenters/question.presenter';
+import {
+  QuestionImageService,
+  type UploadedImage,
+} from 'src/modules/questions/question-image.service';
+import { PrismaService } from 'src/prisma/prisma.service';
+import type { AuthUser } from 'src/shared/auth/auth-user';
+import { Role } from 'src/shared/enums/role.enum';
+import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
+import { paginate, toPrismaPage } from 'src/shared/pagination/paginate';
+import { containsInsensitive } from 'src/shared/prisma/contains-insensitive';
+import {
+  FOREIGN_KEY_VIOLATION,
+  hasPrismaCode,
+} from 'src/shared/prisma/prisma-error';
+
+const NOT_FOUND = 'Questão não encontrada.';
+const FORBIDDEN = 'Só o autor ou um administrador pode editar esta questão.';
+const SUBJECT_NOT_FOUND = 'Disciplina não encontrada.';
+const CATEGORY_NOT_FOUND = 'Categoria não encontrada.';
+const CATEGORY_MISMATCH = 'A categoria não pertence à disciplina.';
+
+const WITH_RELATIONS = {
+  subject: { select: { id: true, name: true, color: true } },
+  category: { select: { id: true, name: true } },
+  author: { select: { id: true, name: true } },
+} as const;
+const WITH_OPTIONS = { ...WITH_RELATIONS, options: true } as const;
+
+type QuestionRecord = Prisma.QuestionGetPayload<{
+  include: typeof WITH_OPTIONS;
+}>;
+
+@Injectable()
+export class QuestionsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly images: QuestionImageService,
+  ) {}
+
+  async list(
+    query: ListQuestionsQuery,
+  ): Promise<Paginated<ApiQuestionSummary>> {
+    const where: Prisma.QuestionWhereInput = {
+      ...(query.subject_id ? { subjectId: query.subject_id } : {}),
+      ...(query.category_id ? { categoryId: query.category_id } : {}),
+      ...(query.difficulty ? { difficulty: query.difficulty } : {}),
+      ...(query.status ? { active: query.status === 'active' } : {}),
+      ...(query.search ? { statement: containsInsensitive(query.search) } : {}),
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.question.findMany({
+        where,
+        orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+        include: WITH_RELATIONS,
+        ...toPrismaPage(query),
+      }),
+      this.prisma.question.count({ where }),
+    ]);
+    return paginate(rows.map(presentQuestionSummary), total, query);
+  }
+
+  async findOne(id: number, user: AuthUser): Promise<ApiQuestion> {
+    return this.present(await this.load(id), user);
+  }
+
+  async create(dto: QuestionDto, user: AuthUser): Promise<ApiQuestion> {
+    await this.assertSubjectAndCategory(dto);
+    try {
+      const question = await this.prisma.question.create({
+        data: {
+          authorId: user.id,
+          subjectId: dto.subject_id,
+          categoryId: dto.category_id,
+          statement: dto.statement,
+          difficulty: dto.difficulty,
+          explanation: dto.explanation,
+          options: { create: this.optionRows(dto) },
+        },
+        select: { id: true },
+      });
+      // Relê fora da escrita: o include dentro da escrita aninhada roda
+      // consultas concorrentes na mesma conexão (aviso do pg).
+      return this.present(await this.load(question.id), user);
+    } catch (error) {
+      throw this.translate(error);
+    }
+  }
+
+  async update(
+    id: number,
+    dto: QuestionDto,
+    user: AuthUser,
+  ): Promise<ApiQuestion> {
+    this.assertCanEdit(await this.load(id), user);
+    await this.assertSubjectAndCategory(dto);
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.questionOption.deleteMany({ where: { questionId: id } });
+        await tx.question.update({
+          where: { id },
+          data: {
+            subjectId: dto.subject_id,
+            categoryId: dto.category_id,
+            statement: dto.statement,
+            difficulty: dto.difficulty,
+            explanation: dto.explanation,
+            options: { create: this.optionRows(dto) },
+          },
+          select: { id: true },
+        });
+      });
+      return this.present(await this.load(id), user);
+    } catch (error) {
+      throw this.translate(error);
+    }
+  }
+
+  async setStatus(
+    id: number,
+    active: boolean,
+    user: AuthUser,
+  ): Promise<ApiQuestion> {
+    this.assertCanEdit(await this.load(id), user);
+    await this.prisma.question.update({
+      where: { id },
+      data: { active },
+      select: { id: true },
+    });
+    return this.present(await this.load(id), user);
+  }
+
+  /** Valida o arquivo, grava o novo, aponta a questão para ele e só então apaga o antigo. */
+  async replaceImage(
+    id: number,
+    file: UploadedImage | undefined,
+    user: AuthUser,
+  ): Promise<{ image_url: string }> {
+    const question = await this.load(id);
+    this.assertCanEdit(question, user);
+    const kind = this.images.validate(file);
+
+    const imagePath = await this.images.save(
+      id,
+      (file as UploadedImage).buffer,
+      kind,
+    );
+    try {
+      await this.prisma.question.update({ where: { id }, data: { imagePath } });
+    } catch (error) {
+      await this.images.remove(imagePath);
+      throw this.translate(error);
+    }
+    await this.images.remove(question.imagePath);
+    return { image_url: this.images.urlFor(imagePath) as string };
+  }
+
+  async removeImage(id: number, user: AuthUser): Promise<void> {
+    const question = await this.load(id);
+    this.assertCanEdit(question, user);
+    if (!question.imagePath) {
+      return;
+    }
+    await this.prisma.question.update({
+      where: { id },
+      data: { imagePath: null },
+    });
+    await this.images.remove(question.imagePath);
+  }
+
+  private async load(id: number): Promise<QuestionRecord> {
+    const question = await this.prisma.question.findUnique({
+      where: { id },
+      include: WITH_OPTIONS,
+    });
+    if (!question) {
+      throw new NotFoundException(NOT_FOUND);
+    }
+    return question;
+  }
+
+  private canEdit(question: { authorId: number }, user: AuthUser): boolean {
+    return user.role === Role.Admin || question.authorId === user.id;
+  }
+
+  private assertCanEdit(question: { authorId: number }, user: AuthUser): void {
+    if (!this.canEdit(question, user)) {
+      throw new ForbiddenException(FORBIDDEN);
+    }
+  }
+
+  private present(question: QuestionRecord, user: AuthUser): ApiQuestion {
+    return presentQuestion(
+      question,
+      this.images.urlFor(question.imagePath),
+      this.canEdit(question, user),
+    );
+  }
+
+  private optionRows(dto: QuestionDto) {
+    return dto.options.map((option) => ({
+      letter: option.letter,
+      text: option.text,
+      isCorrect: option.letter === dto.correct_letter,
+    }));
+  }
+
+  /** A disciplina existe e a categoria existe e pertence a ela (422 no campo). */
+  private async assertSubjectAndCategory(dto: QuestionDto): Promise<void> {
+    const [subject, category] = await Promise.all([
+      this.prisma.subject.findUnique({
+        where: { id: dto.subject_id },
+        select: { id: true },
+      }),
+      this.prisma.category.findUnique({
+        where: { id: dto.category_id },
+        select: { subjectId: true },
+      }),
+    ]);
+    const errors: Record<string, string[]> = {};
+    if (!subject) {
+      errors.subject_id = [SUBJECT_NOT_FOUND];
+    }
+    if (!category) {
+      errors.category_id = [CATEGORY_NOT_FOUND];
+    } else if (subject && category.subjectId !== subject.id) {
+      errors.category_id = [CATEGORY_MISMATCH];
+    }
+    if (Object.keys(errors).length > 0) {
+      throw new FieldValidationException(errors);
+    }
+  }
+
+  private translate(error: unknown): unknown {
+    // Disciplina ou categoria apagada entre a checagem e a gravação.
+    if (hasPrismaCode(error, FOREIGN_KEY_VIOLATION)) {
+      return new FieldValidationException({
+        category_id: [CATEGORY_NOT_FOUND],
+      });
+    }
+    return error;
+  }
+}

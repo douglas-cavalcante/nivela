@@ -7,6 +7,7 @@ import { AuthModule } from 'src/modules/auth/auth.module';
 import { CategoriesModule } from 'src/modules/categories/categories.module';
 import { ClassroomsModule } from 'src/modules/classrooms/classrooms.module';
 import { HealthModule } from 'src/modules/health/health.module';
+import { QuestionsModule } from 'src/modules/questions/questions.module';
 import { SubjectsModule } from 'src/modules/subjects/subjects.module';
 import { TeachersModule } from 'src/modules/teachers/teachers.module';
 import { PrismaModule } from 'src/prisma/prisma.module';
@@ -20,6 +21,7 @@ import { PrismaModule } from 'src/prisma/prisma.module';
     SubjectsModule,
     CategoriesModule,
     TeachersModule,
+    QuestionsModule,
     HealthModule,
   ],
   providers: [

@@ -82,15 +82,16 @@ export class SubjectsService {
     }
   }
 
-  /**
-   * Quantidade de questões por disciplina. Ainda não há tabela de questões:
-   * a Task 8 troca este corpo por uma contagem agrupada (questões → categorias).
-   */
-  private questionsCountBySubject(
+  /** Quantidade de questões (ativas ou não) por disciplina. */
+  private async questionsCountBySubject(
     subjectIds: number[],
   ): Promise<Map<number, number>> {
-    void subjectIds;
-    return Promise.resolve(new Map());
+    const groups = await this.prisma.question.groupBy({
+      by: ['subjectId'],
+      where: { subjectId: { in: subjectIds } },
+      _count: { _all: true },
+    });
+    return new Map(groups.map((g) => [g.subjectId, g._count._all]));
   }
 
   private translate(error: unknown): unknown {
