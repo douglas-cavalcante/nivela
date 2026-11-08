@@ -42,23 +42,23 @@ src/
 │       ├── <feature>.service.ts       # regra de negócio, transações Prisma
 │       ├── <feature>.service.spec.ts  # unitário com Prisma mockado
 │       └── <feature>.module.ts        # `exports` define o que outras features podem usar
-├── common/                        # filters, pipes, guards, decorators (sem regra de negócio)
-├── shared/                        # enums, exceções e regras usadas por mais de uma feature
+├── common/                        # filters, pipes, guards (AuthGuard, RolesGuard), decorators (@Public, @Roles, @CurrentUser), validators (sem regra de negócio)
+├── shared/                        # enums, exceções, contrato de autenticação (auth/auth-user.ts) e regras usadas por mais de uma feature
 ├── prisma/                        # PrismaModule (global) e PrismaService (adapter-pg)
 ├── generated/prisma/              # client do Prisma (gerado, ignorado pelo git)
 ├── app.factory.ts                 # configureApp(): prefixo, validação, filtro, CORS, Swagger
 ├── app.module.ts
 └── main.ts
-prisma/schema.prisma, prisma/migrations/, prisma/seed.ts
+prisma/schema.prisma, prisma/migrations/, prisma/seed.ts   # seed: administrador inicial a partir de ADMIN_*
 test/*.e2e-spec.ts                 # e2e com supertest contra o banco nivela_test
-test/helpers/                      # createTestApp() e rotas só de teste
-scripts/test-db-migrate.js           # recria o banco nivela_test antes do e2e
+test/helpers/                      # createTestApp(), resetDatabase(), factories (createUser/createClassroom) e rotas só de teste
+scripts/test-db-migrate.js           # aplica as migrations no banco nivela_test antes do e2e
 ```
 
 **Regras de dependência (ESLint, `apps/api/eslint.config.mjs`):**
 
 - imports que saem da pasta usam o alias `src/...` — nunca `../`;
-- uma feature não importa arquivos internos de outra: usa só `src/modules/<outra>/<outra>.module` ou `<outra>.service` (o módulo exporta o que for preciso);
+- uma feature não importa arquivos internos de outra: usa só `src/modules/<outra>/<outra>.module` ou os services exportados por ela (`src/modules/<outra>/*.service`, ex.: `classrooms/join-code.service`); controllers, DTOs e demais arquivos continuam privados da feature;
 - `common`, `shared` e `prisma` não importam de `src/modules`;
 - `*.controller.ts` não importa o `PrismaService` (acesso a dados fica no service);
 - `@typescript-eslint/no-explicit-any` como erro.

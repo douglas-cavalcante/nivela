@@ -45,6 +45,7 @@ A organização interna de cada app está em [estruturaDePastas.md](estruturaDeP
 ## Convenções da API
 
 - Prefixo global `/api/v1`, porta 8000. Públicas (`@Public()`): `POST /auth/login`, `POST /auth/register-student`, `GET /health`. As demais exigem `Authorization: Bearer <token>`.
+- Autenticação por `AuthGuard` global (`src/common/guards/auth.guard.ts`): resolve o Bearer pelo hash SHA-256 em `access_tokens` e rejeita usuário inativo (401 `Não autenticado.`). Como `common` não importa features, o guard depende do contrato `TOKEN_RESOLVER` (`src/shared/auth/auth-user.ts`), que o `AuthModule` implementa com o `TokenService`. Registrado como `APP_GUARD` no `AppModule` antes do `RolesGuard`; `@CurrentUser()` devolve o `AuthUser`. Senhas com `bcryptjs` (custo 10); e-mail sempre normalizado (trim + minúsculas) e código de turma em maiúsculas.
 - Autorização por `RolesGuard` + `@Roles(Role.Admin, Role.Teacher)`; regras de posse (professor só mexe no que é seu) nos services.
 - Erros em JSON `{ message, errors? }`, padronizados por um filtro global: 422 validação (`errors: { campo: [mensagens] }`), 401/403 autenticação/autorização, 404, 409 conflito de regra de negócio (`BusinessRuleException`), 500 sem detalhes internos. Mensagens em português do Brasil.
 - Paginação `{ data, meta: { page, perPage, total, lastPage } }`, 15 por página.
@@ -56,7 +57,7 @@ Pré-requisitos: Docker Desktop, Node 22 (`.nvmrc`) e npm 10.
 
 1. Banco: `npm run db:up` — sobe o `postgres:17-alpine` (`nivela_db`) na porta **5433**, com os bancos `nivela` e `nivela_test` (usuário/senha `nivela`/`nivela`).
 2. Dependências: `npm install` na raiz.
-3. API: copiar `apps/api/.env.example` para `apps/api/.env` e rodar, na raiz, `npm run dev:api` (http://localhost:8000/api/v1, Swagger em http://localhost:8000/docs). Migrations e seed: `npm run db:migrate -w apps/api` e `npm run db:seed -w apps/api`.
+3. API: copiar `apps/api/.env.example` para `apps/api/.env` e rodar, na raiz, `npm run dev:api` (http://localhost:8000/api/v1, Swagger em http://localhost:8000/docs). Migrations e seed: `npm run db:migrate -w apps/api` e `npm run db:seed -w apps/api` (o seed cria o administrador a partir de `ADMIN_NAME`, `ADMIN_EMAIL` e `ADMIN_PASSWORD` e pode ser repetido: se o e-mail já existe, nada muda).
 4. Web: copiar `apps/web/.env.example` para `apps/web/.env` (`VITE_API_URL`) e rodar `npm run dev:web` (http://localhost:5173). Testes: `npm run test -w apps/web` (Vitest + Testing Library + MSW).
 5. Mobile: copiar `apps/mobile/.env.example` para `apps/mobile/.env` (`EXPO_PUBLIC_API_URL`) e rodar `npm run dev:mobile` (Expo; abrir no emulador Android ou no Expo Go). No emulador Android o `localhost` da máquina é `10.0.2.2` (valor padrão do `.env.example`); em celular físico use o IP da máquina na rede (ex.: `http://192.168.0.10:8000/api/v1`), com celular e computador no mesmo Wi-Fi. Testes: `npm run test -w apps/mobile` (jest-expo + Testing Library).
 6. Parar o banco: `npm run db:down`. Os dados ficam em `docker/pgdata/` (ignorado pelo git).

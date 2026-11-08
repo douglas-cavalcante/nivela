@@ -4,7 +4,11 @@
 import { config } from 'dotenv';
 import { join } from 'node:path';
 
-config({ path: join(__dirname, '..', '.env.test'), override: true });
+config({
+  path: join(__dirname, '..', '.env.test'),
+  override: true,
+  quiet: true,
+});
 process.env.NODE_ENV = 'test';
 
 const url = process.env.DATABASE_URL;
