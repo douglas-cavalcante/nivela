@@ -14,7 +14,7 @@ describe('navegação por abas', () => {
   it('sem usuário, abre a tela de boas-vindas', async () => {
     const { getPathname } = await renderApp({ user: null });
 
-    expect(await screen.findByText('Nivela')).toBeTruthy();
+    expect(await screen.findByText('Oi! Bora nivelar?')).toBeTruthy();
     expect(getPathname()).toBe('/welcome');
   });
 
