@@ -1,5 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
-import { classroomScope } from 'src/modules/classrooms/classroom-scope';
+import { classroomScope } from 'src/shared/scopes/classroom-scope';
 import { ClassroomsService } from 'src/modules/classrooms/classrooms.service';
 import { JoinCodeService } from 'src/modules/classrooms/join-code.service';
 import { PrismaService } from 'src/prisma/prisma.service';

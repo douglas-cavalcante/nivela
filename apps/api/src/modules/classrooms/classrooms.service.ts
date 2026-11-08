@@ -5,7 +5,7 @@ import type {
   Paginated,
 } from '@nivela/api-contract';
 import { Prisma } from 'src/generated/prisma/client';
-import { classroomScope } from 'src/modules/classrooms/classroom-scope';
+import { classroomScope } from 'src/shared/scopes/classroom-scope';
 import { CreateClassroomDto } from 'src/modules/classrooms/dto/create-classroom.dto';
 import { ListClassroomsQuery } from 'src/modules/classrooms/dto/list-classrooms.query';
 import { UpdateClassroomDto } from 'src/modules/classrooms/dto/update-classroom.dto';
