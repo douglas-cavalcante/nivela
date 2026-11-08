@@ -1,5 +1,7 @@
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { Public } from 'src/common/decorators/public.decorator';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { AuthUser, TokenResolver } from 'src/shared/auth/auth-user';
 import { Role } from 'src/shared/enums/role.enum';
@@ -14,7 +16,7 @@ const USER: AuthUser = {
 describe('AuthGuard', () => {
   const resolve = jest.fn();
   const resolver: TokenResolver = { resolve };
-  const reflector = { getAllAndOverride: jest.fn() };
+  const reflector = { get: jest.fn() };
   const guard = new AuthGuard(reflector as unknown as Reflector, resolver);
 
   const contextFor = (request: Record<string, unknown>) =>
@@ -26,11 +28,11 @@ describe('AuthGuard', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-    reflector.getAllAndOverride.mockReturnValue(false);
+    reflector.get.mockReturnValue(false);
   });
 
   it('deixa passar rota pública sem consultar o token', async () => {
-    reflector.getAllAndOverride.mockReturnValue(true);
+    reflector.get.mockReturnValue(true);
 
     await expect(guard.canActivate(contextFor({ headers: {} }))).resolves.toBe(
       true,
@@ -71,5 +73,46 @@ describe('AuthGuard', () => {
         contextFor({ headers: { authorization: 'Bearer inventado' } }),
       ),
     ).rejects.toThrow('Não autenticado.');
+  });
+
+  describe('metadata do handler x classe', () => {
+    @Public()
+    class ControllerPublico {
+      @Public()
+      aberta() {
+        return true;
+      }
+
+      herdada() {
+        return true;
+      }
+
+      @Roles(Role.Admin)
+      restrita() {
+        return true;
+      }
+    }
+
+    const real = new AuthGuard(new Reflector(), { resolve });
+    const contexto = (metodo: 'aberta' | 'herdada' | 'restrita') =>
+      ({
+        getHandler: () => ControllerPublico.prototype[metodo],
+        getClass: () => ControllerPublico,
+        switchToHttp: () => ({ getRequest: () => ({ headers: {} }) }),
+      }) as unknown as ExecutionContext;
+
+    it('handler sem @Public numa classe @Public exige token', async () => {
+      await expect(real.canActivate(contexto('restrita'))).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('handler sem nenhum metadado herda o @Public da classe', async () => {
+      await expect(real.canActivate(contexto('herdada'))).resolves.toBe(true);
+    });
+
+    it('handler @Public passa sem token', async () => {
+      await expect(real.canActivate(contexto('aberta'))).resolves.toBe(true);
+    });
   });
 });

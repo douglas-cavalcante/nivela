@@ -1,4 +1,4 @@
-import type { User } from 'src/types/user';
+import type { ApiUser as User } from '@nivela/api-contract';
 
 export interface LoginPayload {
   email: string;

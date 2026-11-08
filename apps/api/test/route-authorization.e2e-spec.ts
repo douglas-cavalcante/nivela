@@ -8,9 +8,9 @@ import {
 } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import { AppModule } from 'src/app.module';
-import { ANY_AUTHENTICATED_KEY } from 'src/common/decorators/any-authenticated.decorator';
-import { IS_PUBLIC_KEY } from 'src/common/decorators/public.decorator';
-import { ROLES_KEY } from 'src/common/decorators/roles.decorator';
+import { Public } from 'src/common/decorators/public.decorator';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { resolveAuthorizationMetadata } from 'src/common/guards/authorization-metadata';
 
 /**
  * Lista as rotas que não declaram quem pode acessá-las: nem `@Public()`,
@@ -31,15 +31,10 @@ function routesWithoutAuthorization(controllers: Type[]): string[] {
       ) {
         continue;
       }
-      const targets = [handler, controller];
-      const roles = reflector.getAllAndOverride<unknown[] | undefined>(
-        ROLES_KEY,
-        targets,
-      );
-      const declared =
-        reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, targets) ||
-        reflector.getAllAndOverride<boolean>(ANY_AUTHENTICATED_KEY, targets) ||
-        (roles?.length ?? 0) > 0;
+      // Mesma regra dos guards: o metadata do método vence o do controller.
+      const { isPublic, anyAuthenticated, roles } =
+        resolveAuthorizationMetadata(reflector, handler, controller);
+      const declared = isPublic || anyAuthenticated || (roles?.length ?? 0) > 0;
       if (!declared) {
         missing.push(`${controller.name}.${name}`);
       }
@@ -56,11 +51,27 @@ class ControllerEsquecido {
   }
 }
 
+@Public()
+@Controller('aberto')
+class ControllerAbertoComMetodoVazio {
+  @Get()
+  @Roles()
+  listar() {
+    return [];
+  }
+}
+
 describe('Autorização declarada em todas as rotas', () => {
   it('acusa uma rota sem @Public, @AnyAuthenticated ou @Roles', () => {
     expect(routesWithoutAuthorization([ControllerEsquecido])).toEqual([
       'ControllerEsquecido.listar',
     ]);
+  });
+
+  it('@Roles() vazio no método anula o @Public do controller (rota fica sem autorização)', () => {
+    expect(
+      routesWithoutAuthorization([ControllerAbertoComMetodoVazio]),
+    ).toEqual(['ControllerAbertoComMetodoVazio.listar']);
   });
 
   it('toda rota do AppModule declara quem pode acessá-la', async () => {

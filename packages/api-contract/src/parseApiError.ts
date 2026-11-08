@@ -1,18 +1,10 @@
 import axios from 'axios';
-
-export interface ApiErrorInfo {
-  /** Status HTTP; `null` quando nem chegou resposta (API fora do ar, sem rede). */
-  status: number | null;
-  /** Mensagem principal em português, pronta para exibir. */
-  message: string;
-  /** Erros de validação (422) por campo, com os nomes que a API usa (snake_case). */
-  fieldErrors: Record<string, string[]>;
-}
+import type { ApiErrorInfo } from './errors';
 
 const NETWORK_MESSAGE = 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.';
 const GENERIC_MESSAGE = 'Algo deu errado. Tente novamente em instantes.';
 
-interface ErrorBody {
+interface RawErrorBody {
   message?: unknown;
   errors?: unknown;
 }
@@ -34,7 +26,7 @@ export function parseApiError(error: unknown): ApiErrorInfo {
   if (!axios.isAxiosError(error)) return { status: null, message: GENERIC_MESSAGE, fieldErrors: {} };
   if (!error.response) return { status: null, message: NETWORK_MESSAGE, fieldErrors: {} };
 
-  const body: ErrorBody =
+  const body: RawErrorBody =
     typeof error.response.data === 'object' && error.response.data !== null ? error.response.data : {};
   const fieldErrors = readFieldErrors(body.errors);
   const message = typeof body.message === 'string' && body.message.length > 0 ? body.message : GENERIC_MESSAGE;

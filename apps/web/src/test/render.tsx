@@ -6,7 +6,7 @@ import { vi } from 'vitest';
 import { AuthContext, AuthProvider } from 'src/lib/auth/AuthContext';
 import type { AuthContextValue } from 'src/lib/auth/AuthContext';
 import { ColorModeProvider } from 'src/lib/theme/ColorModeProvider';
-import type { User } from 'src/types/user';
+import type { ApiUser as User } from '@nivela/api-contract';
 
 interface Options {
   /** Usuário já autenticado (padrão: ninguém). */

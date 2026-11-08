@@ -51,6 +51,20 @@ const expectedUser = {
   role: 'teacher',
 };
 
+describe('TokenService.resolve — falha ao apagar token expirado', () => {
+  it('token expirado: falha ao apagar não vira 500', async () => {
+    const { service, prisma } = setup({ channel: 'web' }, at(7 * DAY));
+    prisma.accessToken.deleteMany.mockRejectedValue(new Error('db fora'));
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+
+    await expect(service.resolve('t')).resolves.toBeNull();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('db fora'));
+    warn.mockRestore();
+  });
+});
+
 describe('TokenService.resolve — expiração', () => {
   describe.each([
     ['web', 7, 30],

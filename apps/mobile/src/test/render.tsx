@@ -3,7 +3,7 @@ import { AxiosError } from 'axios';
 import type { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { setToken } from 'src/lib/auth/tokenStorage';
 import api from 'src/lib/axios';
-import type { User } from 'src/types/user';
+import type { ApiUser as User } from '@nivela/api-contract';
 
 /** Resposta falsa da API: status 2xx resolve; os demais rejeitam como o axios real faria. */
 export interface FakeReply {

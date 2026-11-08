@@ -1,20 +1,10 @@
+import type { Paginated, PaginationMeta } from '@nivela/api-contract';
 import type { PaginationQueryDto } from 'src/shared/pagination/pagination-query.dto';
 
 export const DEFAULT_PER_PAGE = 15;
 export const MAX_PER_PAGE = 100;
 
-export interface PaginationMeta {
-  page: number;
-  per_page: number;
-  total: number;
-  last_page: number;
-}
-
-/** Formato de toda listagem paginada da API. */
-export interface Paginated<T> {
-  data: T[];
-  meta: PaginationMeta;
-}
+export type { Paginated, PaginationMeta };
 
 function resolve(query: PaginationQueryDto): { page: number; perPage: number } {
   return { page: query.page ?? 1, perPage: query.per_page ?? DEFAULT_PER_PAGE };

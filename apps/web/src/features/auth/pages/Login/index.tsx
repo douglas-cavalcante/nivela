@@ -7,7 +7,7 @@ import { loginAction } from 'src/features/auth/api/auth.action';
 import { PasswordField } from 'src/features/auth/components/PasswordField';
 import { loginSchema } from 'src/features/auth/schemas/login.schema';
 import type { LoginFormValues } from 'src/features/auth/schemas/login.schema';
-import { parseApiError } from 'src/lib/apiError';
+import { parseApiError } from '@nivela/api-contract';
 import { useAuth } from 'src/lib/auth/AuthContext';
 
 interface LocationState {

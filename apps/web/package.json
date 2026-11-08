@@ -18,6 +18,7 @@
     "@hookform/resolvers": "^7.0.3",
     "@mui/icons-material": "^9.5.0",
     "@mui/material": "^9.5.0",
+    "@nivela/api-contract": "*",
     "@nivela/design-tokens": "^0.1.0",
     "axios": "^1.21.0",
     "react": "19.3.0",

@@ -8,7 +8,7 @@ import QuestionIcon from '@mui/icons-material/HelpOutlineOutlined';
 import StoreIcon from '@mui/icons-material/StorefrontOutlined';
 import SubjectIcon from '@mui/icons-material/SchoolOutlined';
 import TeacherIcon from '@mui/icons-material/BadgeOutlined';
-import type { Role } from 'src/types/user';
+import type { Role } from '@nivela/api-contract';
 
 export interface MenuItem {
   label: string;

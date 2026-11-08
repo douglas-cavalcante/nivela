@@ -15,7 +15,8 @@ tcc/
 │   ├── web/                # React + Vite + TS (professor/admin)
 │   └── mobile/             # Expo + Expo Router + TS (aluno)
 ├── packages/
-│   └── design-tokens/      # @nivela/design-tokens (TS puro)
+│   ├── design-tokens/      # @nivela/design-tokens (TS puro)
+│   └── api-contract/       # @nivela/api-contract (tipos de resposta e parseApiError, TS puro)
 ├── docs/                   # arquitetura, estrutura de pastas, workflow, requisitos, UML, prints
 ├── docker/                 # initdb/ (scripts do Postgres) e pgdata/ (dados locais, ignorado pelo git)
 ├── docker-compose.yml      # postgres:17-alpine
@@ -157,6 +158,7 @@ features/auth/
 4. `axios` só pode ser importado em `features/*/api` e em `lib/`.
 5. Sem `any` explícito.
 6. Nada de cor hexadecimal fora do tema: use sempre os tokens de `@nivela/design-tokens`.
+7. Tipos de resposta da API (usuário, paginação, corpo de erro) e o `parseApiError` vêm de `@nivela/api-contract`: nunca redefina-os em `types/` do app. Na API, importe do contrato somente com `import type`.
 
 ---
 

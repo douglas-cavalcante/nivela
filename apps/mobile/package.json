@@ -15,6 +15,7 @@
     "@expo-google-fonts/caveat": "^0.4.2",
     "@expo-google-fonts/nunito": "^0.4.2",
     "@hookform/resolvers": "^7.0.3",
+    "@nivela/api-contract": "*",
     "@nivela/design-tokens": "^0.1.0",
     "axios": "^1.21.0",
     "expo": "~58.0.23",

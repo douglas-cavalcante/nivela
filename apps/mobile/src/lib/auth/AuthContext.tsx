@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from 'react';
 import { clearToken, getToken, setToken } from 'src/lib/auth/tokenStorage';
 import api, { setUnauthorizedHandler } from 'src/lib/axios';
-import type { User } from 'src/types/user';
+import type { ApiUser as User } from '@nivela/api-contract';
 
 export interface AuthContextValue {
   user: User | null;
