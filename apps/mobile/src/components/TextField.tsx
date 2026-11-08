@@ -15,12 +15,26 @@ export interface TextFieldProps extends Omit<TextInputProps, 'style'> {
   hint?: string;
   /** Campo de senha: esconde o texto e ganha o botão de mostrar/ocultar. */
   password?: boolean;
+  /**
+   * O que o botão de mostrar/ocultar revela, para o leitor de tela ("Mostrar senha",
+   * "Mostrar confirmação de senha"). Padrão: `senha`.
+   */
+  revealLabel?: string;
   /** Letras grandes e espaçadas (usado no código da turma). */
   emphasis?: boolean;
 }
 
 /** Campo de texto sobre a pauta: rótulo, borda de 2 px, erro embaixo e alvo de toque grande. */
-export function TextField({ label, error, invalid, hint, password = false, emphasis = false, ...props }: TextFieldProps) {
+export function TextField({
+  label,
+  error,
+  invalid,
+  hint,
+  password = false,
+  revealLabel = 'senha',
+  emphasis = false,
+  ...props
+}: TextFieldProps) {
   const { colors, fonts } = useTheme();
   const [focused, setFocused] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -65,7 +79,7 @@ export function TextField({ label, error, invalid, hint, password = false, empha
         {password ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={visible ? 'Ocultar senha' : 'Mostrar senha'}
+            accessibilityLabel={`${visible ? 'Ocultar' : 'Mostrar'} ${revealLabel}`}
             hitSlop={4}
             onPress={() => setVisible((current) => !current)}
             style={styles.toggle}

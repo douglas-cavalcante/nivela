@@ -136,10 +136,22 @@ describe('cadastro do aluno', () => {
     await renderApp({ initialUrl: '/register' });
 
     expect(screen.getByLabelText('Senha').props.secureTextEntry).toBe(true);
-    await user.press(screen.getAllByRole('button', { name: 'Mostrar senha' })[0]);
+    await user.press(screen.getByRole('button', { name: 'Mostrar senha' }));
 
     expect(screen.getByLabelText('Senha').props.secureTextEntry).toBe(false);
-    expect(screen.getAllByRole('button', { name: 'Ocultar senha' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Ocultar senha' })).toBeTruthy();
+    expect(screen.getByLabelText('Confirmar senha').props.secureTextEntry).toBe(true);
+  });
+
+  it('o botão de mostrar da confirmação tem rótulo próprio', async () => {
+    const user = userEvent.setup();
+    await renderApp({ initialUrl: '/register' });
+
+    await user.press(screen.getByRole('button', { name: 'Mostrar confirmação de senha' }));
+
+    expect(screen.getByLabelText('Confirmar senha').props.secureTextEntry).toBe(false);
+    expect(screen.getByRole('button', { name: 'Ocultar confirmação de senha' })).toBeTruthy();
+    expect(screen.getByLabelText('Senha').props.secureTextEntry).toBe(true);
   });
 
   it('mostra mensagem amigável quando a API está fora do ar', async () => {

@@ -17,7 +17,7 @@ export function HandTitle({ children, size = 44 }: HandTitleProps) {
         pointerEvents="none"
         style={[styles.marker, { backgroundColor: colors.highlight, height: Math.round(size * 0.32) }]}
       />
-      <AppText variant="heading" size={size} style={styles.text}>
+      <AppText accessibilityRole="header" variant="heading" size={size} style={styles.text}>
         {children}
       </AppText>
     </View>
