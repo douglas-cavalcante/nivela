@@ -10,6 +10,7 @@ import { ConfirmDialog } from 'src/components/ConfirmDialog';
 import { DataTable } from 'src/components/DataTable';
 import type { DataTableColumn } from 'src/components/DataTable';
 import { EmptyState } from 'src/components/EmptyState';
+import { ResourceState } from 'src/components/ResourceState';
 import { PageHeader } from 'src/components/PageHeader';
 import { StatusChip } from 'src/components/StatusChip';
 import {
@@ -26,19 +27,7 @@ import { useNotify } from 'src/lib/notify/useNotify';
 import { formatDate } from 'src/utils/format';
 import { validId } from 'src/utils/ids';
 
-function NotFound({ message }: { message: string }) {
-  return (
-    <EmptyState
-      title="Não deu para carregar."
-      description={message}
-      action={
-        <Button variant="contained" component={Link} to="/turmas">
-          Voltar
-        </Button>
-      }
-    />
-  );
-}
+const BACK = { to: '/turmas', label: 'Voltar' };
 
 interface ClassroomViewProps {
   classroom: ApiClassroom;
@@ -196,7 +185,7 @@ function ClassroomView({ classroom, reload }: ClassroomViewProps) {
 }
 
 function ClassroomLoader({ id }: { id: number }) {
-  const { rows, loading, error, reload } = useRemoteList<ApiClassroom>(
+  const { rows, loading, error, errorStatus, reload } = useRemoteList<ApiClassroom>(
     async (signal) => [await getClassroomAction(id, signal)],
     String(id),
   );
@@ -209,7 +198,16 @@ function ClassroomLoader({ id }: { id: number }) {
     if (error && kept) notify.error(error);
   }, [error, kept, notify]);
 
-  if (error && !kept) return <NotFound message={error} />;
+  if (error && !kept) {
+    return (
+      <ResourceState
+        kind={errorStatus === 404 ? 'not-found' : 'error'}
+        message={error}
+        onRetry={() => void reload()}
+        backTo={BACK}
+      />
+    );
+  }
   if (loading && !rows[0] && !kept) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -224,6 +222,6 @@ function ClassroomLoader({ id }: { id: number }) {
 /** Ficha da turma: código de entrada, alunos matriculados e (em breve) desempenho. */
 export function ClassroomDetail() {
   const { id } = useParams();
-  if (!validId(id)) return <NotFound message="Turma não encontrada." />;
+  if (!validId(id)) return <ResourceState kind="not-found" message="Turma não encontrada." backTo={BACK} />;
   return <ClassroomLoader key={id} id={Number(id)} />;
 }

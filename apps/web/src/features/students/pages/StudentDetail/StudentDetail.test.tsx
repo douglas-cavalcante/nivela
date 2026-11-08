@@ -69,9 +69,24 @@ describe('StudentDetail', () => {
     );
     renderPage();
 
-    expect(await screen.findByText('Aluno não encontrado.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Aluno não encontrado.' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull();
     await userEvent.click(screen.getByRole('link', { name: 'Voltar' }));
     expect(await screen.findByText('Lista de alunos')).toBeInTheDocument();
+  });
+
+  it('falha ao carregar (500) mostra o erro e "Tentar de novo" recarrega', async () => {
+    let calls = 0;
+    server.use(
+      http.get(`${API_URL}/students/21`, () =>
+        ++calls === 1 ? HttpResponse.json({ message: 'Erro interno.' }, { status: 500 }) : HttpResponse.json(lucas),
+      ),
+    );
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'Não deu para carregar.' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    expect(await screen.findByText('Desempenho do aluno — disponível em breve.')).toBeInTheDocument();
   });
 
   it('id inválido na URL nem chama a API', async () => {

@@ -86,7 +86,7 @@ scripts/test-db-migrate.js           # aplica as migrations no banco nivela_test
 src/
 ├── app/          # App.tsx, rotas, layouts (AppLayout com sidebar "fichário", AuthLayout)
 ├── features/     # Um diretório por feature
-├── components/   # UI genérica, sem regra de negócio, uma pasta por componente (DataTable, FormDialog, ConfirmDialog, SearchField, StatusChip, PasswordField, ErrorBoundary, EmptyState, Mascot, PageHeader)
+├── components/   # UI genérica, sem regra de negócio, uma pasta por componente (DataTable, FormDialog, ConfirmDialog, SearchField, StatusChip, PasswordField, ErrorBoundary, EmptyState, ResourceState, Mascot, PageHeader)
 ├── lib/          # Adaptadores: axios (interceptor de token e 401), AuthContext, notify (avisos rápidos), theme (MUI a partir dos design tokens)
 ├── hooks/        # Hooks genéricos de lista: useListQuery (filtros na URL), usePaginatedList, useRemoteList
 ├── utils/        # Funções puras

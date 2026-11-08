@@ -318,7 +318,23 @@ describe('QuestionForm', () => {
         http.get(`${API_URL}/questions/99`, () => HttpResponse.json({ message: 'Questão não encontrada.' }, { status: 404 })),
       );
       renderPage('/questoes/99');
-      expect(await screen.findByText('Questão não encontrada.')).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'Questão não encontrada.' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull();
+      expect(screen.getByRole('link', { name: 'Voltar para as questões' })).toHaveAttribute('href', '/questoes');
+    });
+
+    it('falha ao carregar (500) mostra o erro e "Tentar de novo" recarrega', async () => {
+      lookups();
+      let calls = 0;
+      server.use(
+        http.get(`${API_URL}/questions/7`, () =>
+          ++calls === 1 ? HttpResponse.json({ message: 'Erro interno.' }, { status: 500 }) : HttpResponse.json(stored()),
+        ),
+      );
+      renderPage('/questoes/7');
+      expect(await screen.findByRole('heading', { name: 'Não deu para carregar.' })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+      expect(await screen.findByDisplayValue('Quanto é dois mais dois no sistema decimal?')).toBeInTheDocument();
     });
 
     it('id inválido na URL não consulta a API', async () => {

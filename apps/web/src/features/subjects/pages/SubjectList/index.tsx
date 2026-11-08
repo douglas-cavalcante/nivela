@@ -9,6 +9,7 @@ import type { ApiSubject } from '@nivela/api-contract';
 import { useState } from 'react';
 import { ConfirmDialog } from 'src/components/ConfirmDialog';
 import { EmptyState } from 'src/components/EmptyState';
+import { ResourceState } from 'src/components/ResourceState';
 import { PageHeader } from 'src/components/PageHeader';
 import { useRemoteList } from 'src/hooks/useRemoteList';
 import { deleteSubjectAction, listSubjectsAction } from 'src/features/subjects/api/subjects.action';
@@ -142,17 +143,7 @@ export function SubjectList() {
 
   let content;
   if (error) {
-    content = (
-      <EmptyState
-        title="Não deu para carregar."
-        description={error}
-        action={
-          <Button variant="contained" onClick={() => void reload()}>
-            Tentar de novo
-          </Button>
-        }
-      />
-    );
+    content = <ResourceState kind="error" message={error} onRetry={() => void reload()} />;
   } else if (loading && rows.length === 0) {
     content = (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
