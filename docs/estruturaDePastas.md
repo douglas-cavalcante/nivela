@@ -43,7 +43,7 @@ src/
 │       ├── <feature>.service.spec.ts  # unitário com Prisma mockado
 │       └── <feature>.module.ts        # `exports` define o que outras features podem usar
 ├── common/                        # filters, pipes, guards (AuthGuard, RolesGuard), decorators (@Public, @Roles, @AnyAuthenticated, @CurrentUser), validators (sem regra de negócio)
-├── shared/                        # enums, exceções, contrato de autenticação (auth/auth-user.ts), relógio injetável (clock/), paginação (pagination/) e regras usadas por mais de uma feature
+├── shared/                        # enums, exceções, contrato de autenticação (auth/auth-user.ts), relógio injetável (clock/), paginação (pagination/), helpers do Prisma (prisma/, ex.: `isUniqueViolation`) e regras usadas por mais de uma feature
 ├── prisma/                        # PrismaModule (global) e PrismaService (adapter-pg)
 ├── generated/prisma/              # client do Prisma (gerado, ignorado pelo git)
 ├── app.factory.ts                 # configureApp(): prefixo, validação, filtro, CORS, Swagger
