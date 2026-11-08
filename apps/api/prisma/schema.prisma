@@ -97,3 +97,32 @@ model ClassroomStudent {
   @@index([studentId])
   @@map("classroom_student")
 }
+
+// Unicidade por nome sem diferenciar maiúsculas/espaços: índices funcionais
+// `lower(name)` criados à mão na migration subjects_categories (o Prisma não
+// os representa no schema).
+model Subject {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(60)
+  color     String   @db.VarChar(20)
+  icon      String   @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  categories Category[]
+
+  @@map("subjects")
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  subjectId Int      @map("subject_id")
+  name      String   @db.VarChar(80)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+
+  @@index([subjectId])
+  @@map("categories")
+}
