@@ -15,7 +15,8 @@ export function flattenValidationErrors(
   for (const error of errors) {
     const path = parent ? `${parent}.${error.property}` : error.property;
     if (error.constraints) {
-      result[path] = Object.values(error.constraints);
+      // Sem repetir: @IsString e @IsNotEmpty podem usar a mesma frase.
+      result[path] = [...new Set(Object.values(error.constraints))];
     }
     if (error.children?.length) {
       Object.assign(result, flattenValidationErrors(error.children, path));

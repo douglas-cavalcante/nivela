@@ -14,8 +14,8 @@ export class RegisterStudentDto {
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )
-  @IsString({ message: 'O nome é obrigatório.' })
-  @IsNotEmpty({ message: 'O nome é obrigatório.' })
+  @IsString({ message: 'Informe seu nome.' })
+  @IsNotEmpty({ message: 'Informe seu nome.' })
   @MaxLength(120, { message: 'O nome deve ter no máximo 120 caracteres.' })
   name: string;
 
@@ -24,12 +24,12 @@ export class RegisterStudentDto {
   @MaxLength(190, { message: 'O e-mail deve ter no máximo 190 caracteres.' })
   email: string;
 
-  @IsString({ message: 'A senha é obrigatória.' })
+  @IsString({ message: 'Informe sua senha.' })
   @MinLength(8, { message: 'A senha deve ter pelo menos 8 caracteres.' })
   @MaxLength(72, { message: 'A senha deve ter no máximo 72 caracteres.' })
   password: string;
 
-  @IsString({ message: 'A confirmação de senha é obrigatória.' })
+  @IsString({ message: 'Confirme sua senha.' })
   @MatchesField('password', { message: 'A confirmação de senha não confere.' })
   password_confirmation: string;
 
@@ -37,7 +37,7 @@ export class RegisterStudentDto {
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? JoinCodeService.normalize(value) : value,
   )
-  @IsString({ message: 'O código da turma é obrigatório.' })
-  @IsNotEmpty({ message: 'O código da turma é obrigatório.' })
+  @IsString({ message: 'Informe o código da turma.' })
+  @IsNotEmpty({ message: 'Informe o código da turma.' })
   join_code: string;
 }

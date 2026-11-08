@@ -174,7 +174,9 @@ describe('Auth - sessão (e2e)', () => {
       })
       .expect(422);
 
-    expect(body.errors.password).toBeDefined();
+    expect(body.errors.password).toEqual([
+      'A senha deve ter pelo menos 8 caracteres.',
+    ]);
     expect(body.errors.password_confirmation[0]).toBe(
       'A confirmação de senha não confere.',
     );

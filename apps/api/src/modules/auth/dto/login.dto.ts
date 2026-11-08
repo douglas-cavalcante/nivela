@@ -6,8 +6,8 @@ export class LoginDto {
   @IsEmail({}, { message: 'Informe um e-mail válido.' })
   email: string;
 
-  @IsString({ message: 'A senha é obrigatória.' })
-  @IsNotEmpty({ message: 'A senha é obrigatória.' })
+  @IsString({ message: 'Informe sua senha.' })
+  @IsNotEmpty({ message: 'Informe sua senha.' })
   password: string;
 
   /** Onde a pessoa está entrando: `web` (professor/admin) ou `mobile` (aluno). */
