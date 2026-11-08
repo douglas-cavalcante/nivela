@@ -27,19 +27,20 @@ Publicação no GitHub (repositório público) apenas com autorização explíci
 - **Conventional Commits em português**, com escopo do app quando houver: `feat(api): …`, `fix(web): …`, `test(mobile): …`, `chore: …`, `docs: …`.
 - Tipos usados: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`.
 - Commits pequenos, um por passo lógico (um assunto por commit).
+- Todo commit termina com uma linha em branco e o trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 - Commits e tags **assinados via SSH**, com o autor configurado no repositório. Datas reais (sem retroagir).
 
 ## Definição de pronto
 
 Uma feature está pronta quando:
 
-1. os testes da feature passam (API: Pest; web: Vitest; mobile: jest-expo);
-2. lint e checagem de tipos estão limpos (`npm run lint`, Pint e `tsc`);
+1. os testes da feature passam (API: Jest; web: Vitest; mobile: jest-expo);
+2. lint e checagem de tipos estão limpos (`npm run lint` e `tsc --noEmit`, que na API é `npm run typecheck -w apps/api`);
 3. a documentação foi atualizada quando a feature muda a estrutura (`docs/estruturaDePastas.md`, `docs/architecture.md`).
 
 ## Testes e CI
 
-- **API (Pest):** um arquivo de teste por feature cobrindo sucesso, validação e permissão; testes dedicados às regras de negócio; arch tests das regras de dependência; Pint.
+- **API (Jest + supertest):** testes unitários dos services (`*.spec.ts`, Prisma mockado) e e2e por feature (`test/*.e2e-spec.ts`, banco `nivela_test`) cobrindo sucesso, validação e permissão; testes dedicados às regras de negócio; ESLint com as regras de dependência entre features; Prettier.
 - **Web (Vitest + MSW)** e **Mobile (jest-expo)**: testes das telas e fluxos principais.
-- **CI** (`.github/workflows/ci.yml`): jobs `api` (serviço PostgreSQL, composer, `pint --test`, pest), `web` (lint, tsc, vitest, build) e `mobile` (lint, tsc, jest).
+- **CI** (`.github/workflows/ci.yml`): jobs `api` (serviço PostgreSQL, `prisma migrate deploy`, lint, tsc, jest unitário e e2e), `web` (lint, tsc, vitest, build) e `mobile` (lint, tsc, jest).
 - Na raiz: `npm run lint` e `npm run test` rodam os scripts de todos os workspaces.
