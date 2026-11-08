@@ -11,18 +11,21 @@ import {
 import { Trim } from 'src/common/decorators/trim.decorator';
 import { DIFFICULTIES, MAX_ID } from 'src/modules/questions/dto/question.dto';
 import { PaginationQueryDto } from 'src/shared/pagination/pagination-query.dto';
+import { EmptyAsUndefined } from 'src/common/decorators/empty-as-undefined.decorator';
 
 export const QUESTION_STATUSES = ['active', 'inactive'] as const;
 
 /** Query de `GET /questions`. */
 export class ListQuestionsQuery extends PaginationQueryDto {
   /** Parte do enunciado. */
+  @EmptyAsUndefined()
   @IsOptional()
   @Trim()
   @IsString({ message: 'A busca deve ser um texto.' })
   @MaxLength(120, { message: 'A busca deve ter no máximo 120 caracteres.' })
   search?: string;
 
+  @EmptyAsUndefined()
   @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'A disciplina deve ser um número inteiro.' })
@@ -30,6 +33,7 @@ export class ListQuestionsQuery extends PaginationQueryDto {
   @Max(MAX_ID, { message: 'A disciplina deve ser um número inteiro.' })
   subject_id?: number;
 
+  @EmptyAsUndefined()
   @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'A categoria deve ser um número inteiro.' })
@@ -37,12 +41,14 @@ export class ListQuestionsQuery extends PaginationQueryDto {
   @Max(MAX_ID, { message: 'A categoria deve ser um número inteiro.' })
   category_id?: number;
 
+  @EmptyAsUndefined()
   @IsOptional()
   @IsIn(DIFFICULTIES, {
     message: 'A dificuldade deve ser easy, medium ou hard.',
   })
   difficulty?: (typeof DIFFICULTIES)[number];
 
+  @EmptyAsUndefined()
   @IsOptional()
   @IsIn(QUESTION_STATUSES, {
     message: 'A situação deve ser active ou inactive.',

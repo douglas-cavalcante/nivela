@@ -18,6 +18,13 @@ import { Role } from 'src/shared/enums/role.enum';
 
 const subjectId = () => new ParseIdPipe('Disciplina não encontrada.');
 
+/**
+ * `@Roles` fica em cada rota (e não na classe) de propósito: as leituras de
+ * disciplinas são as candidatas a abrir para outros perfis (ex.: o aluno ver as
+ * disciplinas no app), e cada rota declarando o próprio perfil deixa essa troca
+ * explícita sem afrouxar as escritas, que continuam só da equipe. O teste
+ * `route-authorization` garante que nenhuma rota fique sem declaração.
+ */
 @ApiTags('subjects')
 @ApiBearerAuth()
 @Controller('subjects')

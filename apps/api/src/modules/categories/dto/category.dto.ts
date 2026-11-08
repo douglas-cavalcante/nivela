@@ -1,4 +1,4 @@
-import { Transform, Type } from 'class-transformer';
+import { Type } from 'class-transformer';
 import {
   IsInt,
   IsOptional,
@@ -9,6 +9,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { Trim } from 'src/common/decorators/trim.decorator';
+import { EmptyAsUndefined } from 'src/common/decorators/empty-as-undefined.decorator';
 
 const MAX_ID = 2_147_483_647;
 
@@ -32,9 +33,7 @@ export class CreateCategoryDto extends UpdateCategoryDto {
 
 /** Query de `GET /categories`: `?subject_id=3` (opcional). */
 export class ListCategoriesQueryDto {
-  @Transform(({ value }: { value: unknown }) =>
-    value === '' ? undefined : value,
-  )
+  @EmptyAsUndefined()
   @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'A disciplina deve ser um número inteiro.' })

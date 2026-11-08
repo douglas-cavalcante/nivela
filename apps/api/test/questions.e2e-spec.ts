@@ -580,6 +580,18 @@ describe('Questões (e2e)', () => {
       });
     });
 
+    it('filtros vazios valem como ausentes (?subject_id= → 200)', async () => {
+      await createQuestion(prisma, { subjectId, categoryId });
+      const res = await http()
+        .get(
+          '/api/v1/questions?subject_id=&category_id=&difficulty=&status=&search=&page=',
+        )
+        .set(as(teacher))
+        .expect(200);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.meta).toMatchObject({ page: 1, per_page: 15 });
+    });
+
     it('filtros inválidos → 422; aluno → 403', async () => {
       const res = await http()
         .get('/api/v1/questions?difficulty=x&status=y&subject_id=abc')
