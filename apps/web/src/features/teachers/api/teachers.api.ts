@@ -9,6 +9,7 @@ import type {
 
 export interface ListTeachersParams {
   page?: number;
+  per_page?: number;
   search?: string;
   status?: 'active' | 'inactive';
 }
