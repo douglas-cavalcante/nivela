@@ -201,6 +201,31 @@ describe('ClassroomDetail', () => {
     expect(screen.getByText('Lucas Lima')).toBeInTheDocument();
   });
 
+  it('se a recarga após uma mudança falha, mantém a turma na tela e avisa o erro', async () => {
+    let failing = false;
+    server.use(
+      http.get(`${API_URL}/classrooms/7`, () =>
+        failing
+          ? HttpResponse.json({ statusCode: 500, message: 'Falha ao recarregar.' }, { status: 500 })
+          : HttpResponse.json(classroom),
+      ),
+      http.delete(`${API_URL}/classrooms/7/students/22`, () => {
+        failing = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Remover Bia Souza da turma' }));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Remover da turma' }));
+
+    expect(await screen.findByText('Falha ao recarregar.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '9º A' })).toBeInTheDocument();
+    expect(screen.getByText('Lucas Lima')).toBeInTheDocument();
+    expect(screen.queryByText('Não deu para carregar')).toBeNull();
+  });
+
   it('turma sem alunos mostra o estado vazio', async () => {
     detailHandler({ ...classroom, students: [], students_count: 0 });
     renderPage();
