@@ -116,7 +116,7 @@ describe('QuestionsService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     images.urlFor.mockImplementation((p: string | null) =>
-      p ? `http://x/uploads/${p}` : null,
+      p ? `/uploads/${p}` : null,
     );
     subjectFindUnique.mockResolvedValue({ id: 1 });
     categoryFindUnique.mockResolvedValue({ subjectId: 1 });
@@ -237,7 +237,7 @@ describe('QuestionsService', () => {
 
     const result = await service.replaceImage(10, { buffer: PNG }, author);
 
-    expect(result).toEqual({ image_url: 'http://x/uploads/questions/new.png' });
+    expect(result).toEqual({ image_url: '/uploads/questions/new.png' });
     expect(images.remove).toHaveBeenCalledWith('questions/old.png');
     expect(images.remove).not.toHaveBeenCalledWith('questions/new.png');
   });

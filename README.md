@@ -65,11 +65,10 @@ Troque a senha em **Perfil** no primeiro acesso.
 |---|---|
 | `PORT`, `DATABASE_URL`, `TZ` | porta da API, conexão com o PostgreSQL e fuso horário |
 | `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | administrador criado pelo seed |
-| `UPLOADS_DIR` | pasta das imagens enviadas (padrão `uploads`, relativa a `apps/api`), servida em `/uploads` |
-| `PUBLIC_URL` | endereço público da API, usado para montar as URLs das imagens (padrão `http://localhost:8000`); mude junto com a porta ou ao acessar de outro aparelho |
+| `UPLOADS_DIR` | pasta das imagens enviadas (padrão `uploads`, relativa a `apps/api`), servida em `/uploads`; a API devolve o caminho relativo (`/uploads/questions/...`) e cada app o resolve com o próprio endereço da API |
 | `CORS_ORIGINS` | origens liberadas no CORS, separadas por vírgula (opcional) |
 
-> **Outra porta no web:** o CORS padrão só libera o Vite em `http://localhost:5173` (e o Expo web em 8081/19006). Se subir o painel em outra porta (por exemplo `npm run dev:web -- --port 5174`), defina `CORS_ORIGINS=http://localhost:5174` no `apps/api/.env` e reinicie a API; o mesmo vale para acessar o painel pelo IP da máquina. Se mudar a porta da API, ajuste também `PUBLIC_URL`, `VITE_API_URL` e `EXPO_PUBLIC_API_URL`.
+> **Outra porta no web:** o CORS padrão só libera o Vite em `http://localhost:5173` (e o Expo web em 8081/19006). Se subir o painel em outra porta (por exemplo `npm run dev:web -- --port 5174`), defina `CORS_ORIGINS=http://localhost:5174` no `apps/api/.env` e reinicie a API; o mesmo vale para acessar o painel pelo IP da máquina. Se mudar a porta da API, ajuste também `VITE_API_URL` e `EXPO_PUBLIC_API_URL`.
 
 Se `VITE_API_URL` (web) ou `EXPO_PUBLIC_API_URL` (mobile) não estiver definida, o app falha logo ao abrir com uma mensagem dizendo qual `.env` copiar.
 

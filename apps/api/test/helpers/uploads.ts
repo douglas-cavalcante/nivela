@@ -3,13 +3,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 /**
- * Cria uma pasta temporária de uploads para a suíte e aponta `UPLOADS_DIR` e
- * `PUBLIC_URL` para ela. Chamar em beforeAll, antes de `createTestApp`.
+ * Cria uma pasta temporária de uploads para a suíte e aponta `UPLOADS_DIR`
+ * para ela. Chamar em beforeAll, antes de `createTestApp`.
  */
 export async function createUploadsDir(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'nivela-uploads-'));
   process.env.UPLOADS_DIR = dir;
-  process.env.PUBLIC_URL = 'http://api.nivela.test';
   return dir;
 }
 
