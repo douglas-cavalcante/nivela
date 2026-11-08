@@ -648,4 +648,14 @@ describe('Questões (e2e)', () => {
       expect(await prisma.subject.count({ where: { id: empty.id } })).toBe(1);
     });
   });
+
+  it('o banco recusa uma segunda alternativa correta na mesma questão', async () => {
+    const question = await createQuestion(prisma, { subjectId, categoryId });
+    await expect(
+      prisma.questionOption.updateMany({
+        where: { questionId: question.id, letter: 'B' },
+        data: { isCorrect: true },
+      }),
+    ).rejects.toThrow();
+  });
 });

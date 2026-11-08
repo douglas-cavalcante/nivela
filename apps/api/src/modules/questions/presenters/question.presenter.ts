@@ -1,3 +1,4 @@
+import { InternalServerErrorException, Logger } from '@nestjs/common';
 import type {
   ApiQuestion,
   ApiQuestionSummary,
@@ -7,12 +8,15 @@ import type {
 } from '@nivela/api-contract';
 
 const EXCERPT_LENGTH = 140;
+const logger = new Logger('QuestionPresenter');
 
 /** Primeiros 140 caracteres do enunciado, sem quebras de linha. */
 export function statementExcerpt(statement: string): string {
   const flat = statement.replace(/\s*[\r\n]+\s*/g, ' ');
-  return flat.length > EXCERPT_LENGTH
-    ? `${flat.slice(0, EXCERPT_LENGTH)}…`
+  // Por pontos de código, para não partir emojis ao meio.
+  const chars = Array.from(flat);
+  return chars.length > EXCERPT_LENGTH
+    ? `${chars.slice(0, EXCERPT_LENGTH).join('').trimEnd()}…`
     : flat;
 }
 
@@ -61,6 +65,12 @@ export function presentQuestion(
   const options = [...row.options].sort((a, b) =>
     a.letter.localeCompare(b.letter),
   );
+  const correct = options.find((o) => o.isCorrect);
+  if (!correct) {
+    // Dado corrompido: nunca chuta uma alternativa correta.
+    logger.error(`Questão ${row.id} sem alternativa correta.`);
+    throw new InternalServerErrorException();
+  }
   return {
     id: row.id,
     statement: row.statement,
@@ -75,8 +85,7 @@ export function presentQuestion(
     },
     category: { id: row.category.id, name: row.category.name },
     author: { id: row.author.id, name: row.author.name },
-    correct_letter: (options.find((o) => o.isCorrect)?.letter ??
-      'A') as OptionLetter,
+    correct_letter: correct.letter as OptionLetter,
     options: options.map((o) => ({
       letter: o.letter as OptionLetter,
       text: o.text,

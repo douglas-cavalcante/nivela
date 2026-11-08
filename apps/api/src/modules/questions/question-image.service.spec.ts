@@ -1,4 +1,12 @@
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { Logger } from '@nestjs/common';
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -92,7 +100,27 @@ describe('QuestionImageService', () => {
   });
 
   it('não apaga fora da pasta de uploads', async () => {
-    await expect(service.remove('../fora.png')).resolves.toBeUndefined();
+    const uploadsRoot = join(dir, 'uploads');
+    await mkdir(uploadsRoot);
+    process.env.UPLOADS_DIR = uploadsRoot;
+    const sentinel = join(dir, 'sentinela.png');
+    await writeFile(sentinel, PNG);
+
+    await service.remove('../sentinela.png');
+    await service.remove(sentinel);
+
+    expect(await readFile(sentinel)).toEqual(PNG);
+  });
+
+  it('não falha se apagar o arquivo der erro (só registra aviso)', async () => {
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    // Um diretório não vazio faz o rm (sem recursive) falhar com EISDIR/ENOTEMPTY.
+    await mkdir(join(dir, 'questions', 'pasta'), { recursive: true });
+    await expect(service.remove('questions/pasta')).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('monta a URL pública', () => {

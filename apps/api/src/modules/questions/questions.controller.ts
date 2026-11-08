@@ -92,7 +92,13 @@ export class QuestionsController {
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileInterceptor('image', {
-      limits: { fileSize: HARD_UPLOAD_LIMIT_BYTES, files: 1 },
+      limits: {
+        fileSize: HARD_UPLOAD_LIMIT_BYTES,
+        files: 1,
+        fields: 5,
+        parts: 6,
+        fieldSize: 1024,
+      },
     }),
   )
   replaceImage(

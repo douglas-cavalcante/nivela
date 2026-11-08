@@ -1,5 +1,5 @@
 import { INestApplication } from '@nestjs/common';
-import { access } from 'node:fs/promises';
+import { access, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import request from 'supertest';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -236,5 +236,15 @@ describe('Imagem das questões (e2e)', () => {
       .post(`/api/v1/questions/${questionId}/image`)
       .attach('image', PNG_BYTES, 'a.png')
       .expect(401);
+  });
+
+  it('não lista diretórios nem serve dotfiles em /uploads', async () => {
+    await upload(teacher, PNG_BYTES).expect(200);
+    await writeFile(join(uploads, 'questions', '.segredo'), 'x');
+
+    await http().get('/uploads/questions').expect(404);
+    await http().get('/uploads/questions/').expect(404);
+    const dot = await http().get('/uploads/questions/.segredo');
+    expect([403, 404]).toContain(dot.status);
   });
 });

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
@@ -30,6 +30,8 @@ export interface UploadedImage {
 /** Grava e apaga as imagens das questões em `UPLOADS_DIR/questions`. */
 @Injectable()
 export class QuestionImageService {
+  private readonly logger = new Logger(QuestionImageService.name);
+
   /** Valida o arquivo (assinatura dos bytes e tamanho) sem tocar o disco. */
   validate(file: UploadedImage | undefined): ImageKind {
     if (!file?.buffer?.length) {
@@ -69,7 +71,14 @@ export class QuestionImageService {
     if (!target.startsWith(root + sep)) {
       return;
     }
-    await rm(target, { force: true });
+    try {
+      await rm(target, { force: true });
+    } catch (error) {
+      // O banco já aponta para outro lugar: um arquivo órfão não deve virar 500.
+      this.logger.warn(
+        `Não foi possível apagar ${imagePath}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   /** URL pública da imagem, ou null se a questão não tem. */

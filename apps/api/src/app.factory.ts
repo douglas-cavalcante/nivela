@@ -38,6 +38,9 @@ export function configureApp(app: INestApplication): INestApplication {
   // Arquivos enviados (imagens de questões), fora do prefixo `api/v1`.
   (app as NestExpressApplication).useStaticAssets(uploadsDir(), {
     prefix: UPLOADS_PREFIX,
+    index: false,
+    redirect: false,
+    dotfiles: 'deny',
     setHeaders: (res) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
     },
