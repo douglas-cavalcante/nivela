@@ -1,5 +1,7 @@
+import { Menu, MenuItem } from '@mui/material';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { vi } from 'vitest';
 import { DataTable } from 'src/components/DataTable';
 import { renderWithProviders } from 'src/test/render';
@@ -93,5 +95,28 @@ describe('DataTable - casos de borda', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: 'Voltar para a primeira página' }));
     expect(onPageChange).toHaveBeenCalledWith(1);
+  });
+});
+
+describe('DataTable - portais', () => {
+  it('clique num item de menu aberto de uma célula não abre a linha', async () => {
+    const onRowClick = vi.fn();
+    const onPick = vi.fn();
+    function Cell() {
+      const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+      return (
+        <>
+          <span>Mais</span>
+          <Menu open anchorEl={anchor ?? document.body} onClose={() => setAnchor(null)}>
+            <MenuItem onClick={onPick}>Duplicar</MenuItem>
+          </Menu>
+        </>
+      );
+    }
+    const withMenu = [...columns, { key: 'm', header: 'Menu', render: () => <Cell /> }];
+    renderWithProviders(<DataTable {...base} columns={withMenu} rows={[rows[0]]} onRowClick={onRowClick} />);
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Duplicar' }));
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onRowClick).not.toHaveBeenCalled();
   });
 });

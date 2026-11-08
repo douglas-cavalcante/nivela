@@ -39,7 +39,7 @@ interface DataTableProps<T> {
   onRowClick?: (row: T) => void;
 }
 
-const INTERACTIVE = 'button, a, input, select, textarea, [role="button"], [role="checkbox"], [role="switch"]';
+const INTERACTIVE = 'button, a, input, select, textarea, [role="button"], [role="checkbox"], [role="switch"], [role="menuitem"], [role="tab"], [role="option"]';
 
 const paginationLabels = {
   getItemAriaLabel: (type: 'first' | 'last' | 'next' | 'previous') =>
@@ -112,6 +112,7 @@ export function DataTable<T>({
 
   function handleClick(event: MouseEvent<HTMLTableRowElement>, row: T) {
     // cliques em botões, links e campos da linha são deles, não da linha
+    if (!event.currentTarget.contains(event.target as Node)) return; // clique vindo de um portal (menu, popover)
     const inner = (event.target as Element).closest(INTERACTIVE);
     if (inner && event.currentTarget.contains(inner)) return;
     onRowClick?.(row);

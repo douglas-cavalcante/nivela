@@ -7,6 +7,8 @@ interface ErrorBoundaryProps {
   children: ReactNode;
   /** Ação do botão "Recarregar" (padrão: recarregar a página do navegador). */
   onReload?: () => void;
+  /** Quando muda (ex.: a rota), o erro é esquecido e os filhos voltam a ser exibidos. */
+  resetKey?: string;
 }
 
 /** Rede de segurança de um trecho da tela: se ele quebrar (ex.: falha ao baixar um chunk), o resto continua. */
@@ -15,6 +17,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, { failed: boole
 
   static getDerivedStateFromError() {
     return { failed: true };
+  }
+
+  componentDidUpdate(previous: ErrorBoundaryProps) {
+    if (this.state.failed && previous.resetKey !== this.props.resetKey) this.setState({ failed: false });
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {

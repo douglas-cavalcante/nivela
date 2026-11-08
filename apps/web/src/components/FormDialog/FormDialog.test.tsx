@@ -1,5 +1,6 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { vi } from 'vitest';
 import { FormDialog } from 'src/components/FormDialog';
 import { renderWithProviders } from 'src/test/render';
@@ -52,5 +53,30 @@ describe('FormDialog - envio duplo', () => {
     const { onSubmit } = setup();
     await userEvent.type(screen.getByLabelText('Nome'), 'a{Enter}{Enter}');
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('FormDialog - fim do envio', () => {
+  it('libera novo envio assim que loading volta a false', async () => {
+    const onSubmit = vi.fn();
+    function Harness() {
+      const [loading, setLoading] = useState(false);
+      return (
+        <>
+          <button onClick={() => setLoading((v) => !v)}>alternar</button>
+          <FormDialog open title="T" submitLabel="Salvar" loading={loading} onSubmit={onSubmit} onClose={vi.fn()}>
+            <input aria-label="campo" />
+          </FormDialog>
+        </>
+      );
+    }
+    renderWithProviders(<Harness />);
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    // o pai marca loading e depois libera (ex.: erro de validação do servidor)
+    fireEvent.click(screen.getByText('alternar', { selector: 'button' }), {});
+    fireEvent.click(screen.getByText('alternar', { selector: 'button' }), {});
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    expect(onSubmit).toHaveBeenCalledTimes(2);
   });
 });

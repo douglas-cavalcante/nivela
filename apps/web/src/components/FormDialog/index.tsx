@@ -1,5 +1,5 @@
 import { Box, Button, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
-import { useId, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 
 const SUBMIT_GUARD_MS = 500;
@@ -18,6 +18,13 @@ interface FormDialogProps {
 export function FormDialog({ open, title, submitLabel, loading = false, onSubmit, onClose, children }: FormDialogProps) {
   const titleId = useId();
   const lastSubmit = useRef(0);
+  const wasLoading = useRef(false);
+
+  // terminou de enviar: libera um novo envio na hora
+  useEffect(() => {
+    if (wasLoading.current && !loading) lastSubmit.current = 0;
+    wasLoading.current = loading;
+  }, [loading]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
