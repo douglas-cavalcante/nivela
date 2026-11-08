@@ -9,6 +9,8 @@ type PasswordFieldProps = Omit<TextFieldProps, 'type' | 'variant'>;
 /** Campo de senha com botão para mostrar/ocultar o que foi digitado. */
 export function PasswordField({ slotProps, ...props }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false);
+  const inputSlot = slotProps?.input;
+  const inputProps = typeof inputSlot === 'function' ? {} : inputSlot;
   const label = visible ? 'Ocultar senha' : 'Mostrar senha';
 
   return (
@@ -18,6 +20,7 @@ export function PasswordField({ slotProps, ...props }: PasswordFieldProps) {
       slotProps={{
         ...slotProps,
         input: {
+          ...inputProps,
           endAdornment: (
             <InputAdornment position="end">
               <IconButton
