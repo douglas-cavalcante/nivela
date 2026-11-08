@@ -106,7 +106,7 @@ export function StudentList() {
         meta={meta}
         onPageChange={setPage}
         onRowClick={(row) => void navigate(`/alunos/${row.id}`)}
-        emptyTitle={filtered ? 'Nenhum aluno encontrado' : 'Nenhum aluno ainda'}
+        emptyTitle={filtered ? 'Nenhum aluno encontrado.' : 'Nenhum aluno ainda.'}
         emptyDescription={
           filtered ? 'Tente outra busca ou limpe os filtros.' : 'Os alunos aparecem aqui quando entram numa turma.'
         }

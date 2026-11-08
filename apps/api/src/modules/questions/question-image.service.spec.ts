@@ -42,7 +42,6 @@ describe('QuestionImageService', () => {
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'nivela-img-'));
     process.env.UPLOADS_DIR = dir;
-    process.env.PUBLIC_URL = 'https://api.nivela.test';
     service = new QuestionImageService();
   });
 
@@ -123,9 +122,9 @@ describe('QuestionImageService', () => {
     warn.mockRestore();
   });
 
-  it('monta a URL pública', () => {
+  it('monta o caminho relativo à raiz (sem host)', () => {
     expect(service.urlFor('questions/1-a.png')).toBe(
-      'https://api.nivela.test/uploads/questions/1-a.png',
+      '/uploads/questions/1-a.png',
     );
     expect(service.urlFor(null)).toBeNull();
   });

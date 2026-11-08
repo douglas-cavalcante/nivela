@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import type { ApiMyClassroom } from '@nivela/api-contract';
+import type { ApiList, ApiMyClassroom } from '@nivela/api-contract';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { ClassroomsService } from 'src/modules/classrooms/classrooms.service';
@@ -17,9 +17,7 @@ export class StudentClassroomsController {
   constructor(private readonly classrooms: ClassroomsService) {}
 
   @Get()
-  async list(
-    @CurrentUser() user: AuthUser,
-  ): Promise<{ data: ApiMyClassroom[] }> {
+  async list(@CurrentUser() user: AuthUser): Promise<ApiList<ApiMyClassroom>> {
     return { data: await this.classrooms.listMine(user) };
   }
 

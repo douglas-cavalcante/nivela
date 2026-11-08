@@ -6,7 +6,7 @@ export function ComingSoon({ title }: { title: string }) {
   return (
     <>
       <PageHeader title={title} />
-      <EmptyState title="Em breve" description="Esta página do caderno ainda está em branco. Logo ela estará pronta." />
+      <EmptyState title="Em breve." description="Esta página do caderno ainda está em branco. Logo ela estará pronta." />
     </>
   );
 }

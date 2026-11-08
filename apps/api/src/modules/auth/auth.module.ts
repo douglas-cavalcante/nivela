@@ -3,11 +3,12 @@ import { AuthController } from 'src/modules/auth/auth.controller';
 import { AuthService } from 'src/modules/auth/auth.service';
 import { TokenService } from 'src/modules/auth/token.service';
 import { ClassroomsModule } from 'src/modules/classrooms/classrooms.module';
+import { StudentsModule } from 'src/modules/students/students.module';
 import { TOKEN_RESOLVER } from 'src/shared/auth/auth-user';
 import { CLOCK, systemClock } from 'src/shared/clock/clock';
 
 @Module({
-  imports: [ClassroomsModule],
+  imports: [ClassroomsModule, StudentsModule],
   controllers: [AuthController],
   providers: [
     AuthService,

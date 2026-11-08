@@ -1,4 +1,5 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Prisma } from 'src/generated/prisma/client';
 import { QuestionDto } from 'src/modules/questions/dto/question.dto';
 import { QuestionImageService } from 'src/modules/questions/question-image.service';
 import { QuestionsService } from 'src/modules/questions/questions.service';
@@ -15,6 +16,18 @@ const author: AuthUser = {
 };
 const stranger: AuthUser = { ...author, id: 2 };
 const admin: AuthUser = { ...author, id: 3, role: Role.Admin };
+
+/** Violação de FK no formato do Prisma 7 com adapter-pg. */
+const fkViolation = (index: string) =>
+  new Prisma.PrismaClientKnownRequestError('falha', {
+    code: 'P2003',
+    clientVersion: 'teste',
+    meta: {
+      driverAdapterError: {
+        cause: { kind: 'ForeignKeyConstraintViolation', constraint: { index } },
+      },
+    },
+  });
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1]);
 
@@ -72,6 +85,14 @@ describe('QuestionsService', () => {
   const questionUpdate = jest.fn();
   const subjectFindUnique = jest.fn();
   const categoryFindUnique = jest.fn();
+  const tx = {
+    question: { update: jest.fn() },
+    questionOption: {
+      updateMany: jest.fn(),
+      update: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+  };
   const images = {
     validate: jest.fn(),
     save: jest.fn(),
@@ -87,6 +108,7 @@ describe('QuestionsService', () => {
       },
       subject: { findUnique: subjectFindUnique },
       category: { findUnique: categoryFindUnique },
+      $transaction: (fn: (client: typeof tx) => Promise<unknown>) => fn(tx),
     } as unknown as PrismaService,
     images as unknown as QuestionImageService,
   );
@@ -94,7 +116,7 @@ describe('QuestionsService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     images.urlFor.mockImplementation((p: string | null) =>
-      p ? `http://x/uploads/${p}` : null,
+      p ? `/uploads/${p}` : null,
     );
     subjectFindUnique.mockResolvedValue({ id: 1 });
     categoryFindUnique.mockResolvedValue({ subjectId: 1 });
@@ -147,6 +169,53 @@ describe('QuestionsService', () => {
     expect(questionCreate).not.toHaveBeenCalled();
   });
 
+  it('create: FK de disciplina ou categoria apagada no meio → 422 no campo', async () => {
+    questionCreate.mockRejectedValueOnce(
+      fkViolation('questions_subject_id_fkey'),
+    );
+    expect(await errorsOf(service.create(dto(), author))).toEqual({
+      subject_id: ['Disciplina não encontrada.'],
+    });
+    questionCreate.mockRejectedValueOnce(
+      fkViolation('questions_category_id_fkey'),
+    );
+    expect(await errorsOf(service.create(dto(), author))).toEqual({
+      category_id: ['Categoria não encontrada.'],
+    });
+  });
+
+  it('create: outra violação de FK não vira erro de campo', async () => {
+    const error = fkViolation('questions_author_id_fkey');
+    questionCreate.mockRejectedValue(error);
+    await expect(service.create(dto(), author)).rejects.toBe(error);
+  });
+
+  it('update: atualiza as alternativas no lugar, desmarcando todas antes de marcar a correta', async () => {
+    questionFindUnique.mockResolvedValue(row());
+
+    await service.update(10, dto({ correct_letter: 'E' }), author);
+
+    expect(tx.questionOption.deleteMany).not.toHaveBeenCalled();
+    expect(tx.questionOption.updateMany).toHaveBeenCalledWith({
+      where: { questionId: 10 },
+      data: { isCorrect: false },
+    });
+    expect(tx.questionOption.update).toHaveBeenCalledTimes(5);
+    expect(tx.questionOption.update).toHaveBeenCalledWith({
+      where: { questionId_letter: { questionId: 10, letter: 'E' } },
+      data: { text: 'E', isCorrect: true },
+      select: { id: true },
+    });
+    const clearedAt = tx.questionOption.updateMany.mock.invocationCallOrder[0];
+    for (const order of tx.questionOption.update.mock.invocationCallOrder) {
+      expect(order).toBeGreaterThan(clearedAt);
+    }
+    const { data } = tx.question.update.mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect(data).not.toHaveProperty('options');
+  });
+
   it('update e status: 403 para quem não é autor nem admin', async () => {
     questionFindUnique.mockResolvedValue(row());
     await expect(service.update(10, dto(), stranger)).rejects.toBeInstanceOf(
@@ -168,7 +237,7 @@ describe('QuestionsService', () => {
 
     const result = await service.replaceImage(10, { buffer: PNG }, author);
 
-    expect(result).toEqual({ image_url: 'http://x/uploads/questions/new.png' });
+    expect(result).toEqual({ image_url: '/uploads/questions/new.png' });
     expect(images.remove).toHaveBeenCalledWith('questions/old.png');
     expect(images.remove).not.toHaveBeenCalledWith('questions/new.png');
   });

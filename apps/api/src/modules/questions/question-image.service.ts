@@ -7,11 +7,7 @@ import {
   type ImageKind,
   isAllowedImage,
 } from 'src/shared/files/image-signature';
-import {
-  publicUrl,
-  UPLOADS_PREFIX,
-  uploadsDir,
-} from 'src/shared/files/uploads-config';
+import { UPLOADS_PREFIX, uploadsDir } from 'src/shared/files/uploads-config';
 
 /** Limite de negócio da imagem de uma questão. */
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -81,8 +77,12 @@ export class QuestionImageService {
     }
   }
 
-  /** URL pública da imagem, ou null se a questão não tem. */
+  /**
+   * Caminho da imagem relativo à raiz do servidor (`/uploads/questions/...`),
+   * ou null se a questão não tem. Cada cliente resolve com o endereço da API
+   * que usa (`resolveAssetUrl` do contrato).
+   */
   urlFor(imagePath: string | null): string | null {
-    return imagePath ? `${publicUrl()}${UPLOADS_PREFIX}/${imagePath}` : null;
+    return imagePath ? `${UPLOADS_PREFIX}/${imagePath}` : null;
   }
 }

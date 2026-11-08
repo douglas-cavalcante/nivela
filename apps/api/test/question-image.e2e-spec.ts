@@ -70,16 +70,16 @@ describe('Imagem das questões (e2e)', () => {
     await removeUploadsDir(uploads);
   });
 
-  it('sobe um PNG real e a URL devolvida serve o arquivo', async () => {
+  it('sobe um PNG real e o caminho relativo devolvido serve o arquivo', async () => {
     const res = await upload(teacher, PNG_BYTES).expect(200);
+    // Caminho relativo à raiz: cada cliente resolve com o endereço da API que usa.
     expect(res.body.image_url).toMatch(
-      new RegExp(
-        `^http://api\\.nivela\\.test/uploads/questions/${questionId}-[0-9a-f-]{36}\\.png$`,
-      ),
+      new RegExp(`^/uploads/questions/${questionId}-[0-9a-f-]{36}\\.png$`),
     );
 
-    const path = new URL(res.body.image_url as string).pathname;
-    const served = await http().get(path).expect(200);
+    const served = await http()
+      .get(res.body.image_url as string)
+      .expect(200);
     expect(served.headers['content-type']).toBe('image/png');
     expect(served.headers['x-content-type-options']).toBe('nosniff');
     expect(Buffer.from(served.body as Buffer)).toEqual(PNG_BYTES);
@@ -104,7 +104,7 @@ describe('Imagem das questões (e2e)', () => {
     const res = await upload(teacher, bytes, 'qualquer-nome.bin').expect(200);
     expect(res.body.image_url).toMatch(new RegExp(`\\.${ext}$`));
     const served = await http()
-      .get(new URL(res.body.image_url as string).pathname)
+      .get(res.body.image_url as string)
       .expect(200);
     expect(served.headers['content-type']).toBe(mime);
   });
@@ -156,10 +156,7 @@ describe('Imagem das questões (e2e)', () => {
 
   it('trocar a imagem apaga a anterior', async () => {
     const first = await upload(teacher, PNG_BYTES).expect(200);
-    const firstFile = new URL(first.body.image_url as string).pathname.replace(
-      '/uploads/',
-      '',
-    );
+    const firstFile = (first.body.image_url as string).replace('/uploads/', '');
     expect(await exists(join(uploads, firstFile))).toBe(true);
 
     const second = await upload(teacher, JPEG_BYTES, 'nova.jpg').expect(200);
@@ -167,7 +164,7 @@ describe('Imagem das questões (e2e)', () => {
     expect(await exists(join(uploads, firstFile))).toBe(false);
     expect(await listQuestionFiles(uploads)).toHaveLength(1);
     await http()
-      .get(new URL(first.body.image_url as string).pathname)
+      .get(first.body.image_url as string)
       .expect(404);
   });
 
@@ -181,7 +178,7 @@ describe('Imagem das questões (e2e)', () => {
       .expect(204);
     expect(await listQuestionFiles(uploads)).toEqual([]);
     await http()
-      .get(new URL(res.body.image_url as string).pathname)
+      .get(res.body.image_url as string)
       .expect(404);
     const question = await http()
       .get(`/api/v1/questions/${questionId}`)

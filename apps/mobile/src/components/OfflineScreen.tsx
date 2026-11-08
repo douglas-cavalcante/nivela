@@ -18,7 +18,7 @@ export function OfflineScreen({ onRetry, retrying = false }: OfflineScreenProps)
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <Mascot size={160} />
-          <HandTitle size={40}>Sem conexão com o servidor</HandTitle>
+          <HandTitle size={40}>Sem conexão com o servidor.</HandTitle>
           <AppText variant="muted" size={17} style={styles.center}>
             Confira sua internet e tente de novo. Sua sessão continua salva.
           </AppText>

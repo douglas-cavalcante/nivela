@@ -55,7 +55,7 @@ export function JoinClassroomForm({ onJoined }: JoinClassroomFormProps) {
         render={({ field, fieldState }) => (
           <TextField
             label="Código da turma"
-            hint="Peça ao seu professor. Ex.: NIV-4K7Q"
+            hint="Peça ao seu professor. Ex.: NIV-4K7Q."
             emphasis
             autoCapitalize="characters"
             autoCorrect={false}

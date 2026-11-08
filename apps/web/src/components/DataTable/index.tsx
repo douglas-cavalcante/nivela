@@ -71,7 +71,7 @@ export function DataTable<T>({
   if (error) {
     return (
       <EmptyState
-        title="Não deu para carregar"
+        title="Não deu para carregar."
         description={error}
         action={
           onRetry ? (
@@ -97,7 +97,7 @@ export function DataTable<T>({
     if (meta && meta.page > 1 && onPageChange) {
       return (
         <EmptyState
-          title="Esta página está vazia"
+          title="Esta página está vazia."
           description="Não há registros nesta página."
           action={
             <Button variant="contained" onClick={() => onPageChange(1)}>

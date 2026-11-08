@@ -108,7 +108,7 @@ export function ClassroomList() {
         meta={meta}
         onPageChange={setPage}
         onRowClick={(row) => void navigate(`/turmas/${row.id}`)}
-        emptyTitle={filtered ? 'Nenhuma turma encontrada' : 'Nenhuma turma ainda'}
+        emptyTitle={filtered ? 'Nenhuma turma encontrada.' : 'Nenhuma turma ainda.'}
         emptyDescription={
           filtered ? 'Tente outra busca ou limpe os filtros.' : 'Crie a primeira turma para receber alunos.'
         }

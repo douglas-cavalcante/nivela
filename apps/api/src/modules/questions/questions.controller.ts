@@ -15,6 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import type {
+  ApiImageUpload,
   ApiQuestion,
   ApiQuestionSummary,
   Paginated,
@@ -105,7 +106,7 @@ export class QuestionsController {
     @Param('id', questionId()) id: number,
     @UploadedFile() file: UploadedImage | undefined,
     @CurrentUser() user: AuthUser,
-  ): Promise<{ image_url: string }> {
+  ): Promise<ApiImageUpload> {
     return this.questions.replaceImage(id, file, user);
   }
 

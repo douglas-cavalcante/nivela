@@ -319,8 +319,15 @@ describe('Questões (e2e)', () => {
   });
 
   describe('PUT /questions/:id', () => {
-    it('o autor edita e as alternativas são substituídas', async () => {
+    it('o autor edita e as alternativas são atualizadas no lugar (mesmos ids)', async () => {
       const created = await create(teacher).expect(201);
+      const optionIds = () =>
+        prisma.questionOption.findMany({
+          where: { questionId: created.body.id },
+          orderBy: { letter: 'asc' },
+          select: { id: true, letter: true },
+        });
+      const before = await optionIds();
       const options = LETTERS.map((letter) => ({
         letter,
         text: `Nova ${letter}`,
@@ -344,6 +351,14 @@ describe('Questões (e2e)', () => {
         correct_letter: 'E',
         options,
       });
+      // As alternativas não são recriadas: as respostas dos alunos (Plano 3)
+      // apontam para estes ids.
+      expect(await optionIds()).toEqual(before);
+      const correct = await prisma.questionOption.findMany({
+        where: { questionId: created.body.id, isCorrect: true },
+        select: { letter: true },
+      });
+      expect(correct).toEqual([{ letter: 'E' }]);
       expect(await prisma.questionOption.count()).toBe(5);
     });
 
@@ -563,6 +578,18 @@ describe('Questões (e2e)', () => {
         total: 3,
         last_page: 2,
       });
+    });
+
+    it('filtros vazios valem como ausentes (?subject_id= → 200)', async () => {
+      await createQuestion(prisma, { subjectId, categoryId });
+      const res = await http()
+        .get(
+          '/api/v1/questions?subject_id=&category_id=&difficulty=&status=&search=&page=',
+        )
+        .set(as(teacher))
+        .expect(200);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.meta).toMatchObject({ page: 1, per_page: 15 });
     });
 
     it('filtros inválidos → 422; aluno → 403', async () => {

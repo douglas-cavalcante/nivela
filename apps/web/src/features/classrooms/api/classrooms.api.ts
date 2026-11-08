@@ -1,5 +1,5 @@
 import type { AxiosResponse } from 'axios';
-import type { ApiClassroom, ApiClassroomSummary, ApiStudent, Paginated } from '@nivela/api-contract';
+import type { ApiClassroom, ApiClassroomSummary, ApiJoinCode, ApiStudent, Paginated } from '@nivela/api-contract';
 import api from 'src/lib/axios';
 import type { AddStudentValues, ClassroomPayload } from 'src/features/classrooms/schemas/classroom.schema';
 
@@ -25,8 +25,8 @@ export const createClassroom = (data: ClassroomPayload): Promise<AxiosResponse<A
 export const updateClassroom = (id: number, data: ClassroomPayload): Promise<AxiosResponse<ApiClassroom>> =>
   api.put<ApiClassroom>(`/classrooms/${id}`, data);
 
-export const regenerateJoinCode = (id: number): Promise<AxiosResponse<{ join_code: string }>> =>
-  api.post<{ join_code: string }>(`/classrooms/${id}/join-code`);
+export const regenerateJoinCode = (id: number): Promise<AxiosResponse<ApiJoinCode>> =>
+  api.post<ApiJoinCode>(`/classrooms/${id}/join-code`);
 
 export const addClassroomStudent = (id: number, data: AddStudentValues): Promise<AxiosResponse<ApiStudent>> =>
   api.post<ApiStudent>(`/classrooms/${id}/students`, data);

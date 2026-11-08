@@ -9,13 +9,9 @@ import {
   Logger,
 } from '@nestjs/common';
 import { AbstractHttpAdapter } from '@nestjs/core';
+import type { ErrorBody } from '@nivela/api-contract';
 import type { Response } from 'express';
 import { STATUS_CODES } from 'node:http';
-
-export interface ErrorBody {
-  message: string;
-  errors?: Record<string, string[]>;
-}
 
 const DEFAULT_MESSAGES: Record<number, string> = {
   400: 'Requisição inválida.',

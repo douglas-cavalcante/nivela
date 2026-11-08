@@ -86,6 +86,7 @@ describe('turmas do aluno no perfil', () => {
     });
 
     await user.press(await screen.findByRole('button', { name: 'Entrar em outra turma' }));
+    expect(screen.getByText('Peça ao seu professor. Ex.: NIV-4K7Q.')).toBeTruthy();
     await user.type(screen.getByLabelText('Código da turma'), ' niv 4k7q ');
     await user.press(screen.getByRole('button', { name: 'Entrar' }));
 

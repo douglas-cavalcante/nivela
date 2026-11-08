@@ -22,12 +22,21 @@ export interface ApiQuestion
   extends Omit<ApiQuestionSummary, 'statement_excerpt' | 'has_image'> {
   statement: string;
   explanation: string;
+  /**
+   * Caminho da imagem relativo à raiz do servidor (`/uploads/questions/<arquivo>`),
+   * ou null. Para exibir, resolva com `resolveAssetUrl(apiBaseUrl, image_url)`.
+   */
   image_url: string | null;
   correct_letter: OptionLetter;
   options: Array<{ letter: OptionLetter; text: string }>;
   /** Verdadeiro para o autor e para administradores. */
   can_edit: boolean;
   created_at: string;
+}
+
+/** Resposta de `POST /questions/:id/image` (caminho relativo à raiz, como em `ApiQuestion.image_url`). */
+export interface ApiImageUpload {
+  image_url: string;
 }
 
 /** Corpo de `POST /questions` e `PUT /questions/:id`. */

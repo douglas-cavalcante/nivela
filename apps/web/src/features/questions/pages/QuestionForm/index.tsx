@@ -21,7 +21,7 @@ import { Controller, useForm, useWatch } from 'react-hook-form';
 import type { FieldPath } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ConfirmDialog } from 'src/components/ConfirmDialog';
-import { EmptyState } from 'src/components/EmptyState';
+import { ResourceState } from 'src/components/ResourceState';
 import { PageHeader } from 'src/components/PageHeader';
 import { StatusChip } from 'src/components/StatusChip';
 import { listCategoriesAction } from 'src/features/categories';
@@ -79,19 +79,7 @@ function withKnown(list: Named[], known?: Named): Named[] {
   return known && !list.some((item) => item.id === known.id) ? [known, ...list] : list;
 }
 
-function NotFound({ message }: { message: string }) {
-  return (
-    <EmptyState
-      title="Não deu para carregar"
-      description={message}
-      action={
-        <Button variant="contained" component={Link} to="/questoes">
-          Voltar para as questões
-        </Button>
-      }
-    />
-  );
-}
+const BACK = { to: '/questoes', label: 'Voltar para as questões' };
 
 interface QuestionEditorProps {
   /** Questão em edição ou consulta; sem ela, cria uma nova. */
@@ -414,11 +402,20 @@ function QuestionEditor({ question }: QuestionEditorProps) {
 }
 
 function QuestionLoader({ id }: { id: number }) {
-  const { rows, loading, error } = useRemoteList<ApiQuestion>(
+  const { rows, loading, error, errorStatus, reload } = useRemoteList<ApiQuestion>(
     async (signal) => [await getQuestionAction(id, signal)],
     String(id),
   );
-  if (error) return <NotFound message={error} />;
+  if (error) {
+    return (
+      <ResourceState
+        kind={errorStatus === 404 ? 'not-found' : 'error'}
+        message={error}
+        onRetry={() => void reload()}
+        backTo={BACK}
+      />
+    );
+  }
   if (loading || !rows[0]) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -433,6 +430,6 @@ function QuestionLoader({ id }: { id: number }) {
 export function QuestionForm() {
   const { id } = useParams();
   if (id === undefined) return <QuestionEditor key="new" />;
-  if (!validId(id)) return <NotFound message="Questão não encontrada." />;
+  if (!validId(id)) return <ResourceState kind="not-found" message="Questão não encontrada." backTo={BACK} />;
   return <QuestionLoader key={id} id={Number(id)} />;
 }

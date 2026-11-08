@@ -58,6 +58,7 @@ describe('cadastro do aluno', () => {
     const user = userEvent.setup();
     await renderApp({ initialUrl: '/register' });
 
+    expect(screen.getByText('Peça ao seu professor. Ex.: NIV-4K7Q.')).toBeTruthy();
     await user.type(screen.getByLabelText('Código da turma'), 'niv-4k7q');
 
     expect(screen.getByLabelText('Código da turma').props.value).toBe('NIV-4K7Q');

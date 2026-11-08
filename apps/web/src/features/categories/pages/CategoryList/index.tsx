@@ -128,7 +128,7 @@ export function CategoryList() {
         loading={loading}
         error={error}
         onRetry={() => void reload()}
-        emptyTitle="Nenhuma categoria por aqui"
+        emptyTitle="Nenhuma categoria por aqui."
         emptyDescription={subjectId ? 'Essa disciplina ainda não tem categorias.' : 'Crie a primeira categoria para organizar as questões.'}
       />
 

@@ -9,7 +9,7 @@ export function HomePage() {
   return (
     <>
       <PageHeader title="Início" subtitle={firstName ? `Olá, ${firstName}! Bom ver você por aqui.` : undefined} />
-      <EmptyState title="Em breve" description="Os indicadores da sua turma vão aparecer aqui." />
+      <EmptyState title="Em breve." description="Os indicadores da sua turma vão aparecer aqui." />
     </>
   );
 }

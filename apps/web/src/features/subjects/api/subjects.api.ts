@@ -1,10 +1,10 @@
 import type { AxiosResponse } from 'axios';
-import type { ApiSubject } from '@nivela/api-contract';
+import type { ApiList, ApiSubject } from '@nivela/api-contract';
 import api from 'src/lib/axios';
 import type { SubjectFormValues } from 'src/features/subjects/schemas/subject.schema';
 
-export const listSubjects = (signal?: AbortSignal): Promise<AxiosResponse<{ data: ApiSubject[] }>> =>
-  api.get<{ data: ApiSubject[] }>('/subjects', { signal });
+export const listSubjects = (signal?: AbortSignal): Promise<AxiosResponse<ApiList<ApiSubject>>> =>
+  api.get<ApiList<ApiSubject>>('/subjects', { signal });
 
 export const createSubject = (data: SubjectFormValues): Promise<AxiosResponse<ApiSubject>> =>
   api.post<ApiSubject>('/subjects', data);

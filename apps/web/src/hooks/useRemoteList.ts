@@ -4,6 +4,8 @@ import { parseApiError } from '@nivela/api-contract';
 interface Snapshot<T> {
   rows: T[];
   error: string | null;
+  /** Status HTTP do erro (`null` sem erro ou sem resposta). */
+  errorStatus: number | null;
   /** Chave da busca que produziu este resultado. */
   key: string;
 }
@@ -32,9 +34,10 @@ export function useRemoteList<T>(load: (signal: AbortSignal) => Promise<T[]>, ke
     const id = ++requestId.current;
     let result: Snapshot<T>;
     try {
-      result = { rows: await loadRef.current(current.signal), error: null, key: forKey };
+      result = { rows: await loadRef.current(current.signal), error: null, errorStatus: null, key: forKey };
     } catch (err) {
-      result = { rows: [], error: parseApiError(err).message, key: forKey };
+      const info = parseApiError(err);
+      result = { rows: [], error: info.message, errorStatus: info.status, key: forKey };
     }
     if (id !== requestId.current) return; // superada por uma busca mais nova (ela cuida do `refreshing`)
     setSnapshot(result);
@@ -57,10 +60,12 @@ export function useRemoteList<T>(load: (signal: AbortSignal) => Promise<T[]>, ke
   }, [fetchList]);
 
   const loading = refreshing || snapshot === null || snapshot.key !== key;
+  const current = snapshot && snapshot.key === key ? snapshot : null;
   return {
     rows: snapshot?.rows ?? [],
     loading,
-    error: snapshot && snapshot.key === key ? snapshot.error : null,
+    error: current?.error ?? null,
+    errorStatus: current?.errorStatus ?? null,
     reload,
   };
 }

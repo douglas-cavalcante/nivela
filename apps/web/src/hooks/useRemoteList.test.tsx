@@ -131,11 +131,23 @@ describe('useRemoteList', () => {
     expect(result.current.rows).toEqual([]);
     expect(result.current.error).toEqual(expect.any(String));
     expect(result.current.error).not.toBe('');
+    expect(result.current.errorStatus).toBeNull(); // sem resposta HTTP
 
     await act(async () => {
       await result.current.reload();
     });
     expect(result.current.error).toBeNull();
+    expect(result.current.errorStatus).toBeNull();
     expect(result.current.rows).toEqual(['ok']);
+  });
+
+  it('erro HTTP: expõe o status (ex.: 404 para "não encontrado")', async () => {
+    // Mesmo formato de um erro do axios (axios.isAxiosError lê `isAxiosError`).
+    const notFound = { isAxiosError: true, response: { status: 404, data: { message: 'Turma não encontrada.' } } };
+    const { result } = renderHook(() => useRemoteList(() => Promise.reject(notFound)));
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.error).toBe('Turma não encontrada.');
+    expect(result.current.errorStatus).toBe(404);
   });
 });

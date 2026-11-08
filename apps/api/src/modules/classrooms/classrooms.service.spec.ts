@@ -52,14 +52,9 @@ describe('ClassroomsService', () => {
   const enrollmentFindMany = jest.fn();
   const enrollmentCreate = jest.fn();
   const findStudent = jest.fn();
-  const txUserCreate = jest.fn();
-  const txProfileCreate = jest.fn();
+  const createAccount = jest.fn();
   const txEnroll = jest.fn();
-  const tx = {
-    user: { create: txUserCreate },
-    studentProfile: { create: txProfileCreate },
-    classroomStudent: { create: txEnroll },
-  };
+  const tx = { classroomStudent: { create: txEnroll } };
   const $transaction = jest.fn((fn: (client: typeof tx) => unknown) => fn(tx));
   const service = new ClassroomsService(
     {
@@ -73,7 +68,7 @@ describe('ClassroomsService', () => {
       $transaction,
     } as unknown as PrismaService,
     { createWithUniqueCode, regenerate } as unknown as JoinCodeService,
-    { findOne: findStudent } as unknown as StudentsService,
+    { findOne: findStudent, createAccount } as unknown as StudentsService,
   );
 
   beforeEach(() => {
@@ -225,26 +220,21 @@ describe('ClassroomsService', () => {
     };
     const teacher = user(Role.Teacher, 5);
 
-    it('cria usuário, perfil e matrícula na mesma transação e devolve a ficha', async () => {
+    it('cria a conta (StudentsService.createAccount) e a matrícula na mesma transação e devolve a ficha', async () => {
       findFirst.mockResolvedValue({ id: 1, active: true });
       userFindUnique.mockResolvedValue(null);
-      txUserCreate.mockResolvedValue({ id: 42 });
+      createAccount.mockResolvedValue({ id: 42 });
       findStudent.mockResolvedValue({ id: 42 });
 
       await expect(service.addStudent(1, dto, teacher)).resolves.toEqual({
         id: 42,
       });
 
-      expect(txUserCreate).toHaveBeenCalledWith({
-        data: {
-          name: 'Bia',
-          email: 'bia@aluno.test',
-          password: expect.not.stringMatching('segredo123') as string,
-          role: Role.Student,
-        },
-        select: { id: true },
+      expect(createAccount).toHaveBeenCalledWith(tx, {
+        name: 'Bia',
+        email: 'bia@aluno.test',
+        passwordHash: expect.not.stringMatching('segredo123') as string,
       });
-      expect(txProfileCreate).toHaveBeenCalledWith({ data: { userId: 42 } });
       expect(txEnroll).toHaveBeenCalledWith({
         data: { classroomId: 1, studentId: 42 },
       });

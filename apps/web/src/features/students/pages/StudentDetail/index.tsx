@@ -4,6 +4,7 @@ import { penShadow } from '@nivela/design-tokens';
 import type { ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { EmptyState } from 'src/components/EmptyState';
+import { ResourceState } from 'src/components/ResourceState';
 import { PageHeader } from 'src/components/PageHeader';
 import { StatusChip } from 'src/components/StatusChip';
 import { getStudentAction } from 'src/features/students/api/students.action';
@@ -12,19 +13,7 @@ import { useNivelaColors } from 'src/lib/theme/useNivelaColors';
 import { formatDate } from 'src/utils/format';
 import { validId } from 'src/utils/ids';
 
-function NotFound({ message }: { message: string }) {
-  return (
-    <EmptyState
-      title="Não deu para carregar"
-      description={message}
-      action={
-        <Button variant="contained" component={Link} to="/alunos">
-          Voltar
-        </Button>
-      }
-    />
-  );
-}
+const BACK = { to: '/alunos', label: 'Voltar' };
 
 const days = (count: number) => `${count} ${count === 1 ? 'dia' : 'dias'}`;
 
@@ -112,11 +101,20 @@ function StudentView({ student }: { student: ApiStudent }) {
 }
 
 function StudentLoader({ id }: { id: number }) {
-  const { rows, loading, error } = useRemoteList<ApiStudent>(
+  const { rows, loading, error, errorStatus, reload } = useRemoteList<ApiStudent>(
     async (signal) => [await getStudentAction(id, signal)],
     String(id),
   );
-  if (error) return <NotFound message={error} />;
+  if (error) {
+    return (
+      <ResourceState
+        kind={errorStatus === 404 ? 'not-found' : 'error'}
+        message={error}
+        onRetry={() => void reload()}
+        backTo={BACK}
+      />
+    );
+  }
   if (loading || !rows[0]) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -130,6 +128,6 @@ function StudentLoader({ id }: { id: number }) {
 /** Ficha do aluno: dados, turmas, moedas e sequência; desempenho, planos e extrato chegam nos próximos planos. */
 export function StudentDetail() {
   const { id } = useParams();
-  if (!validId(id)) return <NotFound message="Aluno não encontrado." />;
+  if (!validId(id)) return <ResourceState kind="not-found" message="Aluno não encontrado." backTo={BACK} />;
   return <StudentLoader key={id} id={Number(id)} />;
 }

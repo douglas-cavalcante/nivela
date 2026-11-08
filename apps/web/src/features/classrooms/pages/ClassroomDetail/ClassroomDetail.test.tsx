@@ -223,14 +223,14 @@ describe('ClassroomDetail', () => {
     expect(await screen.findByText('Falha ao recarregar.')).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: '9º A' })).toBeInTheDocument();
     expect(screen.getByText('Lucas Lima')).toBeInTheDocument();
-    expect(screen.queryByText('Não deu para carregar')).toBeNull();
+    expect(screen.queryByText('Não deu para carregar.')).toBeNull();
   });
 
   it('turma sem alunos mostra o estado vazio', async () => {
     detailHandler({ ...classroom, students: [], students_count: 0 });
     renderPage();
 
-    expect(await screen.findByText('Nenhum aluno nesta turma ainda')).toBeInTheDocument();
+    expect(await screen.findByText('Nenhum aluno nesta turma ainda.')).toBeInTheDocument();
   });
 
   it('404 da API mostra "não encontrada" com botão de voltar', async () => {
@@ -241,9 +241,25 @@ describe('ClassroomDetail', () => {
     );
     renderPage();
 
-    expect(await screen.findByText('Turma não encontrada.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Turma não encontrada.' })).toBeInTheDocument();
+    // 404 não adianta repetir
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull();
     await userEvent.click(screen.getByRole('link', { name: 'Voltar' }));
     expect(await screen.findByText('Lista de turmas')).toBeInTheDocument();
+  });
+
+  it('falha ao carregar (500) mostra o erro e "Tentar de novo" recarrega', async () => {
+    let calls = 0;
+    server.use(
+      http.get(`${API_URL}/classrooms/7`, () =>
+        ++calls === 1 ? HttpResponse.json({ message: 'Erro interno.' }, { status: 500 }) : HttpResponse.json(classroom),
+      ),
+    );
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'Não deu para carregar.' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    expect(await screen.findByText('Lucas Lima')).toBeInTheDocument();
   });
 
   it('id inválido na URL nem chama a API', async () => {

@@ -53,7 +53,8 @@ tcc/
 │   ├── web/                # React + Vite + TS
 │   └── mobile/             # Expo + Expo Router + TS
 ├── packages/
-│   └── design-tokens/      # @nivela/design-tokens (TS puro)
+│   ├── design-tokens/      # @nivela/design-tokens (TS puro)
+│   └── api-contract/       # @nivela/api-contract: tipos de resposta da API, parseApiError e resolveAssetUrl (web e mobile; a API só importa tipos)
 ├── docs/                   # arquitetura, estrutura de pastas, workflow, requisitos, UML, prints
 ├── docker-compose.yml      # postgres:17-alpine
 ├── package.json            # npm workspaces: apps/*, packages/*
@@ -90,7 +91,7 @@ prisma/schema.prisma, prisma/migrations/, prisma/seed.ts
 test/*.e2e-spec.ts                 # e2e com supertest contra o banco nivela_test
 ```
 
-  Features: `auth`, `users` (professores/admin), `classrooms`, `students`, `subjects`, `categories`, `questions`, `answers`, `leveling-plans`, `rewards`, `dashboard`.
+  Features: `auth`, `teachers` (professores, gerenciados pelo admin), `classrooms`, `students`, `subjects`, `categories`, `questions`, `answers`, `leveling-plans`, `rewards`, `dashboard`.
 - **Regras de dependência (ESLint, como no Estagius):** imports com alias `src/...` (nunca `../`); uma feature não importa arquivos internos de outra — usa o service exportado pelo módulo dela; `common`, `shared` e `prisma` não importam de `src/modules`; controllers não usam `PrismaService`.
 - **Prisma:** models em PascalCase com `@@map`/`@map` para as tabelas e colunas `snake_case` da seção 6. Migrations com `prisma migrate dev` (desenvolvimento) e `prisma migrate deploy` (CI/testes).
 - **Erros:** JSON padronizado `{ message, errors? }` por um filtro global; 422 validação (`errors: { campo: [mensagens] }`), 401/403 auth, 404, 409 conflito de regra (`BusinessRuleException`, ex.: saldo insuficiente, estoque zerado).

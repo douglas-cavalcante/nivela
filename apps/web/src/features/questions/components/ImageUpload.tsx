@@ -2,7 +2,7 @@ import AddPhotoIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
 import DeleteIcon from '@mui/icons-material/DeleteOutlined';
 import SwapIcon from '@mui/icons-material/SwapHorizOutlined';
 import { Box, Button, CircularProgress, FormHelperText, Typography } from '@mui/material';
-import { parseApiError } from '@nivela/api-contract';
+import { parseApiError, resolveAssetUrl } from '@nivela/api-contract';
 import { penShadow } from '@nivela/design-tokens';
 import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
@@ -18,6 +18,7 @@ import { useNotify } from 'src/lib/notify/useNotify';
 interface ImageUploadProps {
   /** Sem id a questão ainda não existe: a imagem só pode ser enviada depois de salvar. */
   questionId?: number;
+  /** `image_url` da API: caminho relativo à raiz (`/uploads/...`), resolvido na origem de VITE_API_URL. */
   imageUrl: string | null;
   /** Falso no modo leitura: mostra a imagem, sem botões. */
   canEdit: boolean;
@@ -106,7 +107,7 @@ export function ImageUpload({ questionId, imageUrl, canEdit, onChange }: ImageUp
         ) : imageUrl ? (
           <Box
             component="img"
-            src={imageUrl}
+            src={resolveAssetUrl(import.meta.env.VITE_API_URL, imageUrl) ?? undefined}
             alt="Imagem da questão"
             sx={{
               display: 'block',

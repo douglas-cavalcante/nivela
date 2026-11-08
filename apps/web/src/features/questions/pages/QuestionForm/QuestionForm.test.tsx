@@ -17,6 +17,8 @@ const wars = { id: 11, name: 'Guerras', subject: { id: 2, name: 'História', col
 vi.setConfig({ testTimeout: 20000 });
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'] as const;
+// A API devolve o caminho relativo à raiz; a prévia usa a origem de VITE_API_URL.
+const IMAGE_PATH = '/uploads/questions/7-abc.png';
 const IMAGE_URL = 'http://localhost:8000/uploads/questions/7-abc.png';
 
 const stored = (extra: Record<string, unknown> = {}) => ({
@@ -316,7 +318,23 @@ describe('QuestionForm', () => {
         http.get(`${API_URL}/questions/99`, () => HttpResponse.json({ message: 'Questão não encontrada.' }, { status: 404 })),
       );
       renderPage('/questoes/99');
-      expect(await screen.findByText('Questão não encontrada.')).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'Questão não encontrada.' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Tentar de novo' })).toBeNull();
+      expect(screen.getByRole('link', { name: 'Voltar para as questões' })).toHaveAttribute('href', '/questoes');
+    });
+
+    it('falha ao carregar (500) mostra o erro e "Tentar de novo" recarrega', async () => {
+      lookups();
+      let calls = 0;
+      server.use(
+        http.get(`${API_URL}/questions/7`, () =>
+          ++calls === 1 ? HttpResponse.json({ message: 'Erro interno.' }, { status: 500 }) : HttpResponse.json(stored()),
+        ),
+      );
+      renderPage('/questoes/7');
+      expect(await screen.findByRole('heading', { name: 'Não deu para carregar.' })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+      expect(await screen.findByDisplayValue('Quanto é dois mais dois no sistema decimal?')).toBeInTheDocument();
     });
 
     it('id inválido na URL não consulta a API', async () => {
@@ -406,7 +424,7 @@ describe('QuestionForm', () => {
       server.use(
         http.post(`${API_URL}/questions/7/image`, () => {
           post();
-          return HttpResponse.json({ image_url: IMAGE_URL });
+          return HttpResponse.json({ image_url: IMAGE_PATH });
         }),
       );
       editPage();
@@ -423,7 +441,7 @@ describe('QuestionForm', () => {
       server.use(
         http.post(`${API_URL}/questions/7/image`, () => {
           post();
-          return HttpResponse.json({ image_url: IMAGE_URL });
+          return HttpResponse.json({ image_url: IMAGE_PATH });
         }),
       );
       editPage();
@@ -435,7 +453,7 @@ describe('QuestionForm', () => {
       expect(post).not.toHaveBeenCalled();
     });
 
-    it('envia o arquivo no campo "image" e mostra a prévia com a URL devolvida', async () => {
+    it('envia o arquivo no campo "image" e mostra a prévia com o caminho devolvido resolvido na origem da API', async () => {
       const received = vi.fn();
       server.use(
         http.post(`${API_URL}/questions/7/image`, async ({ request }) => {
@@ -443,7 +461,7 @@ describe('QuestionForm', () => {
           const file = data.get('image');
           // o File do servidor de teste (undici) não é o do jsdom: compara só o que importa
           received(typeof file === 'string' || file === null ? file : { name: file.name, size: file.size });
-          return HttpResponse.json({ image_url: IMAGE_URL });
+          return HttpResponse.json({ image_url: IMAGE_PATH });
         }),
       );
       editPage();
@@ -479,10 +497,10 @@ describe('QuestionForm', () => {
       server.use(
         http.post(`${API_URL}/questions/7/image`, () => {
           post();
-          return HttpResponse.json({ image_url: 'http://localhost:8000/uploads/questions/7-nova.png' });
+          return HttpResponse.json({ image_url: '/uploads/questions/7-nova.png' });
         }),
       );
-      editPage(stored({ image_url: IMAGE_URL }));
+      editPage(stored({ image_url: IMAGE_PATH }));
       expect(await screen.findByRole('img', { name: 'Imagem da questão' })).toHaveAttribute('src', IMAGE_URL);
 
       await userEvent.upload(screen.getByLabelText('Arquivo da imagem'), pngFile());
@@ -505,10 +523,10 @@ describe('QuestionForm', () => {
       server.use(
         http.post(`${API_URL}/questions/7/image`, () => {
           post();
-          return HttpResponse.json({ image_url: IMAGE_URL });
+          return HttpResponse.json({ image_url: IMAGE_PATH });
         }),
       );
-      editPage(stored({ image_url: IMAGE_URL }));
+      editPage(stored({ image_url: IMAGE_PATH }));
       await screen.findByRole('img', { name: 'Imagem da questão' });
 
       await userEvent.upload(screen.getByLabelText('Arquivo da imagem'), pngFile());
@@ -526,7 +544,7 @@ describe('QuestionForm', () => {
           return new HttpResponse(null, { status: 204 });
         }),
       );
-      editPage(stored({ image_url: IMAGE_URL }));
+      editPage(stored({ image_url: IMAGE_PATH }));
 
       await userEvent.click(await screen.findByRole('button', { name: 'Remover imagem' }));
       const dialog = await screen.findByRole('dialog');

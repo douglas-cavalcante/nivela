@@ -10,7 +10,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import type { ApiCategory } from '@nivela/api-contract';
+import type { ApiCategory, ApiList } from '@nivela/api-contract';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { ParseIdPipe } from 'src/common/pipes/parse-id.pipe';
 import { CategoriesService } from 'src/modules/categories/categories.service';
@@ -23,6 +23,13 @@ import { Role } from 'src/shared/enums/role.enum';
 
 const categoryId = () => new ParseIdPipe('Categoria não encontrada.');
 
+/**
+ * `@Roles` fica em cada rota (e não na classe) de propósito: as leituras de
+ * categorias são as candidatas a abrir para outros perfis (ex.: o aluno ver as
+ * categorias no app), e cada rota declarando o próprio perfil deixa essa troca
+ * explícita sem afrouxar as escritas, que continuam só da equipe. O teste
+ * `route-authorization` garante que nenhuma rota fique sem declaração.
+ */
 @ApiTags('categories')
 @ApiBearerAuth()
 @Controller('categories')
@@ -33,7 +40,7 @@ export class CategoriesController {
   @Get()
   async list(
     @Query() query: ListCategoriesQueryDto,
-  ): Promise<{ data: ApiCategory[] }> {
+  ): Promise<ApiList<ApiCategory>> {
     return { data: await this.categories.list(query.subject_id) };
   }
 

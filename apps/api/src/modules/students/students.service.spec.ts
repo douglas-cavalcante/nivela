@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { compare } from 'bcryptjs';
 import { StudentsService } from 'src/modules/students/students.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
@@ -142,5 +143,56 @@ describe('StudentsService', () => {
         where: { AND: [{ id: 9 }, studentScope(user(Role.Teacher, 5))] },
       }),
     );
+  });
+});
+
+describe('StudentsService.createAccount', () => {
+  const service = new StudentsService({} as PrismaService);
+  const created = { id: 42, name: 'Ana', email: 'ana@aluno.test' };
+
+  function fakeTx() {
+    return {
+      user: { create: jest.fn().mockResolvedValue(created) },
+      studentProfile: { create: jest.fn().mockResolvedValue({}) },
+    };
+  }
+
+  it('cria o usuário com perfil de aluno e o student_profile na mesma transação', async () => {
+    const tx = fakeTx();
+
+    const user = await service.createAccount(tx as never, {
+      name: '  Ana  ',
+      email: 'ana@aluno.test',
+      passwordHash: 'hash-pronto',
+    });
+
+    expect(user).toBe(created);
+    expect(tx.user.create).toHaveBeenCalledWith({
+      data: {
+        name: 'Ana',
+        email: 'ana@aluno.test',
+        password: 'hash-pronto',
+        role: Role.Student,
+      },
+    });
+    expect(tx.studentProfile.create).toHaveBeenCalledWith({
+      data: { userId: 42 },
+    });
+  });
+
+  it('com a senha em texto, grava só o hash bcrypt', async () => {
+    const tx = fakeTx();
+
+    await service.createAccount(tx as never, {
+      name: 'Ana',
+      email: 'ana@aluno.test',
+      password: 'segredo123',
+    });
+
+    const { data } = tx.user.create.mock.calls[0][0] as {
+      data: { password: string };
+    };
+    expect(data.password).not.toBe('segredo123');
+    expect(await compare('segredo123', data.password)).toBe(true);
   });
 });

@@ -4,10 +4,10 @@ import { networkError, renderApp } from 'src/test/render';
 import { student } from 'src/test/users';
 
 describe('abertura do app com sessão salva', () => {
-  it('sem resposta da API: mantém o token e mostra "Sem conexão com o servidor"', async () => {
+  it('sem resposta da API: mantém o token e mostra "Sem conexão com o servidor."', async () => {
     await renderApp({ user: student, routes: { 'GET /auth/me': networkError } });
 
-    expect(await screen.findByText('Sem conexão com o servidor')).toBeTruthy();
+    expect(await screen.findByText('Sem conexão com o servidor.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeTruthy();
     expect(screen.queryByText('Oi! Bora nivelar?')).toBeNull();
     expect(await getToken()).toBe('token-de-teste');
@@ -19,7 +19,7 @@ describe('abertura do app com sessão salva', () => {
       routes: { 'GET /auth/me': () => ({ status: 503, data: { message: 'Erro interno do servidor.' } }) },
     });
 
-    expect(await screen.findByText('Sem conexão com o servidor')).toBeTruthy();
+    expect(await screen.findByText('Sem conexão com o servidor.')).toBeTruthy();
     expect(await getToken()).toBe('token-de-teste');
   });
 
@@ -34,14 +34,14 @@ describe('abertura do app com sessão salva', () => {
         },
       },
     });
-    expect(await screen.findByText('Sem conexão com o servidor')).toBeTruthy();
+    expect(await screen.findByText('Sem conexão com o servidor.')).toBeTruthy();
 
     await act(async () => {
       fireEvent.press(screen.getByRole('button', { name: 'Tentar de novo' }));
     });
 
     expect(await screen.findByText('Início')).toBeTruthy();
-    expect(screen.queryByText('Sem conexão com o servidor')).toBeNull();
+    expect(screen.queryByText('Sem conexão com o servidor.')).toBeNull();
     expect(calls).toBe(2);
   });
 
@@ -52,7 +52,7 @@ describe('abertura do app com sessão salva', () => {
     });
 
     expect(await screen.findByText('Oi! Bora nivelar?')).toBeTruthy();
-    expect(screen.queryByText('Sem conexão com o servidor')).toBeNull();
+    expect(screen.queryByText('Sem conexão com o servidor.')).toBeNull();
     expect(await getToken()).toBeNull();
   });
 });

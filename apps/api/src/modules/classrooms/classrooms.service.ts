@@ -3,6 +3,7 @@ import { hash } from 'bcryptjs';
 import type {
   ApiClassroom,
   ApiClassroomSummary,
+  ApiJoinCode,
   ApiMyClassroom,
   ApiStudent,
   Paginated,
@@ -139,10 +140,7 @@ export class ClassroomsService {
   }
 
   /** Gera outro código; o anterior deixa de valer imediatamente. */
-  async regenerateJoinCode(
-    id: number,
-    user: AuthUser,
-  ): Promise<{ join_code: string }> {
+  async regenerateJoinCode(id: number, user: AuthUser): Promise<ApiJoinCode> {
     await this.assertVisible(id, user);
     try {
       return {
@@ -176,19 +174,14 @@ export class ClassroomsService {
       throw new FieldValidationException({ email: [EMAIL_TAKEN] });
     }
 
-    const password = await hash(dto.password, BCRYPT_COST);
+    const passwordHash = await hash(dto.password, BCRYPT_COST);
     try {
       const studentId = await this.prisma.$transaction(async (tx) => {
-        const created = await tx.user.create({
-          data: {
-            name: dto.name,
-            email: dto.email,
-            password,
-            role: Role.Student,
-          },
-          select: { id: true },
+        const created = await this.students.createAccount(tx, {
+          name: dto.name,
+          email: dto.email,
+          passwordHash,
         });
-        await tx.studentProfile.create({ data: { userId: created.id } });
         await tx.classroomStudent.create({
           data: { classroomId: id, studentId: created.id },
         });
