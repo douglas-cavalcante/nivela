@@ -71,7 +71,7 @@ export class TokenService implements TokenResolver {
 
     const now = this.clock.now();
     if (this.isExpired(token, now)) {
-      await this.prisma.accessToken.deleteMany({ where: { id: token.id } });
+      await this.deleteExpired(token.id);
       return null;
     }
     if (!token.user.active) {
@@ -98,6 +98,19 @@ export class TokenService implements TokenResolver {
       now.getTime() - lastActivity.getTime() >= idleMs ||
       now.getTime() - token.createdAt.getTime() >= absoluteMs
     );
+  }
+
+  /** Apaga o token expirado; uma falha aqui não deve virar 500 (o token já vale como inexistente). */
+  private async deleteExpired(tokenId: number): Promise<void> {
+    try {
+      await this.prisma.accessToken.deleteMany({ where: { id: tokenId } });
+    } catch (error) {
+      this.logger.warn(
+        `Não foi possível apagar o token expirado ${tokenId}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   /** Grava o último uso; uma falha aqui não deve derrubar a requisição. */
