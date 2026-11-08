@@ -30,12 +30,15 @@ describe('SubjectsService', () => {
   const create = jest.fn();
   const update = jest.fn();
   const del = jest.fn();
+  const groupBy = jest.fn();
   const service = new SubjectsService({
     subject: { findMany, findUnique, create, update, delete: del },
+    question: { groupBy },
   } as unknown as PrismaService);
 
   beforeEach(() => {
     jest.resetAllMocks();
+    groupBy.mockResolvedValue([]);
   });
 
   it('lista com a contagem de categorias e questões zerada', async () => {
@@ -84,6 +87,27 @@ describe('SubjectsService', () => {
     await expect(service.update(9, dto)).rejects.toThrow(
       new NotFoundException('Disciplina não encontrada.'),
     );
+  });
+
+  it('lista com a contagem real de questões por disciplina', async () => {
+    findMany.mockResolvedValue([row({ id: 1 }), row({ id: 2 })]);
+    groupBy.mockResolvedValue([{ subjectId: 2, _count: { _all: 4 } }]);
+
+    const list = await service.list();
+
+    expect(list.map((s) => s.questions_count)).toEqual([0, 4]);
+    expect(groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { subjectId: { in: [1, 2] } } }),
+    );
+  });
+
+  it('remove: 409 quando só há questões (sem categorias), sem excluir', async () => {
+    findUnique.mockResolvedValue(row({ _count: { categories: 0 } }));
+    groupBy.mockResolvedValue([{ subjectId: 1, _count: { _all: 1 } }]);
+    await expect(service.remove(1)).rejects.toBeInstanceOf(
+      BusinessRuleException,
+    );
+    expect(del).not.toHaveBeenCalled();
   });
 
   it('remove: 404 quando não existe', async () => {

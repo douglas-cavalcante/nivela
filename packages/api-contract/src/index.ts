@@ -4,3 +4,10 @@ export type { Paginated, PaginationMeta } from './pagination';
 export { parseApiError } from './parseApiError';
 export type { ApiTeacher } from './teachers';
 export type { ApiCategory, ApiSubject, SubjectColorKey, SubjectIconKey } from './subjects';
+export type {
+  ApiQuestion,
+  ApiQuestionSummary,
+  Difficulty,
+  OptionLetter,
+  QuestionPayload,
+} from './questions';

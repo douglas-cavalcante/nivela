@@ -38,6 +38,7 @@ model User {
   accessTokens   AccessToken[]
   classrooms     Classroom[]
   enrollments    ClassroomStudent[]
+  questions      Question[]
 
   @@map("users")
 }
@@ -110,6 +111,7 @@ model Subject {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   categories Category[]
+  questions  Question[]
 
   @@map("subjects")
 }
@@ -121,8 +123,53 @@ model Category {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  questions Question[]
 
   @@index([subjectId])
   @@map("categories")
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+
+  @@map("difficulty")
+}
+
+model Question {
+  id          Int        @id @default(autoincrement())
+  authorId    Int        @map("author_id")
+  subjectId   Int        @map("subject_id")
+  categoryId  Int        @map("category_id")
+  statement   String
+  imagePath   String?    @map("image_path") @db.VarChar(255)
+  difficulty  Difficulty
+  explanation String
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  author   User             @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  subject  Subject          @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  category Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  options  QuestionOption[]
+
+  @@index([subjectId, categoryId, active])
+  @@index([authorId])
+  @@map("questions")
+}
+
+model QuestionOption {
+  id         Int     @id @default(autoincrement())
+  questionId Int     @map("question_id")
+  letter     String  @db.Char(1)
+  text       String
+  isCorrect  Boolean @map("is_correct")
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, letter])
+  @@map("question_options")
 }

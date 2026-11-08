@@ -1,10 +1,12 @@
 import { INestApplication } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import {
   HttpExceptionFilter,
   keepParserErrorCause,
 } from 'src/common/filters/http-exception.filter';
 import { createValidationPipe } from 'src/common/pipes/validation.pipe';
+import { UPLOADS_PREFIX, uploadsDir } from 'src/shared/files/uploads-config';
 
 // Origens de desenvolvimento: painel web (Vite) e Expo web.
 const DEV_ORIGINS = [
@@ -33,6 +35,16 @@ export function configureApp(app: INestApplication): INestApplication {
   app.useGlobalFilters(new HttpExceptionFilter());
   keepParserErrorCause(app);
   app.enableCors({ origin: parseCorsOrigins(process.env.CORS_ORIGINS) });
+  // Arquivos enviados (imagens de questões), fora do prefixo `api/v1`.
+  (app as NestExpressApplication).useStaticAssets(uploadsDir(), {
+    prefix: UPLOADS_PREFIX,
+    index: false,
+    redirect: false,
+    dotfiles: 'deny',
+    setHeaders: (res) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+    },
+  });
 
   const document = SwaggerModule.createDocument(
     app,

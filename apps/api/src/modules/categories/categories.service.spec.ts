@@ -2,6 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { Prisma } from 'src/generated/prisma/client';
 import { CategoriesService } from 'src/modules/categories/categories.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { BusinessRuleException } from 'src/shared/exceptions/business-rule.exception';
 import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
 
 const row = {
@@ -24,12 +25,36 @@ describe('CategoriesService', () => {
   const create = jest.fn();
   const update = jest.fn();
   const del = jest.fn();
+  const groupBy = jest.fn();
   const service = new CategoriesService({
     category: { findMany, findUnique, create, update, delete: del },
+    question: { groupBy },
   } as unknown as PrismaService);
 
   beforeEach(() => {
     jest.resetAllMocks();
+    groupBy.mockResolvedValue([]);
+  });
+
+  it('lista com a contagem real de questões por categoria', async () => {
+    findMany.mockResolvedValue([
+      { id: 1, name: 'A', subject: { id: 1, name: 'M', color: 'teal' } },
+      { id: 2, name: 'B', subject: { id: 1, name: 'M', color: 'teal' } },
+    ]);
+    groupBy.mockResolvedValue([{ categoryId: 2, _count: { _all: 3 } }]);
+
+    const list = await service.list();
+
+    expect(list.map((c) => c.questions_count)).toEqual([0, 3]);
+  });
+
+  it('remove: 409 quando a categoria tem questões, sem excluir', async () => {
+    findUnique.mockResolvedValue({ id: 1 });
+    groupBy.mockResolvedValue([{ categoryId: 1, _count: { _all: 2 } }]);
+    await expect(service.remove(1)).rejects.toBeInstanceOf(
+      BusinessRuleException,
+    );
+    expect(del).not.toHaveBeenCalled();
   });
 
   it('lista filtrando por disciplina, com questões zeradas', async () => {

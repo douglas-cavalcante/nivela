@@ -76,4 +76,24 @@ describe('AppRoutes', () => {
     expect(await screen.findByRole('heading', { name: 'Professores' })).toBeInTheDocument();
     expect(await screen.findByText('Maria Souza')).toBeInTheDocument();
   });
+
+  it('professor abre o banco de questões em /questoes e o formulário em /questoes/nova', async () => {
+    server.use(
+      http.get(`${API_URL}/subjects`, () => HttpResponse.json({ data: [] })),
+      http.get(`${API_URL}/questions`, () =>
+        HttpResponse.json({ data: [], meta: { page: 1, per_page: 15, total: 0, last_page: 1 } }),
+      ),
+    );
+    renderWithProviders(
+      <NotifyProvider>
+        <AppRoutes />
+      </NotifyProvider>,
+      { user: teacher, route: '/questoes' },
+    );
+    expect(await screen.findByRole('heading', { name: 'Questões' })).toBeInTheDocument();
+    expect(await screen.findByText('Nenhuma questão ainda')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Nova questão' }));
+    expect(await screen.findByRole('heading', { name: 'Nova questão' })).toBeInTheDocument();
+  });
 });

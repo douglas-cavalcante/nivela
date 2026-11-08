@@ -33,6 +33,23 @@ const DEFAULT_MESSAGES: Record<number, string> = {
 const INTERNAL_ERROR_MESSAGE = 'Erro interno do servidor.';
 const FILE_TOO_LARGE_MESSAGE = 'Arquivo muito grande.';
 
+// Mensagens dos pipes embutidos do Nest que têm tradução própria (as demais
+// "Validation failed (...)" caem no texto padrão do status).
+// ParseFilePipe: "File is required" e os validadores de tamanho e tipo;
+// ParseUUIDPipe: "Validation failed (uuid v4 is expected)";
+// ParseArrayPipe: "Validation failed (parsable array expected)" e "[1] <erro do item>".
+const PIPE_TRANSLATIONS: Array<[RegExp, string]> = [
+  [/^File is required/, 'Envie um arquivo.'],
+  [/^Validation failed \(current file size/, FILE_TOO_LARGE_MESSAGE],
+  [
+    /^Validation failed \((current file type|file type could not|file buffer is not available|expected type)/,
+    'Tipo de arquivo não suportado.',
+  ],
+  [/^Validation failed \(uuid/, 'Identificador inválido.'],
+  [/^Validation failed \(parsable array expected/, 'Lista inválida.'],
+  [/^\[\d+\] /, 'Lista inválida.'],
+];
+
 // Textos padrão dos status HTTP ("Bad Request", "Gone"…), que o Nest usa
 // quando a exceção é criada sem mensagem, mais o do 500 do próprio Nest.
 const STATUS_TEXTS = new Set([
@@ -176,6 +193,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
     if (status === 413 && text.startsWith('File too large')) {
       return FILE_TOO_LARGE_MESSAGE;
+    }
+    const translated = PIPE_TRANSLATIONS.find(([pattern]) =>
+      pattern.test(text),
+    );
+    if (translated) {
+      return translated[1];
     }
     if (FRAMEWORK_PREFIXES.some((prefix) => text.startsWith(prefix))) {
       return this.fallback(status);
