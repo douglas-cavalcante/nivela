@@ -8,6 +8,8 @@ import { menuItems } from 'src/app/layouts/AppLayout/menu';
 import { AuthLayout } from 'src/app/layouts/AuthLayout';
 import { ProtectedRoute } from 'src/app/routes/ProtectedRoute';
 import { Login, Profile } from 'src/features/auth';
+import { CategoryList } from 'src/features/categories';
+import { SubjectList } from 'src/features/subjects';
 
 const HomePage = lazy(() => import('src/app/routes/HomePage').then((m) => ({ default: m.HomePage })));
 const ComingSoon = lazy(() => import('src/app/routes/ComingSoon').then((m) => ({ default: m.ComingSoon })));
@@ -35,7 +37,8 @@ function page(element: ReactNode) {
 }
 
 // As rotas das features entram aqui conforme forem construídas; até lá, "Em breve".
-const placeholders = menuItems.filter((item) => item.path !== '/');
+const implemented = ['/', '/disciplinas', '/categorias'];
+const placeholders = menuItems.filter((item) => !implemented.includes(item.path));
 
 export function AppRoutes() {
   return (
@@ -48,6 +51,8 @@ export function AppRoutes() {
         <Route element={<AppLayout />}>
           <Route index element={page(<HomePage />)} />
           <Route path="/perfil" element={page(<Profile />)} />
+          <Route path="/disciplinas" element={page(<SubjectList />)} />
+          <Route path="/categorias" element={page(<CategoryList />)} />
           {placeholders
             .filter((item) => item.roles.includes('teacher'))
             .map((item) => (

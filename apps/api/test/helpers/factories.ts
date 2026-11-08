@@ -63,3 +63,41 @@ export async function createClassroom(
     },
   });
 }
+
+interface SubjectOverrides {
+  name?: string;
+  color?: string;
+  icon?: string;
+}
+
+/** Cria uma disciplina direto no banco. */
+export async function createSubject(
+  prisma: PrismaService,
+  overrides: SubjectOverrides = {},
+) {
+  sequence += 1;
+  return prisma.subject.create({
+    data: {
+      name: overrides.name ?? `Disciplina ${sequence}`,
+      color: overrides.color ?? 'teal',
+      icon: overrides.icon ?? 'book',
+    },
+  });
+}
+
+interface CategoryOverrides {
+  subjectId?: number;
+  name?: string;
+}
+
+/** Cria uma categoria (e uma disciplina, se não for informada). */
+export async function createCategory(
+  prisma: PrismaService,
+  overrides: CategoryOverrides = {},
+) {
+  sequence += 1;
+  const subjectId = overrides.subjectId ?? (await createSubject(prisma)).id;
+  return prisma.category.create({
+    data: { subjectId, name: overrides.name ?? `Categoria ${sequence}` },
+  });
+}

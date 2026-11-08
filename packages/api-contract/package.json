@@ -16,5 +16,8 @@
     "axios": "^1.21.0",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@nivela/design-tokens": "^0.1.0"
   }
 }
