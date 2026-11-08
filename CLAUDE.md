@@ -8,7 +8,7 @@ A pasta [docs/](docs/) reúne a documentação de referência do projeto. Consul
 
 - [docs/estruturaDePastas.md](docs/estruturaDePastas.md) — organização por features nos três apps e regras de import. Leia antes de criar ou mover arquivos: imports que saem da pasta usam `src/...` (nunca `../`), uma feature só usa outra pelo módulo/service dela (API) ou pelo `index.ts` (web/mobile), e código compartilhado não importa de features. Rode `npm run lint` para verificar.
 - [docs/architecture.md](docs/architecture.md) — stack com versões e motivos, diagrama da arquitetura, convenções da API e como subir o ambiente (`npm run db:up`, API, web, mobile).
-- [docs/workflow.md](docs/workflow.md) — gitflow, padrão de commits (Conventional Commits em português com escopo, com o trailer `Co-Authored-By`) e definição de pronto. Leia antes de criar branch ou commitar.
+- [docs/workflow.md](docs/workflow.md) — gitflow, padrão de commits (Conventional Commits em português com escopo, sem linha `Co-Authored-By`) e definição de pronto. Leia antes de criar branch ou commitar.
 - [docs/superpowers/specs/2026-11-08-nivela-design.md](docs/superpowers/specs/2026-11-08-nivela-design.md) — especificação de design completa (perfis, arquitetura, modelo de dados, regras de negócio RN01–RN15, testes).
 
 ## Regras rápidas
