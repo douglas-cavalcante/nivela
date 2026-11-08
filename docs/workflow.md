@@ -42,5 +42,9 @@ Uma feature está pronta quando:
 
 - **API (Jest + supertest):** testes unitários dos services (`*.spec.ts`, Prisma mockado) e e2e por feature (`test/*.e2e-spec.ts`, banco `nivela_test`) cobrindo sucesso, validação e permissão; testes dedicados às regras de negócio; ESLint com as regras de dependência entre features; Prettier.
 - **Web (Vitest + MSW)** e **Mobile (jest-expo)**: testes das telas e fluxos principais.
-- **CI** (`.github/workflows/ci.yml`): jobs `api` (serviço PostgreSQL, `prisma migrate deploy`, lint, tsc, jest unitário e e2e), `web` (lint, tsc, vitest, build) e `mobile` (lint, tsc, jest).
+- **CI** (`.github/workflows/ci.yml`, GitHub Actions): roda em `push` para `develop`/`main` e em todo `pull_request`; uma execução nova da mesma branch cancela a anterior. Cada job usa Node 22 e `npm ci` na raiz:
+  - `api`: serviço `postgres:17-alpine` (banco `nivela_test`, porta 5432, `DATABASE_URL` definido no job e prevalecendo sobre o `apps/api/.env.test`), com `lint`, `typecheck`, `test` (unitários) e `test:e2e` (aplica `prisma migrate deploy` e roda os e2e);
+  - `web`: `typecheck` e `test` de `packages/design-tokens`, depois `lint`, `typecheck`, `test` e `build` do `apps/web`;
+  - `mobile`: `lint`, `typecheck` e `test` do `apps/mobile`.
+  Para reproduzir localmente: `npm ci && npm run lint && npm test && npm run test:e2e -w apps/api`. O selo do CI no README é adicionado depois do primeiro push, quando o repositório no GitHub existir.
 - Na raiz: `npm run lint` e `npm run test` rodam os scripts de todos os workspaces.

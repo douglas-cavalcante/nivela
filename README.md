@@ -4,6 +4,8 @@ Plataforma open source de apoio ao **nivelamento estudantil** na transição do 
 
 Trabalho de Conclusão de Curso — **Henrique Douglas Cavalcante Costa**.
 
+Integração contínua: [workflow de CI](.github/workflows/ci.yml) (lint, tipos, testes e build em todo push e pull request; detalhes em [docs/workflow.md](docs/workflow.md)).
+
 ## Estrutura
 
 | Pasta | O que é |
@@ -43,7 +45,7 @@ npm run dev:web
 npm run dev:mobile
 ```
 
-Outros comandos: `npm run db:down`, `npm run lint`, `npm run test`. Na API: `npm run test:e2e -w apps/api` (recria o banco `nivela_test` e roda os testes e2e) e `npm run db:migrate -w apps/api`.
+Outros comandos: `npm run db:down`, `npm run lint`, `npm run test`. Os mesmos passos do CI, localmente: `npm ci && npm run lint && npm test && npm run test:e2e -w apps/api`. Na API: `npm run test:e2e -w apps/api` (recria o banco `nivela_test` e roda os testes e2e) e `npm run db:migrate -w apps/api`.
 
 ## Documentação
 
