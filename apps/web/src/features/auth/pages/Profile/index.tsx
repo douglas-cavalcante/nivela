@@ -19,7 +19,7 @@ import { changePasswordAction } from 'src/features/auth/api/auth.action';
 import { PasswordField } from 'src/features/auth/components/PasswordField';
 import { changePasswordSchema } from 'src/features/auth/schemas/changePassword.schema';
 import type { ChangePasswordFormValues } from 'src/features/auth/schemas/changePassword.schema';
-import { parseApiError } from 'src/lib/apiError';
+import { parseApiError } from '@nivela/api-contract';
 import { useAuth } from 'src/lib/auth/AuthContext';
 import { useColorMode } from 'src/lib/theme/ColorModeProvider';
 

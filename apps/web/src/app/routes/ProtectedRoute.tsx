@@ -1,7 +1,7 @@
 import { Box, CircularProgress } from '@mui/material';
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { useAuth } from 'src/lib/auth/AuthContext';
-import type { Role } from 'src/types/user';
+import type { Role } from '@nivela/api-contract';
 
 interface ProtectedRouteProps {
   /** Perfis que podem entrar; sem a lista, qualquer usuário autenticado entra. */
