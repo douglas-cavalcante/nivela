@@ -10,8 +10,18 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
   onUnauthorized = handler;
 }
 
+/** Falha logo na inicialização, com mensagem clara, se a URL da API não estiver configurada. */
+export function requireApiUrl(value: string | undefined): string {
+  if (!value?.trim()) {
+    throw new Error(
+      'EXPO_PUBLIC_API_URL não está definida. Copie apps/mobile/.env.example para apps/mobile/.env e reinicie o Expo (npm run dev:mobile).',
+    );
+  }
+  return value;
+}
+
 const api = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL,
+  baseURL: requireApiUrl(process.env.EXPO_PUBLIC_API_URL),
   headers: { Accept: 'application/json' },
 });
 

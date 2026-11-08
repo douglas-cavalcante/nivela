@@ -1,7 +1,7 @@
 import { AxiosError } from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 import { clearToken, getToken, setToken } from 'src/lib/auth/tokenStorage';
-import api, { setUnauthorizedHandler } from 'src/lib/axios';
+import api, { requireApiUrl, setUnauthorizedHandler } from 'src/lib/axios';
 
 const originalAdapter = api.defaults.adapter;
 
@@ -104,5 +104,15 @@ describe('api (axios)', () => {
     await api.get('/auth/me').catch(() => undefined);
 
     expect(sent).toEqual(['']);
+  });
+});
+
+describe('requireApiUrl', () => {
+  it('devolve a URL configurada', () => {
+    expect(requireApiUrl('http://10.0.2.2:8000/api/v1')).toBe('http://10.0.2.2:8000/api/v1');
+  });
+
+  it.each([undefined, '', '   '])('falha com mensagem clara quando EXPO_PUBLIC_API_URL falta (%j)', (value) => {
+    expect(() => requireApiUrl(value)).toThrow(/EXPO_PUBLIC_API_URL não está definida.*apps\/mobile\/\.env\.example/);
   });
 });
