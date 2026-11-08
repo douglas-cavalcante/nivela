@@ -37,7 +37,9 @@ npm run dev:api
 # 4. Painel web (em outro terminal)
 npm run dev:web
 
-# 5. App mobile (em outro terminal)
+# 5. App mobile (em outro terminal): copie apps/mobile/.env.example para apps/mobile/.env
+#    Emulador Android: EXPO_PUBLIC_API_URL=http://10.0.2.2:8000/api/v1 (padrão)
+#    Celular físico: use o IP da sua máquina na rede, ex.: http://192.168.0.10:8000/api/v1
 npm run dev:mobile
 ```
 

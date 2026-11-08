@@ -112,14 +112,23 @@ Tipos, constantes e utils ficam **o mais perto possível de quem usa**; só sobe
 
 ```
 app/                       # Rotas (Expo Router) — só montam a tela, sem lógica
+├── _layout.tsx            # fontes, ThemeProvider, AuthProvider e Stack.Protected (grupos (tabs) e (auth))
 ├── (auth)/                # welcome, login, register
-├── (tabs)/                # index, study, store, profile
+├── (tabs)/                # index, study, store, profile (barra de abas: Início, Estudar, Loja, Perfil)
 ├── plans/[id].tsx
 └── questions/[id].tsx
 src/
 ├── features/<feature>/    # mesma anatomia e mesmas regras de import da web
-└── components/ lib/ hooks/ utils/ constants/ types/ assets/
+├── components/            # AppText, EmptyState, Mascot, PaperBackground (fundo pautado), PenCard (borda + sombra sólida), TabIcon
+├── lib/                   # axios (Bearer e 401), auth (AuthContext, tokenStorage via expo-secure-store), theme (ThemeProvider/useTheme a partir dos design tokens)
+├── types/ hooks/ utils/ constants/ assets/
+└── test/                  # setup do Jest (SecureStore em memória), renderApp (renderRouter) e usuários de exemplo
 ```
+
+- **Rotas protegidas:** `app/_layout.tsx` usa `Stack.Protected` — o grupo `(tabs)` só existe com usuário logado e `(auth)` só sem usuário; o redirecionamento acontece sozinho quando o login muda (inclusive no 401 que expira a sessão).
+- **Testes** ficam em `__tests__/` ao lado do código (`app/(tabs)/__tests__`, `src/lib/__tests__`); o Metro não os inclui no bundle.
+- O ESLint do mobile (`apps/mobile/eslint.config.mjs`) tem as mesmas regras da web; `app/` conta como camada de rotas (`src/` nunca importa de `app/`) e `src/lib/theme` é o único lugar com cor hexadecimal permitida.
+- Diferença em relação à web: o `tokenStorage` é assíncrono (`expo-secure-store`), então `signIn` retorna `Promise<void>`.
 
 ---
 

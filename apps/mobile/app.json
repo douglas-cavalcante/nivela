@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Nivela",
+    "slug": "nivela",
+    "scheme": "nivela",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "android": { "package": "br.nivela.app" },
+    "ios": { "bundleIdentifier": "br.nivela.app" },
+    "plugins": ["expo-router", "expo-secure-store", "expo-font", "expo-splash-screen"],
+    "experiments": { "typedRoutes": true }
+  }
+}
