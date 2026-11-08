@@ -39,9 +39,10 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({ Caveat_700Bold, Nunito_400Regular, Nunito_700Bold });
+  const [fontsLoaded, fontError] = useFonts({ Caveat_700Bold, Nunito_400Regular, Nunito_700Bold });
 
-  if (!fontsLoaded) return null;
+  // Se uma fonte falhar, o app abre com as fontes do sistema em vez de ficar preso na splash.
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <ThemeProvider>
