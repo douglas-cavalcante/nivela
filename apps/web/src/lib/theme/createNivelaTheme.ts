@@ -58,6 +58,11 @@ export function createNivelaTheme(mode: ThemeMode): Theme {
         },
       },
       MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' } } },
+      MuiDialog: {
+        styleOverrides: {
+          paper: { border, borderRadius: radius.lg, boxShadow: pen, backgroundColor: c.surface, backgroundImage: 'none' },
+        },
+      },
       MuiCard: {
         defaultProps: { elevation: 0 },
         styleOverrides: {
