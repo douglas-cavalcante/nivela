@@ -27,7 +27,7 @@ Publicação no GitHub (repositório público) apenas com autorização explíci
 - **Conventional Commits em português**, com escopo do app quando houver: `feat(api): …`, `fix(web): …`, `test(mobile): …`, `chore: …`, `docs: …`.
 - Tipos usados: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`.
 - Commits pequenos, um por passo lógico (um assunto por commit).
-- Todo commit termina com uma linha em branco e o trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+- Commits saem só no nome do autor, assinados via SSH, **sem** linha `Co-Authored-By`.
 - Commits e tags **assinados via SSH**, com o autor configurado no repositório. Datas reais (sem retroagir).
 
 ## Definição de pronto

@@ -22,7 +22,7 @@
 - Web: features em `src/features/<feature>/{api,pages,components,schemas,index.ts}`; telas só chamam `*.action.ts`; cores só pelo tema; usar o kit da Task 2 (tabela, diálogos, avisos, listagem com filtros na URL).
 - Mobile: features em `src/features/<feature>/{api,screens,components,schemas,index.ts}`; telas em `app/` importam só do `index.ts` da feature.
 - Testes: API = unitário dos services + e2e (`npm run test:e2e -w apps/api`, `resetDatabase` por suíte, factories em `test/helpers/factories.ts`); web = Vitest + MSW; mobile = jest-expo com o fake de `src/test/render.tsx`. Saída limpa.
-- Commits: Conventional Commits em pt-BR com escopo (`feat(api): …`), pequenos, terminando com `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Repositório já assina via SSH como Henrique Douglas — não mexer em `git config`.
+- Commits: Conventional Commits em pt-BR com escopo (`feat(api): …`), pequenos, sem linha `Co-Authored-By`. Repositório já assina via SSH como Henrique Douglas — não mexer em `git config`.
 - Gitflow: cada branch nasce de `develop` atualizado; **o implementador não faz merge nem push** — o controller integra com `--no-ff` depois da revisão.
 
 ## Review Focus
