@@ -1,0 +1,16 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testEnvironment": "node",
+  "testRegex": "test/.*\\.e2e-spec\\.ts$",
+  "transform": {
+    "[\\\\/]node_modules[\\\\/]@nestjs[\\\\/].+\\.js$": "<rootDir>/jest/esm-transformer.js",
+    "^.+\\.ts$": ["ts-jest", { "tsconfig": "tsconfig.jest.json" }]
+  },
+  "transformIgnorePatterns": ["[\\\\/]node_modules[\\\\/](?!@nestjs[\\\\/])"],
+  "moduleNameMapper": {
+    "^src/(.*)$": "<rootDir>/src/$1"
+  },
+  "setupFiles": ["<rootDir>/test/setup-env.ts"],
+  "maxWorkers": 1
+}

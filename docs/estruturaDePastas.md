@@ -2,7 +2,7 @@
 
 Os três apps do Nivela são organizados **por domínio de negócio (feature)**, no modelo do [bulletproof-react](https://github.com/alan2207/bulletproof-react). Tudo que pertence a um assunto (telas, chamadas à API, tipos, regras) fica junto, dentro da pasta da feature. As features têm os **mesmos nomes** na API, na web e no mobile.
 
-As regras de dependência abaixo são verificadas automaticamente: ESLint na web e no mobile (`npm run lint`) e testes de arquitetura (Pest arch) na API.
+As regras de dependência abaixo são verificadas automaticamente: ESLint nos três apps (`npm run lint`).
 
 ---
 
@@ -11,7 +11,7 @@ As regras de dependência abaixo são verificadas automaticamente: ESLint na web
 ```
 tcc/
 ├── apps/
-│   ├── api/                # Laravel 12 (Composer, fora dos workspaces npm)
+│   ├── api/                # NestJS 12 + Prisma 7 + TS
 │   ├── web/                # React + Vite + TS (professor/admin)
 │   └── mobile/             # Expo + Expo Router + TS (aluno)
 ├── packages/
@@ -19,7 +19,7 @@ tcc/
 ├── docs/                   # arquitetura, estrutura de pastas, workflow, requisitos, UML, prints
 ├── docker/                 # initdb/ (scripts do Postgres) e pgdata/ (dados locais, ignorado pelo git)
 ├── docker-compose.yml      # postgres:17-alpine
-├── package.json            # npm workspaces: apps/web, apps/mobile, packages/*
+├── package.json            # npm workspaces: apps/*, packages/*
 └── CLAUDE.md               # índice da documentação
 ```
 
@@ -27,32 +27,41 @@ tcc/
 
 `Auth`, `Users` (professores/admin), `Classrooms`, `Students`, `Subjects`, `Categories`, `Questions`, `Answers`, `LevelingPlans`, `Rewards`, `Dashboard`.
 
-Na API a pasta é `PascalCase` (`Modules/Questions`); na web e no mobile é `camelCase` (`features/questions`, `features/levelingPlans`).
+Na API a pasta é `kebab-case` (`modules/leveling-plans`); na web e no mobile é `camelCase` (`features/questions`, `features/levelingPlans`).
 
 ---
 
 ## API — `apps/api`
 
 ```
-app/
-├── Modules/
-│   └── <Feature>/                 # ex.: Questions
-│       ├── Controllers/           # finos: validam via Request, delegam ao Service, devolvem Resource
-│       ├── Requests/              # FormRequest (validação + mensagens em pt-BR)
-│       ├── Resources/             # formato do JSON de saída
-│       ├── Models/
-│       ├── Policies/
-│       ├── Services/              # regra de negócio, transações
-│       └── routes.php             # rotas da feature, carregadas pelo RouteServiceProvider
-├── Shared/                        # código usado por mais de uma feature (ex.: CoinLedger, enums)
-└── Support/                       # helpers sem regra de negócio
+src/
+├── modules/
+│   └── <feature>/                 # ex.: questions/
+│       ├── dto/                   # class-validator (mensagens em pt-BR)
+│       ├── <feature>.controller.ts    # fino: valida via DTO, delega ao service
+│       ├── <feature>.service.ts       # regra de negócio, transações Prisma
+│       ├── <feature>.service.spec.ts  # unitário com Prisma mockado
+│       └── <feature>.module.ts        # `exports` define o que outras features podem usar
+├── common/                        # filters, pipes, guards, decorators (sem regra de negócio)
+├── shared/                        # enums, exceções e regras usadas por mais de uma feature
+├── prisma/                        # PrismaModule (global) e PrismaService (adapter-pg)
+├── generated/prisma/              # client do Prisma (gerado, ignorado pelo git)
+├── app.factory.ts                 # configureApp(): prefixo, validação, filtro, CORS, Swagger
+├── app.module.ts
+└── main.ts
+prisma/schema.prisma, prisma/migrations/, prisma/seed.ts
+test/*.e2e-spec.ts                 # e2e com supertest contra o banco nivela_test
+test/helpers/                      # createTestApp() e rotas só de teste
+scripts/test-db-migrate.js           # recria o banco nivela_test antes do e2e
 ```
 
-**Regras de dependência (Pest arch tests):**
+**Regras de dependência (ESLint, `apps/api/eslint.config.mjs`):**
 
-- uma feature não usa classes internas de outra, exceto Models e Services expostos;
-- `Shared` e `Support` não dependem de `Modules`;
-- controllers não usam `DB::` diretamente (transações ficam nos Services).
+- imports que saem da pasta usam o alias `src/...` — nunca `../`;
+- uma feature não importa arquivos internos de outra: usa só `src/modules/<outra>/<outra>.module` ou `<outra>.service` (o módulo exporta o que for preciso);
+- `common`, `shared` e `prisma` não importam de `src/modules`;
+- `*.controller.ts` não importa o `PrismaService` (acesso a dados fica no service);
+- `@typescript-eslint/no-explicit-any` como erro.
 
 ---
 
@@ -126,7 +135,7 @@ src/
 
 ### Nova feature
 
-1. **API:** criar `app/Modules/<Feature>/` com `Controllers`, `Requests`, `Resources`, `Models`, `Policies`, `Services` e `routes.php`; registrar o `routes.php`; criar migration e factory; escrever o teste Pest da feature (sucesso, validação, permissão).
+1. **API:** criar `src/modules/<feature>/` com `dto/`, controller, service e module; importar o module no `AppModule`; adicionar os models no `prisma/schema.prisma` e gerar a migration (`npm run db:migrate -w apps/api`); escrever o teste e2e da feature (sucesso, validação, permissão) e os unitários do service.
 2. **Web/Mobile:** criar `src/features/<feature>/` com `api/`, `pages/` e `index.ts`; exportar no `index.ts` só o que outras features precisam.
 3. Rodar `npm run lint` e `npm run test`; atualizar esta página se a estrutura mudou.
 
@@ -141,4 +150,4 @@ src/
 1. Em `features/<feature>/api/<recurso>.api.ts`, criar a função com axios (retorna a resposta completa).
 2. Em `<recurso>.action.ts`, criar a função que chama a `.api.ts` e devolve só o `data` tipado.
 3. As telas usam a `.action.ts`; os tipos de resposta ficam em `types/`.
-4. Na API, a rota correspondente vive em `Modules/<Feature>/routes.php` sob o prefixo `/api/v1`.
+4. Na API, a rota correspondente vive no controller da feature (`modules/<feature>/<feature>.controller.ts`), sob o prefixo global `/api/v1`.

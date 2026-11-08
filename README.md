@@ -8,7 +8,7 @@ Trabalho de Conclusão de Curso — **Henrique Douglas Cavalcante Costa**.
 
 | Pasta | O que é |
 |---|---|
-| `apps/api` | API Laravel 12 + PostgreSQL |
+| `apps/api` | API NestJS 12 + Prisma 7 + PostgreSQL |
 | `apps/web` | Painel web (React + Vite) para professor/admin |
 | `apps/mobile` | App mobile (Expo) para o aluno |
 | `packages/design-tokens` | Tokens de design compartilhados |
@@ -19,20 +19,19 @@ Trabalho de Conclusão de Curso — **Henrique Douglas Cavalcante Costa**.
 ## Pré-requisitos
 
 - Docker Desktop
-- PHP 8.2+ (com extensão `pdo_pgsql`) e Composer 2
-- Node 22 (veja `.nvmrc`) e npm 10
+- Node 22 (veja `.nvmrc`; a CLI do Nest 12 pede 22.22.3 ou mais novo) e npm 10
 
 ## Como rodar
 
 ```bash
-# 1. Dependências JS (raiz)
+# 1. Dependências (raiz, todos os workspaces)
 npm install
 
 # 2. Banco de dados (PostgreSQL 17 na porta 5433)
 npm run db:up
 
-# 3. API (http://localhost:8000/api/v1)
-cd apps/api && composer install && cp .env.example .env && php artisan key:generate && php artisan migrate --seed && cd ../..
+# 3. API (http://localhost:8000/api/v1, documentação em http://localhost:8000/docs)
+cp apps/api/.env.example apps/api/.env
 npm run dev:api
 
 # 4. Painel web (em outro terminal)
@@ -42,7 +41,7 @@ npm run dev:web
 npm run dev:mobile
 ```
 
-Outros comandos: `npm run db:down`, `npm run lint`, `npm run test`.
+Outros comandos: `npm run db:down`, `npm run lint`, `npm run test`. Na API: `npm run test:e2e -w apps/api` (recria o banco `nivela_test` e roda os testes e2e) e `npm run db:migrate -w apps/api`.
 
 ## Documentação
 
