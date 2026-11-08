@@ -8,6 +8,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { AnyAuthenticated } from 'src/common/decorators/any-authenticated.decorator';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { Public } from 'src/common/decorators/public.decorator';
 import { AuthResult, AuthService } from 'src/modules/auth/auth.service';
@@ -38,12 +39,14 @@ export class AuthController {
     return this.auth.registerStudent(dto);
   }
 
+  @AnyAuthenticated()
   @ApiBearerAuth()
   @Get('me')
   me(@CurrentUser() user: AuthUser): { user: AuthUser } {
     return { user };
   }
 
+  @AnyAuthenticated()
   @ApiBearerAuth()
   @Post('logout')
   @HttpCode(204)
@@ -53,6 +56,7 @@ export class AuthController {
     }
   }
 
+  @AnyAuthenticated()
   @ApiBearerAuth()
   @Put('password')
   @HttpCode(204)

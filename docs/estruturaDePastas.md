@@ -42,7 +42,7 @@ src/
 │       ├── <feature>.service.ts       # regra de negócio, transações Prisma
 │       ├── <feature>.service.spec.ts  # unitário com Prisma mockado
 │       └── <feature>.module.ts        # `exports` define o que outras features podem usar
-├── common/                        # filters, pipes, guards (AuthGuard, RolesGuard), decorators (@Public, @Roles, @CurrentUser), validators (sem regra de negócio)
+├── common/                        # filters, pipes, guards (AuthGuard, RolesGuard), decorators (@Public, @Roles, @AnyAuthenticated, @CurrentUser), validators (sem regra de negócio)
 ├── shared/                        # enums, exceções, contrato de autenticação (auth/auth-user.ts) e regras usadas por mais de uma feature
 ├── prisma/                        # PrismaModule (global) e PrismaService (adapter-pg)
 ├── generated/prisma/              # client do Prisma (gerado, ignorado pelo git)
@@ -148,6 +148,7 @@ src/
 ### Nova feature
 
 1. **API:** criar `src/modules/<feature>/` com `dto/`, controller, service e module; importar o module no `AppModule`; adicionar os models no `prisma/schema.prisma` e gerar a migration (`npm run db:migrate -w apps/api`); escrever o teste e2e da feature (sucesso, validação, permissão) e os unitários do service.
+   - **Autorização negada por padrão:** toda rota precisa declarar quem pode acessá-la — `@Roles(Role.Admin, …)` (no método ou no controller), `@AnyAuthenticated()` (qualquer usuário logado) ou `@Public()`. Sem nenhum deles, o `RolesGuard` responde 403, e o teste `test/route-authorization.e2e-spec.ts` falha apontando a rota esquecida.
 2. **Web/Mobile:** criar `src/features/<feature>/` com `api/`, `pages/` e `index.ts`; exportar no `index.ts` só o que outras features precisam.
 3. Rodar `npm run lint` e `npm run test`; atualizar esta página se a estrutura mudou.
 
