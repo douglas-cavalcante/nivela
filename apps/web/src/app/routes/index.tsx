@@ -5,7 +5,7 @@ import { AuthLayout } from 'src/app/layouts/AuthLayout';
 import { ComingSoon } from 'src/app/routes/ComingSoon';
 import { HomePage } from 'src/app/routes/HomePage';
 import { ProtectedRoute } from 'src/app/routes/ProtectedRoute';
-import { Login } from 'src/features/auth';
+import { Login, Profile } from 'src/features/auth';
 
 // As rotas das features entram aqui conforme forem construídas; até lá, "Em breve".
 const placeholders = menuItems.filter((item) => item.path !== '/');
@@ -20,6 +20,7 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route index element={<HomePage />} />
+          <Route path="/perfil" element={<Profile />} />
           {placeholders
             .filter((item) => item.roles.includes('teacher'))
             .map((item) => (
