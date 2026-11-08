@@ -16,7 +16,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { PageHeader } from 'src/components/PageHeader';
 import { changePasswordAction } from 'src/features/auth/api/auth.action';
-import { PasswordField } from 'src/features/auth/components/PasswordField';
+import { PasswordField } from 'src/components/PasswordField';
 import { changePasswordSchema } from 'src/features/auth/schemas/changePassword.schema';
 import type { ChangePasswordFormValues } from 'src/features/auth/schemas/changePassword.schema';
 import { parseApiError } from '@nivela/api-contract';
