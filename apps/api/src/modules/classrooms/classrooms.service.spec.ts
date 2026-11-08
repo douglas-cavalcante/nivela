@@ -48,6 +48,8 @@ describe('ClassroomsService', () => {
   const regenerate = jest.fn();
   const userFindUnique = jest.fn();
   const deleteMany = jest.fn();
+  const enrollmentFindMany = jest.fn();
+  const enrollmentCreate = jest.fn();
   const findStudent = jest.fn();
   const txUserCreate = jest.fn();
   const txProfileCreate = jest.fn();
@@ -61,7 +63,11 @@ describe('ClassroomsService', () => {
   const service = new ClassroomsService(
     {
       classroom: { findMany, findFirst, findUnique, count, update },
-      classroomStudent: { deleteMany },
+      classroomStudent: {
+        deleteMany,
+        findMany: enrollmentFindMany,
+        create: enrollmentCreate,
+      },
       user: { findFirst: userFindFirst, findUnique: userFindUnique },
       $transaction,
     } as unknown as PrismaService,
@@ -293,6 +299,105 @@ describe('ClassroomsService', () => {
         service.removeStudent(1, 7, user(Role.Teacher, 6)),
       ).rejects.toThrow(new NotFoundException('Turma não encontrada.'));
       expect(deleteMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('turmas do aluno', () => {
+    const student = user(Role.Student, 11);
+    const classroom = {
+      id: 3,
+      name: '9º A',
+      schoolYear: '9º ano',
+      active: true,
+      teacher: { name: 'Ana' },
+    };
+    const duplicate = (constraint: string) =>
+      new Prisma.PrismaClientKnownRequestError('duplicado', {
+        code: 'P2002',
+        clientVersion: 'teste',
+        meta: {
+          modelName: 'ClassroomStudent',
+          driverAdapterError: {
+            name: 'DriverAdapterError',
+            cause: {
+              kind: 'UniqueConstraintViolation',
+              constraint: { index: constraint },
+              table: 'classroom_student',
+            },
+          },
+        },
+      });
+
+    it('listMine consulta só as matrículas do próprio aluno', async () => {
+      enrollmentFindMany.mockResolvedValue([
+        { joinedAt: new Date('2026-01-02T03:04:05.000Z'), classroom },
+      ]);
+
+      await expect(service.listMine(student)).resolves.toEqual([
+        {
+          id: 3,
+          name: '9º A',
+          school_year: '9º ano',
+          teacher: { name: 'Ana' },
+          joined_at: '2026-01-02T03:04:05.000Z',
+        },
+      ]);
+      expect(enrollmentFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { studentId: 11 } }),
+      );
+    });
+
+    it('joinMine matricula o aluno na turma do código', async () => {
+      findUnique.mockResolvedValue(classroom);
+      enrollmentCreate.mockResolvedValue({
+        joinedAt: new Date('2026-01-02T03:04:05.000Z'),
+      });
+
+      await expect(
+        service.joinMine('NIV-4K7Q', student),
+      ).resolves.toMatchObject({
+        id: 3,
+        joined_at: '2026-01-02T03:04:05.000Z',
+      });
+      expect(enrollmentCreate).toHaveBeenCalledWith({
+        data: { classroomId: 3, studentId: 11 },
+        select: { joinedAt: true },
+      });
+    });
+
+    it('joinMine: matrícula repetida (P2002 na chave primária) → 422 no campo', async () => {
+      findUnique.mockResolvedValue(classroom);
+      enrollmentCreate.mockRejectedValue(duplicate('classroom_student_pkey'));
+
+      const error = await service
+        .joinMine('NIV-4K7Q', student)
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(FieldValidationException);
+      expect((error as FieldValidationException).getResponse()).toMatchObject({
+        errors: { join_code: ['Você já está nesta turma.'] },
+      });
+    });
+
+    it('joinMine: não mascara outras violações de unicidade', async () => {
+      findUnique.mockResolvedValue(classroom);
+      const other = duplicate('users_email_key');
+      enrollmentCreate.mockRejectedValue(other);
+
+      await expect(service.joinMine('NIV-4K7Q', student)).rejects.toBe(other);
+    });
+
+    it('joinMine: código inválido ou turma inativa nem tenta matricular', async () => {
+      findUnique.mockResolvedValueOnce(null);
+      findUnique.mockResolvedValueOnce({ ...classroom, active: false });
+
+      await expect(
+        service.joinMine('NIV-NOPE', student),
+      ).rejects.toBeInstanceOf(FieldValidationException);
+      await expect(
+        service.joinMine('NIV-4K7Q', student),
+      ).rejects.toBeInstanceOf(FieldValidationException);
+      expect(enrollmentCreate).not.toHaveBeenCalled();
     });
   });
 

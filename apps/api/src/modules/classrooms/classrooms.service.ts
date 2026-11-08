@@ -3,6 +3,7 @@ import { hash } from 'bcryptjs';
 import type {
   ApiClassroom,
   ApiClassroomSummary,
+  ApiMyClassroom,
   ApiStudent,
   Paginated,
 } from '@nivela/api-contract';
@@ -16,6 +17,7 @@ import { JoinCodeService } from 'src/modules/classrooms/join-code.service';
 import {
   presentClassroom,
   presentClassroomSummary,
+  presentMyClassroom,
 } from 'src/modules/classrooms/presenters/classroom.presenter';
 import { StudentsService } from 'src/modules/students/students.service';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -35,6 +37,9 @@ const NOT_FOUND = 'Turma não encontrada.';
 const STUDENT_NOT_IN_CLASSROOM = 'Aluno não encontrado nesta turma.';
 const EMAIL_TAKEN =
   'Este e-mail já está cadastrado. O aluno pode entrar na turma pelo código.';
+const ALREADY_ENROLLED = 'Você já está nesta turma.';
+// Chave primária (turma, aluno) da matrícula.
+const ENROLLMENT_PRIMARY_KEY = 'classroom_student_pkey';
 // Restrição única do e-mail em `users` (nome gerado pela migration).
 const EMAIL_UNIQUE_CONSTRAINT = 'users_email_key';
 
@@ -202,6 +207,46 @@ export class ClassroomsService {
     });
     if (count === 0) {
       throw new NotFoundException(STUDENT_NOT_IN_CLASSROOM);
+    }
+  }
+
+  /** Turmas em que o aluno está matriculado, por nome. */
+  async listMine(user: AuthUser): Promise<ApiMyClassroom[]> {
+    const enrollments = await this.prisma.classroomStudent.findMany({
+      where: { studentId: user.id },
+      select: {
+        joinedAt: true,
+        classroom: {
+          select: {
+            id: true,
+            name: true,
+            schoolYear: true,
+            teacher: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: [{ classroom: { name: 'asc' } }, { classroomId: 'asc' }],
+    });
+    return enrollments.map(({ classroom, joinedAt }) =>
+      presentMyClassroom(classroom, joinedAt),
+    );
+  }
+
+  /** O aluno entra em uma turma pelo código (já normalizado). */
+  async joinMine(joinCode: string, user: AuthUser): Promise<ApiMyClassroom> {
+    const classroom = await this.findJoinable(joinCode);
+    try {
+      const enrollment = await this.prisma.classroomStudent.create({
+        data: { classroomId: classroom.id, studentId: user.id },
+        select: { joinedAt: true },
+      });
+      return presentMyClassroom(classroom, enrollment.joinedAt);
+    } catch (error) {
+      // A chave primária decide, inclusive em pedidos simultâneos.
+      if (isUniqueViolation(error, ENROLLMENT_PRIMARY_KEY)) {
+        throw new FieldValidationException({ join_code: [ALREADY_ENROLLED] });
+      }
+      throw error;
     }
   }
 
