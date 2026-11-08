@@ -101,6 +101,8 @@ O ESLint da web (`apps/web/eslint.config.mjs`) lê `src/features/*` para montar 
 
 **Direção das dependências:** `app → features → (components, lib, hooks, utils, constants, types)`. Nunca no sentido contrário.
 
+**Filtros de listagem (web):** o estado da lista fica na URL (`useListQuery`). Ao montar os params da API, **filtro vazio (`''`) é omitido** (nunca vai `?subject_id=`; a API também trata parâmetro vazio como ausente, mas o cliente não depende disso). Um select de filtro cujo padrão não é vazio (ex.: situação = ativos) precisa de uma opção **"Todos"/"Todas" com valor `''`**, senão a pessoa não consegue voltar a ver tudo.
+
 ### Anatomia de uma feature (web)
 
 Cada feature usa só as subpastas de que precisa:
