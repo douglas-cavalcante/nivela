@@ -1,6 +1,9 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
+import {
+  HttpExceptionFilter,
+  keepParserErrorCause,
+} from 'src/common/filters/http-exception.filter';
 import { createValidationPipe } from 'src/common/pipes/validation.pipe';
 
 // Origens de desenvolvimento: painel web (Vite) e Expo web.
@@ -16,6 +19,7 @@ export function configureApp(app: INestApplication): INestApplication {
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(createValidationPipe());
   app.useGlobalFilters(new HttpExceptionFilter());
+  keepParserErrorCause(app);
   app.enableCors({
     origin: process.env.CORS_ORIGINS?.split(',') ?? DEV_ORIGINS,
   });
