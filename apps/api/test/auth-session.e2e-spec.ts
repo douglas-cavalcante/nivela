@@ -67,6 +67,23 @@ describe('Auth - sessão (e2e)', () => {
     ).not.toBeNull();
   });
 
+  it('token expirado → 401 e o registro é apagado', async () => {
+    const teacher = await createUser(prisma, { role: Role.Teacher });
+    const token = await loginAs(teacher.email);
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+    await prisma.accessToken.updateMany({
+      data: { createdAt: eightDaysAgo, lastUsedAt: eightDaysAgo },
+    });
+
+    const { body } = await http()
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(401);
+
+    expect(body).toEqual({ message: 'Não autenticado.' });
+    expect(await prisma.accessToken.count()).toBe(0);
+  });
+
   it('logout revoga o token', async () => {
     const teacher = await createUser(prisma, { role: Role.Teacher });
     const token = await loginAs(teacher.email);

@@ -4,6 +4,7 @@ import { AuthService } from 'src/modules/auth/auth.service';
 import { TokenService } from 'src/modules/auth/token.service';
 import { ClassroomsModule } from 'src/modules/classrooms/classrooms.module';
 import { TOKEN_RESOLVER } from 'src/shared/auth/auth-user';
+import { CLOCK, systemClock } from 'src/shared/clock/clock';
 
 @Module({
   imports: [ClassroomsModule],
@@ -11,6 +12,7 @@ import { TOKEN_RESOLVER } from 'src/shared/auth/auth-user';
   providers: [
     AuthService,
     TokenService,
+    { provide: CLOCK, useValue: systemClock },
     { provide: TOKEN_RESOLVER, useExisting: TokenService },
   ],
   // O AuthGuard global (registrado no AppModule) resolve tokens por TOKEN_RESOLVER.
