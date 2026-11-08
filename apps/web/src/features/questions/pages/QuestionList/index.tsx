@@ -1,0 +1,127 @@
+import AddIcon from '@mui/icons-material/Add';
+import ImageIcon from '@mui/icons-material/ImageOutlined';
+import { Box, Button, Typography } from '@mui/material';
+import type { ApiQuestionSummary, Difficulty } from '@nivela/api-contract';
+import { useNavigate } from 'react-router';
+import { DataTable } from 'src/components/DataTable';
+import type { DataTableColumn } from 'src/components/DataTable';
+import { PageHeader } from 'src/components/PageHeader';
+import { StatusChip } from 'src/components/StatusChip';
+import { listCategoriesAction } from 'src/features/categories';
+import { listQuestionsAction } from 'src/features/questions/api/questions.action';
+import { DifficultyChip } from 'src/features/questions/components/DifficultyChip';
+import { QuestionFilters } from 'src/features/questions/components/QuestionFilters';
+import type { QuestionFilterValues } from 'src/features/questions/components/QuestionFilters';
+import { SubjectBadge, listSubjectsAction } from 'src/features/subjects';
+import { useListQuery } from 'src/hooks/useListQuery';
+import { usePaginatedList } from 'src/hooks/usePaginatedList';
+import { useRemoteList } from 'src/hooks/useRemoteList';
+
+const MAX_ID = 2_147_483_647;
+/** Id válido na URL: inteiro positivo dentro do INTEGER do banco; o resto é ignorado. */
+const validId = (value: string): string => (/^[1-9]\d{0,9}$/.test(value) && Number(value) <= MAX_ID ? value : '');
+
+/** Banco de questões: tabela paginada com filtros na URL (`?subject_id=1&category_id=3&difficulty=hard`). */
+export function QuestionList() {
+  const navigate = useNavigate();
+  const { page, filters, setPage, setFilters } = useListQuery({
+    search: '',
+    subject_id: '',
+    category_id: '',
+    difficulty: '',
+    status: '',
+  });
+  const search = filters.search.trim();
+  const subjectId = validId(filters.subject_id);
+  // categoria sem disciplina não vale; valores desconhecidos na URL são ignorados
+  const categoryId = subjectId ? validId(filters.category_id) : '';
+  const difficulty = (['easy', 'medium', 'hard'] as const).find((value) => value === filters.difficulty) ?? '';
+  const status = filters.status === 'active' || filters.status === 'inactive' ? filters.status : '';
+
+  const { rows: subjects } = useRemoteList((signal) => listSubjectsAction(signal), 'subjects');
+  const { rows: categories } = useRemoteList(
+    (signal) => (subjectId ? listCategoriesAction(subjectId, signal) : Promise.resolve([])),
+    subjectId,
+  );
+
+  const { rows, meta, loading, error, reload } = usePaginatedList(
+    (signal) =>
+      listQuestionsAction(
+        {
+          page: page > 1 ? page : undefined,
+          search: search || undefined,
+          subject_id: subjectId ? Number(subjectId) : undefined,
+          category_id: categoryId ? Number(categoryId) : undefined,
+          difficulty: (difficulty || undefined) as Difficulty | undefined,
+          status: status || undefined,
+        },
+        signal,
+      ),
+    JSON.stringify([page, search, subjectId, categoryId, difficulty, status]),
+  );
+
+  const values: QuestionFilterValues = {
+    search: filters.search,
+    subject_id: subjectId,
+    category_id: categoryId,
+    difficulty,
+    status,
+  };
+
+  const columns: Array<DataTableColumn<ApiQuestionSummary>> = [
+    {
+      key: 'statement',
+      header: 'Enunciado',
+      render: (row) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, maxWidth: 480 }}>
+          <Typography component="span">{row.statement_excerpt}</Typography>
+          {row.has_image ? <ImageIcon fontSize="small" titleAccess="Tem imagem" color="action" /> : null}
+        </Box>
+      ),
+    },
+    { key: 'subject', header: 'Disciplina', render: (row) => <SubjectBadge subject={row.subject} /> },
+    { key: 'category', header: 'Categoria', render: (row) => row.category.name },
+    {
+      key: 'difficulty',
+      header: 'Dificuldade',
+      width: 130,
+      render: (row) => <DifficultyChip difficulty={row.difficulty} />,
+    },
+    { key: 'author', header: 'Autor', render: (row) => row.author.name },
+    { key: 'status', header: 'Situação', width: 120, render: (row) => <StatusChip active={row.active} /> },
+  ];
+
+  const filtered = Boolean(search || subjectId || categoryId || difficulty || status);
+
+  return (
+    <>
+      <PageHeader
+        title="Questões"
+        subtitle="O banco de questões da Nivela: filtre por disciplina, categoria e dificuldade."
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => void navigate('/questoes/nova')}>
+            Nova questão
+          </Button>
+        }
+      />
+
+      <QuestionFilters values={values} subjects={subjects} categories={categories} onChange={setFilters} />
+
+      <DataTable
+        columns={columns}
+        rows={rows}
+        getRowId={(row) => row.id}
+        loading={loading}
+        error={error}
+        onRetry={() => void reload()}
+        meta={meta}
+        onPageChange={setPage}
+        onRowClick={(row) => void navigate(`/questoes/${row.id}`)}
+        emptyTitle={filtered ? 'Nenhuma questão encontrada' : 'Nenhuma questão ainda'}
+        emptyDescription={
+          filtered ? 'Tente outra busca ou limpe os filtros.' : 'Cadastre a primeira questão para começar o banco.'
+        }
+      />
+    </>
+  );
+}

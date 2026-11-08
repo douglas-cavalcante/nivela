@@ -7,7 +7,7 @@ import { renderWithProviders } from 'src/test/render';
 const defaults = { search: '', subject_id: '', status: 'active' };
 
 function Probe() {
-  const { page, filters, setPage, setFilter } = useListQuery(defaults);
+  const { page, filters, setPage, setFilter, setFilters } = useListQuery(defaults);
   const location = useLocation();
   const navigate = useNavigate();
   return (
@@ -19,6 +19,7 @@ function Probe() {
       <button onClick={() => setFilter('status', '')}>status vazio</button>
       <button onClick={() => setFilter('status', 'active')}>status padrão</button>
       <button onClick={() => navigate(-1)}>voltar</button>
+      <button onClick={() => setFilters({ subject_id: '2', search: '' })}>trocar disciplina e limpar busca</button>
       <button onClick={() => setPage(4)}>pagina 4</button>
       <button onClick={() => setPage(1)}>pagina 1</button>
     </>
@@ -50,6 +51,16 @@ describe('useListQuery', () => {
     const params = new URLSearchParams(url() ?? '');
     expect(params.get('search')).toBe('y');
     expect(params.get('subject_id')).toBe('3');
+    expect(params.get('extra')).toBe('1');
+    expect(params.has('page')).toBe(false);
+  });
+
+  it('setFilters troca vários filtros de uma vez, volta para a página 1 e preserva o resto', async () => {
+    renderWithProviders(<Probe />, { route: '/?page=3&search=x&subject_id=1&extra=1' });
+    await userEvent.click(screen.getByText('trocar disciplina e limpar busca'));
+    const params = new URLSearchParams(url() ?? '');
+    expect(params.get('subject_id')).toBe('2');
+    expect(params.has('search')).toBe(false);
     expect(params.get('extra')).toBe('1');
     expect(params.has('page')).toBe(false);
   });

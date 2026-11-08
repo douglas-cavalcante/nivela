@@ -48,5 +48,21 @@ export function useListQuery<F extends Record<string, string>>(defaultValues: F)
     [setSearchParams, defaults],
   );
 
-  return { page, filters, setPage, setFilter };
+  /** Troca vários filtros numa única navegação (ex.: mudar a disciplina e limpar a categoria dependente). */
+  const setFilters = useCallback(
+    (patch: Partial<F>) => {
+      setSearchParams((previous) => {
+        const params = new URLSearchParams(previous);
+        for (const [key, value] of Object.entries(patch) as Array<[string, string]>) {
+          if (value === defaults[key]) params.delete(key);
+          else params.set(key, value);
+        }
+        params.delete('page');
+        return params;
+      });
+    },
+    [setSearchParams, defaults],
+  );
+
+  return { page, filters, setPage, setFilter, setFilters };
 }
