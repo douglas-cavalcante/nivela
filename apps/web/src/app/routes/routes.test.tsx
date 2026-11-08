@@ -5,7 +5,8 @@ import { AppRoutes } from 'src/app/routes';
 import { getToken, setToken } from 'src/lib/auth/tokenStorage';
 import { renderWithProviders } from 'src/test/render';
 import { API_URL, server } from 'src/test/server';
-import { admin } from 'src/test/users';
+import { NotifyProvider } from 'src/lib/notify/NotifyProvider';
+import { admin, teacher } from 'src/test/users';
 
 async function login() {
   await userEvent.type(await screen.findByLabelText('E-mail'), admin.email);
@@ -49,5 +50,30 @@ describe('AppRoutes', () => {
 
     expect(await screen.findByRole('button', { name: 'Entrar' })).toBeInTheDocument();
     expect(getToken()).toBeNull();
+  });
+
+  it('professor logado não vê /professores: volta para o Início', async () => {
+    renderWithProviders(<AppRoutes />, { user: teacher, route: '/professores' });
+    expect(await screen.findByRole('heading', { name: 'Início' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Professores' })).toBeNull();
+  });
+
+  it('admin abre a lista de professores em /professores', async () => {
+    server.use(
+      http.get(`${API_URL}/teachers`, () =>
+        HttpResponse.json({
+          data: [{ id: 5, name: 'Maria Souza', email: 'maria@nivela.dev', active: true, classrooms_count: 3, created_at: '2026-01-10T12:00:00.000Z' }],
+          meta: { page: 1, per_page: 15, total: 1, last_page: 1 },
+        }),
+      ),
+    );
+    renderWithProviders(
+      <NotifyProvider>
+        <AppRoutes />
+      </NotifyProvider>,
+      { user: admin, route: '/professores' },
+    );
+    expect(await screen.findByRole('heading', { name: 'Professores' })).toBeInTheDocument();
+    expect(await screen.findByText('Maria Souza')).toBeInTheDocument();
   });
 });

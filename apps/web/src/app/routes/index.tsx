@@ -10,6 +10,7 @@ import { ProtectedRoute } from 'src/app/routes/ProtectedRoute';
 import { Login, Profile } from 'src/features/auth';
 import { CategoryList } from 'src/features/categories';
 import { SubjectList } from 'src/features/subjects';
+import { TeacherList } from 'src/features/teachers';
 
 const HomePage = lazy(() => import('src/app/routes/HomePage').then((m) => ({ default: m.HomePage })));
 const ComingSoon = lazy(() => import('src/app/routes/ComingSoon').then((m) => ({ default: m.ComingSoon })));
@@ -37,7 +38,7 @@ function page(element: ReactNode) {
 }
 
 // As rotas das features entram aqui conforme forem construídas; até lá, "Em breve".
-const implemented = ['/', '/disciplinas', '/categorias'];
+const implemented = ['/', '/disciplinas', '/categorias', '/professores'];
 const placeholders = menuItems.filter((item) => !implemented.includes(item.path));
 
 export function AppRoutes() {
@@ -63,6 +64,7 @@ export function AppRoutes() {
 
       <Route element={<ProtectedRoute roles={['admin']} />}>
         <Route element={<AppLayout />}>
+          <Route path="/professores" element={page(<TeacherList />)} />
           {placeholders
             .filter((item) => !item.roles.includes('teacher'))
             .map((item) => (
