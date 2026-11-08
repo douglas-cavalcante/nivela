@@ -17,6 +17,7 @@ const BCRYPT_COST = 10;
 const DUMMY_HASH = hashSync('nivela-dummy', BCRYPT_COST);
 
 const INVALID_CREDENTIALS = 'E-mail ou senha inválidos.';
+const EMAIL_TAKEN = 'Este e-mail já está cadastrado.';
 // Restrição única do e-mail em `users` (nome gerado pela migration).
 const EMAIL_UNIQUE_CONSTRAINT = 'users_email_key';
 
@@ -65,28 +66,29 @@ export class AuthService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        const errors: Record<string, string[]> = {};
+        // O código da turma é checado primeiro: sem um código válido, a
+        // resposta não diz se o e-mail já existe (evita descobrir e-mails).
+        const classroom = await tx.classroom.findUnique({
+          where: { joinCode: dto.join_code },
+          select: { id: true, active: true },
+        });
+        if (!classroom) {
+          throw new FieldValidationException({
+            join_code: ['Código de turma inválido.'],
+          });
+        }
+        if (!classroom.active) {
+          throw new FieldValidationException({
+            join_code: ['Esta turma não está aceitando novos alunos.'],
+          });
+        }
 
         const emailTaken = await tx.user.findUnique({
           where: { email: dto.email },
           select: { id: true },
         });
         if (emailTaken) {
-          errors.email = ['Este e-mail já está cadastrado.'];
-        }
-
-        const classroom = await tx.classroom.findUnique({
-          where: { joinCode: dto.join_code },
-          select: { id: true, active: true },
-        });
-        if (!classroom) {
-          errors.join_code = ['Código de turma inválido.'];
-        } else if (!classroom.active) {
-          errors.join_code = ['Esta turma não está aceitando novos alunos.'];
-        }
-
-        if (Object.keys(errors).length > 0 || !classroom) {
-          throw new FieldValidationException(errors);
+          throw new FieldValidationException({ email: [EMAIL_TAKEN] });
         }
 
         const user = await tx.user.create({
@@ -108,9 +110,7 @@ export class AuthService {
     } catch (error) {
       // Cadastros simultâneos com o mesmo e-mail: a unicidade do banco decide.
       if (isUniqueViolation(error, EMAIL_UNIQUE_CONSTRAINT)) {
-        throw new FieldValidationException({
-          email: ['Este e-mail já está cadastrado.'],
-        });
+        throw new FieldValidationException({ email: [EMAIL_TAKEN] });
       }
       throw error;
     }

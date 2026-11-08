@@ -124,6 +124,34 @@ describe('Auth - cadastro de aluno (e2e)', () => {
     expect(upper.body.errors.email[0]).toBe('Este e-mail já está cadastrado.');
   });
 
+  it('e-mail já cadastrado + código inválido: só acusa o código (não revela o e-mail)', async () => {
+    await createUser(prisma, { email: 'bia@aluno.com' });
+
+    const { body } = await register(valid).expect(422);
+
+    expect(body.errors).toEqual({ join_code: ['Código de turma inválido.'] });
+  });
+
+  it('e-mail já cadastrado + turma inativa: só acusa o código', async () => {
+    await createClassroom(prisma, { joinCode: 'NIV-4K7Q', active: false });
+    await createUser(prisma, { email: 'bia@aluno.com' });
+
+    const { body } = await register(valid).expect(422);
+
+    expect(body.errors).toEqual({
+      join_code: ['Esta turma não está aceitando novos alunos.'],
+    });
+  });
+
+  it('e-mail já cadastrado + código válido: 422 no e-mail', async () => {
+    await createClassroom(prisma, { joinCode: 'NIV-4K7Q' });
+    await createUser(prisma, { email: 'bia@aluno.com' });
+
+    const { body } = await register(valid).expect(422);
+
+    expect(body.errors).toEqual({ email: ['Este e-mail já está cadastrado.'] });
+  });
+
   it('exige senha de 8 caracteres e confirmação igual', async () => {
     await createClassroom(prisma, { joinCode: 'NIV-4K7Q' });
 
