@@ -269,7 +269,7 @@ describe('Turmas (e2e)', () => {
       expect(JSON.stringify(foreign.body)).not.toContain('NIV-AAAA');
     });
 
-    it('PUT e regenerar código de outro professor → 404 sem alterar nada', async () => {
+    it('PUT, regenerar código, adicionar e remover aluno de outro professor → 404 sem alterar nada', async () => {
       const student = await createUser(prisma);
       await prisma.classroomStudent.create({
         data: { classroomId: classroomA.id, studentId: student.id },
@@ -288,12 +288,31 @@ describe('Turmas (e2e)', () => {
         .expect(404)
         .expect(({ body }) => expect(body.message).toBe(NOT_FOUND));
 
+      await http()
+        .post(`/api/v1/classrooms/${classroomA.id}/students`)
+        .set(as(token))
+        .send({
+          name: 'Intruso',
+          email: 'intruso@aluno.test',
+          password: 'segredo123',
+        })
+        .expect(404)
+        .expect(({ body }) => expect(body.message).toBe(NOT_FOUND));
+      await http()
+        .delete(`/api/v1/classrooms/${classroomA.id}/students/${student.id}`)
+        .set(as(token))
+        .expect(404)
+        .expect(({ body }) => expect(body.message).toBe(NOT_FOUND));
+
       const after = await prisma.classroom.findUniqueOrThrow({
         where: { id: classroomA.id },
       });
       expect(after.name).not.toBe('Invadida');
       expect(after.active).toBe(true);
       expect(after.joinCode).toBe('NIV-AAAA');
+      expect(
+        await prisma.user.count({ where: { email: 'intruso@aluno.test' } }),
+      ).toBe(0);
       expect(
         await prisma.classroomStudent.count({
           where: { classroomId: classroomA.id },
@@ -408,6 +427,165 @@ describe('Turmas (e2e)', () => {
     const old = await register('NIV-4K7Q').expect(422);
     expect(old.body.errors.join_code).toEqual(['Código de turma inválido.']);
     await register(body.join_code as string).expect(201);
+  });
+
+  describe('alunos da turma', () => {
+    const newStudent = {
+      name: '  Bia Lima ',
+      email: ' Bia@Aluno.test ',
+      password: 'segredo123',
+    };
+
+    it('professor cria o aluno (usuário + perfil + matrícula) e ele já entra no app', async () => {
+      const classroom = await createClassroom(prisma, {
+        teacherId: teacherA.id,
+      });
+
+      const { body } = await http()
+        .post(`/api/v1/classrooms/${classroom.id}/students`)
+        .set(as(teacherA.token))
+        .send(newStudent)
+        .expect(201);
+
+      expect(body).toEqual({
+        id: expect.any(Number),
+        name: 'Bia Lima',
+        email: 'bia@aluno.test',
+        active: true,
+        classrooms: [{ id: classroom.id, name: classroom.name }],
+        coins_balance: 0,
+        current_streak: 0,
+        best_streak: 0,
+        created_at: expect.any(String),
+      });
+      expect(body).not.toHaveProperty('password');
+
+      const user = await prisma.user.findUniqueOrThrow({
+        where: { email: 'bia@aluno.test' },
+        include: { studentProfile: true, enrollments: true },
+      });
+      expect(user.role).toBe('student');
+      expect(user.password).not.toBe('segredo123');
+      expect(user.studentProfile).not.toBeNull();
+      expect(user.enrollments.map((e) => e.classroomId)).toEqual([
+        classroom.id,
+      ]);
+
+      await http()
+        .post('/api/v1/auth/login')
+        .send({
+          email: 'bia@aluno.test',
+          password: 'segredo123',
+          channel: 'mobile',
+        })
+        .expect(200);
+
+      const detail = await http()
+        .get(`/api/v1/classrooms/${classroom.id}`)
+        .set(as(teacherA.token))
+        .expect(200);
+      expect(detail.body.students_count).toBe(1);
+      expect(detail.body.students[0]).toMatchObject({ id: body.id });
+    });
+
+    it('e-mail já cadastrado → 422 com a dica do código e nada é criado', async () => {
+      const classroom = await createClassroom(prisma, {
+        teacherId: teacherA.id,
+      });
+      await createUser(prisma, { email: 'bia@aluno.test' });
+
+      const { body } = await http()
+        .post(`/api/v1/classrooms/${classroom.id}/students`)
+        .set(as(teacherA.token))
+        .send(newStudent)
+        .expect(422);
+
+      expect(body.errors).toEqual({
+        email: [
+          'Este e-mail já está cadastrado. O aluno pode entrar na turma pelo código.',
+        ],
+      });
+      expect(
+        await prisma.classroomStudent.count({
+          where: { classroomId: classroom.id },
+        }),
+      ).toBe(0);
+    });
+
+    it('valida nome, e-mail e senha', async () => {
+      const classroom = await createClassroom(prisma, {
+        teacherId: teacherA.id,
+      });
+
+      const { body } = await http()
+        .post(`/api/v1/classrooms/${classroom.id}/students`)
+        .set(as(teacherA.token))
+        .send({ name: ' ', email: 'x', password: 'curta' })
+        .expect(422);
+
+      expect(Object.keys(body.errors).sort()).toEqual([
+        'email',
+        'name',
+        'password',
+      ]);
+      expect(body.errors.password).toEqual([
+        'A senha deve ter pelo menos 8 caracteres.',
+      ]);
+      expect(await prisma.user.count({ where: { role: 'student' } })).toBe(0);
+    });
+
+    it('admin cria aluno em turma de qualquer professor', async () => {
+      const classroom = await createClassroom(prisma, {
+        teacherId: teacherA.id,
+      });
+
+      await http()
+        .post(`/api/v1/classrooms/${classroom.id}/students`)
+        .set(as(admin.token))
+        .send(newStudent)
+        .expect(201);
+    });
+
+    it('remover desmatricula o aluno sem apagar a conta', async () => {
+      const classroom = await createClassroom(prisma, {
+        teacherId: teacherA.id,
+      });
+      const student = await createUser(prisma);
+      await prisma.classroomStudent.create({
+        data: { classroomId: classroom.id, studentId: student.id },
+      });
+
+      await http()
+        .delete(`/api/v1/classrooms/${classroom.id}/students/${student.id}`)
+        .set(as(teacherA.token))
+        .expect(204);
+
+      expect(await prisma.classroomStudent.count()).toBe(0);
+      expect(await prisma.user.count({ where: { id: student.id } })).toBe(1);
+      expect(await prisma.studentProfile.count()).toBe(1);
+    });
+
+    it('remover aluno que não está na turma → 404 "Aluno não encontrado nesta turma."', async () => {
+      const classroom = await createClassroom(prisma, {
+        teacherId: teacherA.id,
+      });
+      const other = await createClassroom(prisma, { teacherId: teacherA.id });
+      const student = await createUser(prisma);
+      await prisma.classroomStudent.create({
+        data: { classroomId: other.id, studentId: student.id },
+      });
+
+      for (const studentId of [student.id, 99999, 'abc']) {
+        await http()
+          .delete(`/api/v1/classrooms/${classroom.id}/students/${studentId}`)
+          .set(as(teacherA.token))
+          .expect(404)
+          .expect(({ body }) =>
+            expect(body.message).toBe('Aluno não encontrado nesta turma.'),
+          );
+      }
+      expect(await prisma.classroomStudent.count()).toBe(1);
+    });
   });
 
   it('aluno não acessa as rotas de turma da equipe (403)', async () => {

@@ -2,6 +2,8 @@ import { NotFoundException } from '@nestjs/common';
 import { classroomScope } from 'src/shared/scopes/classroom-scope';
 import { ClassroomsService } from 'src/modules/classrooms/classrooms.service';
 import { JoinCodeService } from 'src/modules/classrooms/join-code.service';
+import { Prisma } from 'src/generated/prisma/client';
+import { StudentsService } from 'src/modules/students/students.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
 import { Role } from 'src/shared/enums/role.enum';
@@ -44,16 +46,34 @@ describe('ClassroomsService', () => {
   const userFindFirst = jest.fn();
   const createWithUniqueCode = jest.fn();
   const regenerate = jest.fn();
+  const userFindUnique = jest.fn();
+  const deleteMany = jest.fn();
+  const findStudent = jest.fn();
+  const txUserCreate = jest.fn();
+  const txProfileCreate = jest.fn();
+  const txEnroll = jest.fn();
+  const tx = {
+    user: { create: txUserCreate },
+    studentProfile: { create: txProfileCreate },
+    classroomStudent: { create: txEnroll },
+  };
+  const $transaction = jest.fn((fn: (client: typeof tx) => unknown) => fn(tx));
   const service = new ClassroomsService(
     {
       classroom: { findMany, findFirst, findUnique, count, update },
-      user: { findFirst: userFindFirst },
+      classroomStudent: { deleteMany },
+      user: { findFirst: userFindFirst, findUnique: userFindUnique },
+      $transaction,
     } as unknown as PrismaService,
     { createWithUniqueCode, regenerate } as unknown as JoinCodeService,
+    { findOne: findStudent } as unknown as StudentsService,
   );
 
   beforeEach(() => {
     jest.resetAllMocks();
+    $transaction.mockImplementation((fn: (client: typeof tx) => unknown) =>
+      fn(tx),
+    );
   });
 
   describe('list', () => {
@@ -165,6 +185,114 @@ describe('ClassroomsService', () => {
       await expect(
         service.regenerateJoinCode(1, user(Role.Admin)),
       ).resolves.toEqual({ join_code: 'NIV-NEW2' });
+    });
+  });
+
+  describe('addStudent', () => {
+    const dto = {
+      name: 'Bia',
+      email: 'bia@aluno.test',
+      password: 'segredo123',
+    };
+    const teacher = user(Role.Teacher, 5);
+
+    it('cria usuário, perfil e matrícula na mesma transação e devolve a ficha', async () => {
+      findFirst.mockResolvedValue({ id: 1 });
+      userFindUnique.mockResolvedValue(null);
+      txUserCreate.mockResolvedValue({ id: 42 });
+      findStudent.mockResolvedValue({ id: 42 });
+
+      await expect(service.addStudent(1, dto, teacher)).resolves.toEqual({
+        id: 42,
+      });
+
+      expect(txUserCreate).toHaveBeenCalledWith({
+        data: {
+          name: 'Bia',
+          email: 'bia@aluno.test',
+          password: expect.not.stringMatching('segredo123') as string,
+          role: Role.Student,
+        },
+        select: { id: true },
+      });
+      expect(txProfileCreate).toHaveBeenCalledWith({ data: { userId: 42 } });
+      expect(txEnroll).toHaveBeenCalledWith({
+        data: { classroomId: 1, studentId: 42 },
+      });
+      expect(findStudent).toHaveBeenCalledWith(42, teacher);
+    });
+
+    it('turma fora do escopo → 404 antes de tocar nos usuários', async () => {
+      findFirst.mockResolvedValue(null);
+
+      await expect(service.addStudent(1, dto, teacher)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(userFindUnique).not.toHaveBeenCalled();
+      expect($transaction).not.toHaveBeenCalled();
+    });
+
+    it('e-mail existente → 422 com a dica do código', async () => {
+      findFirst.mockResolvedValue({ id: 1 });
+      userFindUnique.mockResolvedValue({ id: 9 });
+
+      const error = await service
+        .addStudent(1, dto, teacher)
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(FieldValidationException);
+      expect((error as FieldValidationException).getResponse()).toMatchObject({
+        errors: {
+          email: [
+            'Este e-mail já está cadastrado. O aluno pode entrar na turma pelo código.',
+          ],
+        },
+      });
+      expect($transaction).not.toHaveBeenCalled();
+    });
+
+    it('corrida de e-mail (P2002 em users_email_key) também vira 422 no campo', async () => {
+      findFirst.mockResolvedValue({ id: 1 });
+      userFindUnique.mockResolvedValue(null);
+      ($transaction as jest.Mock).mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('duplicado', {
+          code: 'P2002',
+          clientVersion: 'teste',
+          meta: { modelName: 'User', target: 'users_email_key' },
+        }),
+      );
+
+      await expect(service.addStudent(1, dto, teacher)).rejects.toBeInstanceOf(
+        FieldValidationException,
+      );
+    });
+  });
+
+  describe('removeStudent', () => {
+    it('só desmatricula e responde 404 se o aluno não estava na turma', async () => {
+      findFirst.mockResolvedValue({ id: 1 });
+      deleteMany.mockResolvedValueOnce({ count: 1 });
+      deleteMany.mockResolvedValueOnce({ count: 0 });
+      const teacher = user(Role.Teacher, 5);
+
+      await expect(
+        service.removeStudent(1, 7, teacher),
+      ).resolves.toBeUndefined();
+      expect(deleteMany).toHaveBeenCalledWith({
+        where: { classroomId: 1, studentId: 7 },
+      });
+      await expect(service.removeStudent(1, 8, teacher)).rejects.toThrow(
+        new NotFoundException('Aluno não encontrado nesta turma.'),
+      );
+    });
+
+    it('turma fora do escopo → 404 sem apagar nada', async () => {
+      findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.removeStudent(1, 7, user(Role.Teacher, 6)),
+      ).rejects.toThrow(new NotFoundException('Turma não encontrada.'));
+      expect(deleteMany).not.toHaveBeenCalled();
     });
   });
 

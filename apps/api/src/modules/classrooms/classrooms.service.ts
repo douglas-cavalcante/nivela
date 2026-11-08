@@ -1,11 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { hash } from 'bcryptjs';
 import type {
   ApiClassroom,
   ApiClassroomSummary,
+  ApiStudent,
   Paginated,
 } from '@nivela/api-contract';
 import { Prisma } from 'src/generated/prisma/client';
 import { classroomScope } from 'src/shared/scopes/classroom-scope';
+import { CreateClassroomStudentDto } from 'src/modules/classrooms/dto/create-classroom-student.dto';
 import { CreateClassroomDto } from 'src/modules/classrooms/dto/create-classroom.dto';
 import { ListClassroomsQuery } from 'src/modules/classrooms/dto/list-classrooms.query';
 import { UpdateClassroomDto } from 'src/modules/classrooms/dto/update-classroom.dto';
@@ -14,6 +17,7 @@ import {
   presentClassroom,
   presentClassroomSummary,
 } from 'src/modules/classrooms/presenters/classroom.presenter';
+import { StudentsService } from 'src/modules/students/students.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
 import { Role } from 'src/shared/enums/role.enum';
@@ -24,8 +28,15 @@ import {
   hasPrismaCode,
   RECORD_NOT_FOUND,
 } from 'src/shared/prisma/prisma-error';
+import { isUniqueViolation } from 'src/shared/prisma/unique-violation';
+import { BCRYPT_COST } from 'src/shared/security/password';
 
 const NOT_FOUND = 'Turma não encontrada.';
+const STUDENT_NOT_IN_CLASSROOM = 'Aluno não encontrado nesta turma.';
+const EMAIL_TAKEN =
+  'Este e-mail já está cadastrado. O aluno pode entrar na turma pelo código.';
+// Restrição única do e-mail em `users` (nome gerado pela migration).
+const EMAIL_UNIQUE_CONSTRAINT = 'users_email_key';
 
 const SUMMARY_INCLUDE = {
   teacher: { select: { id: true, name: true } },
@@ -50,6 +61,7 @@ export class ClassroomsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly joinCodes: JoinCodeService,
+    private readonly students: StudentsService,
   ) {}
 
   async list(
@@ -128,6 +140,68 @@ export class ClassroomsService {
       return { join_code: await this.joinCodes.regenerate(id) };
     } catch (error) {
       throw this.translate(error);
+    }
+  }
+
+  /**
+   * Matrícula manual: cria usuário, perfil e matrícula na mesma transação. O
+   * aluno já pode entrar no aplicativo com o e-mail e a senha informados.
+   */
+  async addStudent(
+    id: number,
+    dto: CreateClassroomStudentDto,
+    user: AuthUser,
+  ): Promise<ApiStudent> {
+    await this.assertVisible(id, user);
+
+    const emailTaken = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: { id: true },
+    });
+    if (emailTaken) {
+      throw new FieldValidationException({ email: [EMAIL_TAKEN] });
+    }
+
+    const password = await hash(dto.password, BCRYPT_COST);
+    try {
+      const studentId = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.user.create({
+          data: {
+            name: dto.name,
+            email: dto.email,
+            password,
+            role: Role.Student,
+          },
+          select: { id: true },
+        });
+        await tx.studentProfile.create({ data: { userId: created.id } });
+        await tx.classroomStudent.create({
+          data: { classroomId: id, studentId: created.id },
+        });
+        return created.id;
+      });
+      return await this.students.findOne(studentId, user);
+    } catch (error) {
+      // Cadastros simultâneos com o mesmo e-mail: a unicidade do banco decide.
+      if (isUniqueViolation(error, EMAIL_UNIQUE_CONSTRAINT)) {
+        throw new FieldValidationException({ email: [EMAIL_TAKEN] });
+      }
+      throw this.translate(error);
+    }
+  }
+
+  /** Só desmatricula: a conta e o progresso do aluno continuam. */
+  async removeStudent(
+    id: number,
+    studentId: number,
+    user: AuthUser,
+  ): Promise<void> {
+    await this.assertVisible(id, user);
+    const { count } = await this.prisma.classroomStudent.deleteMany({
+      where: { classroomId: id, studentId },
+    });
+    if (count === 0) {
+      throw new NotFoundException(STUDENT_NOT_IN_CLASSROOM);
     }
   }
 

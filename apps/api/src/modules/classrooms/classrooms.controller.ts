@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -12,12 +13,14 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type {
   ApiClassroom,
   ApiClassroomSummary,
+  ApiStudent,
   Paginated,
 } from '@nivela/api-contract';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { ParseIdPipe } from 'src/common/pipes/parse-id.pipe';
 import { ClassroomsService } from 'src/modules/classrooms/classrooms.service';
+import { CreateClassroomStudentDto } from 'src/modules/classrooms/dto/create-classroom-student.dto';
 import { CreateClassroomDto } from 'src/modules/classrooms/dto/create-classroom.dto';
 import { ListClassroomsQuery } from 'src/modules/classrooms/dto/list-classrooms.query';
 import { UpdateClassroomDto } from 'src/modules/classrooms/dto/update-classroom.dto';
@@ -74,5 +77,25 @@ export class ClassroomsController {
     @CurrentUser() user: AuthUser,
   ): Promise<{ join_code: string }> {
     return this.classrooms.regenerateJoinCode(id, user);
+  }
+
+  @Post(':id/students')
+  addStudent(
+    @Param('id', classroomId()) id: number,
+    @Body() dto: CreateClassroomStudentDto,
+    @CurrentUser() user: AuthUser,
+  ): Promise<ApiStudent> {
+    return this.classrooms.addStudent(id, dto, user);
+  }
+
+  @Delete(':id/students/:studentId')
+  @HttpCode(204)
+  removeStudent(
+    @Param('id', classroomId()) id: number,
+    @Param('studentId', new ParseIdPipe('Aluno não encontrado nesta turma.'))
+    studentId: number,
+    @CurrentUser() user: AuthUser,
+  ): Promise<void> {
+    return this.classrooms.removeStudent(id, studentId, user);
   }
 }
