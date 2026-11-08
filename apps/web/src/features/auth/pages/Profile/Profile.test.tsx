@@ -88,7 +88,7 @@ describe('Profile', () => {
 
     await fillPasswords('antiga123', 'curta', 'outra');
 
-    expect(await screen.findByText('A nova senha precisa ter ao menos 8 caracteres.')).toBeInTheDocument();
+    expect(await screen.findByText('A senha deve ter pelo menos 8 caracteres.')).toBeInTheDocument();
     expect(screen.getByText('A confirmação de senha não confere.')).toBeInTheDocument();
     expect(called).not.toHaveBeenCalled();
   });
