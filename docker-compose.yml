@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: nivela_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nivela
+      POSTGRES_PASSWORD: nivela
+      POSTGRES_DB: nivela
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./docker/pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nivela -d nivela"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
