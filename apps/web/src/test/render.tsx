@@ -3,7 +3,7 @@ import type { RenderResult } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
 import { vi } from 'vitest';
-import { AuthContext } from 'src/lib/auth/AuthContext';
+import { AuthContext, AuthProvider } from 'src/lib/auth/AuthContext';
 import type { AuthContextValue } from 'src/lib/auth/AuthContext';
 import { ColorModeProvider } from 'src/lib/theme/ColorModeProvider';
 import type { User } from 'src/types/user';
@@ -14,12 +14,14 @@ interface Options {
   loading?: boolean;
   route?: string;
   auth?: Partial<AuthContextValue>;
+  /** Usa o AuthProvider de verdade (token, /auth/me, signIn) em vez do contexto controlado. */
+  realAuth?: boolean;
 }
 
 /** Renderiza com tema, roteador em memória e um AuthContext controlado pelo teste. */
 export function renderWithProviders(
   ui: ReactElement,
-  { user = null, loading = false, route = '/', auth }: Options = {},
+  { user = null, loading = false, route = '/', auth, realAuth = false }: Options = {},
 ): RenderResult & { auth: AuthContextValue } {
   const value: AuthContextValue = {
     user,
@@ -28,11 +30,14 @@ export function renderWithProviders(
     signOut: vi.fn().mockResolvedValue(undefined),
     ...auth,
   };
+  const router = <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>;
   const result = render(
     <ColorModeProvider>
-      <AuthContext.Provider value={value}>
-        <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
-      </AuthContext.Provider>
+      {realAuth ? (
+        <AuthProvider>{router}</AuthProvider>
+      ) : (
+        <AuthContext.Provider value={value}>{router}</AuthContext.Provider>
+      )}
     </ColorModeProvider>,
   );
   return Object.assign(result, { auth: value });

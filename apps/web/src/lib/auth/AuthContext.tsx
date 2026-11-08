@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { clearToken, getToken, setToken } from 'src/lib/auth/tokenStorage';
 import api, { setUnauthorizedHandler } from 'src/lib/axios';
@@ -24,34 +24,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setUnauthorizedHandler(null);
   }, []);
 
+  // Requisição de boot em andamento; `signIn`/`signOut` a marcam como obsoleta para
+  // que um /auth/me atrasado não sobrescreva o que a pessoa acabou de fazer.
+  const boot = useRef<{ cancelled: boolean } | null>(null);
+
   // Boot: se há token salvo, recupera o usuário.
   useEffect(() => {
     if (getToken() === null) return;
-    let cancelled = false;
+    const request = { cancelled: false };
+    boot.current = request;
     api
       .get<{ user: User }>('/auth/me')
       .then(({ data }) => {
-        if (!cancelled) setUser(data.user);
+        if (!request.cancelled) setUser(data.user);
       })
       .catch(() => {
         // 401 já limpou o token no interceptor; outros erros deixam a pessoa no login
-        if (!cancelled) setUser(null);
+        if (!request.cancelled) setUser(null);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!request.cancelled) setLoading(false);
       });
     return () => {
-      cancelled = true;
+      request.cancelled = true;
     };
   }, []);
 
   const signIn = useCallback((token: string, nextUser: User) => {
+    if (boot.current) boot.current.cancelled = true;
     setToken(token);
     setUser(nextUser);
     setLoading(false);
   }, []);
 
   const signOut = useCallback(async () => {
+    if (boot.current) boot.current.cancelled = true;
+    setLoading(false);
     try {
       await api.post('/auth/logout');
     } catch {

@@ -1,7 +1,7 @@
 // Regras de arquitetura (ver docs/estruturaDePastas.md):
 // - imports que saem da pasta usam o alias src/..., nunca ../
 // - uma feature (src/modules/<feature>) só usa outra pelo <feature>.module
-//   ou <feature>.service dela
+//   ou por um service dela (*.service.ts, ex.: join-code.service)
 // - o núcleo (common, shared, prisma) não depende de features
 // - controllers não importam o PrismaService (acesso a dados fica no service)
 import eslint from '@eslint/js';

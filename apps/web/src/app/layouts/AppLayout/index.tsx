@@ -105,7 +105,23 @@ function Binder({ onNavigate }: { onNavigate?: () => void }) {
             gap: 1,
           }}
         >
-          <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Box
+            component={NavLink}
+            to="/perfil"
+            onClick={onNavigate}
+            aria-label={`Meu perfil (${user.name})`}
+            sx={{
+              minWidth: 0,
+              flex: 1,
+              color: 'inherit',
+              textDecoration: 'none',
+              borderRadius: 2,
+              px: 0.5,
+              '&:hover': { backgroundColor: alpha(onCover, 0.1) },
+              '&.active': { boxShadow: `inset 0 -3px 0 ${colors.highlight}` },
+              '&:focus-visible': { outline: `3px solid ${colors.highlight}`, outlineOffset: 2 },
+            }}
+          >
             <Typography noWrap sx={{ fontWeight: 800 }}>
               {user.name}
             </Typography>

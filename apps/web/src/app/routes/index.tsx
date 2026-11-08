@@ -5,6 +5,7 @@ import { AuthLayout } from 'src/app/layouts/AuthLayout';
 import { ComingSoon } from 'src/app/routes/ComingSoon';
 import { HomePage } from 'src/app/routes/HomePage';
 import { ProtectedRoute } from 'src/app/routes/ProtectedRoute';
+import { Login, Profile } from 'src/features/auth';
 
 // As rotas das features entram aqui conforme forem construídas; até lá, "Em breve".
 const placeholders = menuItems.filter((item) => item.path !== '/');
@@ -13,13 +14,13 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route element={<AuthLayout />}>
-        {/* Provisório: a feature auth (Task 7) assume esta rota com o formulário de login. */}
-        <Route path="/login" element={<p>Entrar</p>} />
+        <Route path="/login" element={<Login />} />
       </Route>
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route index element={<HomePage />} />
+          <Route path="/perfil" element={<Profile />} />
           {placeholders
             .filter((item) => item.roles.includes('teacher'))
             .map((item) => (

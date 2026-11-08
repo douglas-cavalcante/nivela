@@ -5,7 +5,7 @@ const path = require('node:path');
 const dotenv = require('dotenv');
 
 const root = path.join(__dirname, '..');
-const { parsed } = dotenv.config({ path: path.join(root, '.env.test') });
+const { parsed } = dotenv.config({ path: path.join(root, '.env.test'), quiet: true });
 const url = parsed?.DATABASE_URL;
 
 if (!url || !new URL(url).pathname.endsWith('_test')) {

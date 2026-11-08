@@ -1,5 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { AuthGuard } from 'src/common/guards/auth.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { AuthModule } from 'src/modules/auth/auth.module';
+import { ClassroomsModule } from 'src/modules/classrooms/classrooms.module';
 import { HealthModule } from 'src/modules/health/health.module';
 import { PrismaModule } from 'src/prisma/prisma.module';
 
@@ -7,7 +12,14 @@ import { PrismaModule } from 'src/prisma/prisma.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    AuthModule,
+    ClassroomsModule,
     HealthModule,
+  ],
+  providers: [
+    // A ordem importa: autentica (preenche request.user) antes de checar o perfil.
+    { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}

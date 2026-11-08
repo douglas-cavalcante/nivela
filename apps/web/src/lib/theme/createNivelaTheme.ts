@@ -92,6 +92,8 @@ export function createNivelaTheme(mode: ThemeMode): Theme {
             borderRadius: radius.md,
             '& .MuiOutlinedInput-notchedOutline': { borderWidth: penShadow.width, borderColor: c.border },
             '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: c.primary, borderWidth: penShadow.width },
+            // erro vence o foco: o campo com problema continua vermelho mesmo com o cursor nele
+            '&.Mui-error .MuiOutlinedInput-notchedOutline': { borderColor: c.danger },
           },
         },
       },

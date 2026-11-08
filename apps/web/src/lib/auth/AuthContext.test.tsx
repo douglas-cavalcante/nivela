@@ -18,6 +18,12 @@ function Probe() {
   );
 }
 
+// Botão fora do Probe: continua visível enquanto o boot (loading) esconde o Probe.
+function SignInButton() {
+  const { signIn } = useAuth();
+  return <button onClick={() => signIn('novo', teacher)}>entrar agora</button>;
+}
+
 const renderProbe = () =>
   render(
     <AuthProvider>
@@ -52,6 +58,34 @@ describe('AuthProvider', () => {
   it('signIn guarda o token e o usuário', async () => {
     renderProbe();
     await userEvent.click(screen.getByRole('button', { name: 'entrar' }));
+    expect(screen.getByText(`logado:${teacher.name}`)).toBeInTheDocument();
+    expect(getToken()).toBe('novo');
+  });
+
+  it('signIn durante o boot: o /auth/me atrasado não sobrescreve o usuário', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    server.use(
+      http.get(`${API_URL}/auth/me`, async () => {
+        await gate;
+        return HttpResponse.json({ user: { ...teacher, name: 'Antigo' } });
+      }),
+    );
+    setToken('velho');
+    render(
+      <AuthProvider>
+        <Probe />
+        <SignInButton />
+      </AuthProvider>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'entrar agora' }));
+    expect(await screen.findByText(`logado:${teacher.name}`)).toBeInTheDocument();
+
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     expect(screen.getByText(`logado:${teacher.name}`)).toBeInTheDocument();
     expect(getToken()).toBe('novo');
   });

@@ -18,7 +18,7 @@ beforeEach(() => mockStore.clear());
 // Fontes e splash: nos testes as fontes contam como carregadas.
 jest.mock('expo-font', () => ({
   ...jest.requireActual('expo-font'),
-  useFonts: () => [true, null],
+  useFonts: jest.fn(() => [true, null]),
 }));
 
 jest.mock('expo-splash-screen', () => ({
