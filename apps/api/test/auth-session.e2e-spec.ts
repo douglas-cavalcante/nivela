@@ -197,4 +197,29 @@ describe('Auth - sessão (e2e)', () => {
   it('mantém a rota de saúde pública', async () => {
     await http().get('/api/v1/health').expect(200);
   });
+
+  it('trocar a senha encerra as outras sessões e mantém a atual', async () => {
+    const teacher = await createUser(prisma, { role: Role.Teacher });
+    const sessionA = await loginAs(teacher.email);
+    const sessionB = await loginAs(teacher.email);
+
+    await http()
+      .put('/api/v1/auth/password')
+      .set('Authorization', `Bearer ${sessionA}`)
+      .send({
+        current_password: DEFAULT_PASSWORD,
+        password: 'nova-senha-123',
+        password_confirmation: 'nova-senha-123',
+      })
+      .expect(204);
+
+    await http()
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${sessionB}`)
+      .expect(401);
+    await http()
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${sessionA}`)
+      .expect(200);
+  });
 });

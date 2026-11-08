@@ -166,4 +166,52 @@ describe('Auth - login (e2e)', () => {
     );
     expect(stored[0].channel).toBe('web');
   });
+
+  it('trata _ e % do e-mail como caracteres comuns, não curingas', async () => {
+    const underscore = await createUser(prisma, {
+      role: Role.Teacher,
+      email: 'joao_silva@a.com',
+      password: 'senha-underscore',
+    });
+    await createUser(prisma, {
+      role: Role.Teacher,
+      email: 'joaoxsilva@a.com',
+      password: 'senha-x',
+    });
+
+    const { body } = await login({
+      email: 'joao_silva@a.com',
+      password: 'senha-underscore',
+      channel: 'web',
+    }).expect(200);
+    expect(body.user.id).toBe(underscore.id);
+
+    await login({
+      email: 'joao_silva@a.com',
+      password: 'senha-x',
+      channel: 'web',
+    }).expect(422);
+  });
+
+  it('e-mail "%" não casa com ninguém', async () => {
+    await createUser(prisma, { role: Role.Teacher });
+
+    const { body } = await login({
+      email: '%',
+      password: DEFAULT_PASSWORD,
+      channel: 'web',
+    }).expect(422);
+
+    expect(body.errors.email).toBeDefined();
+  });
+
+  it('rejeita e-mail malformado com mensagem de validação', async () => {
+    const { body } = await login({
+      email: 'nao-e-email',
+      password: DEFAULT_PASSWORD,
+      channel: 'web',
+    }).expect(422);
+
+    expect(body.errors.email).toEqual(['Informe um e-mail válido.']);
+  });
 });

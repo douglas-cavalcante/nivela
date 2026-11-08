@@ -182,4 +182,26 @@ describe('Auth - cadastro de aluno (e2e)', () => {
     expect(await prisma.user.count({ where: { role: 'student' } })).toBe(0);
     expect(await prisma.studentProfile.count()).toBe(0);
   });
+
+  it('e-mails que só diferem por _ coexistem e a checagem de duplicidade é exata', async () => {
+    await createClassroom(prisma, { joinCode: 'NIV-4K7Q' });
+    await createUser(prisma, { email: 'joao_silva@a.com' });
+
+    await register({ ...valid, email: 'joaoxsilva@a.com' }).expect(201);
+
+    const dup = await register({
+      ...valid,
+      email: 'joao_silva@a.com',
+    }).expect(422);
+    expect(dup.body.errors.email[0]).toBe('Este e-mail já está cadastrado.');
+  });
+
+  it('rejeita nome só com espaços', async () => {
+    await createClassroom(prisma, { joinCode: 'NIV-4K7Q' });
+
+    const { body } = await register({ ...valid, name: '   ' }).expect(422);
+
+    expect(body.errors.name).toBeDefined();
+    expect(await prisma.user.count({ where: { role: 'student' } })).toBe(0);
+  });
 });

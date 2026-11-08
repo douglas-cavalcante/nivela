@@ -19,6 +19,20 @@ const DUMMY_HASH = hashSync('nivela-dummy', BCRYPT_COST);
 const INVALID_CREDENTIALS = 'E-mail ou senha inválidos.';
 const UNIQUE_VIOLATION = 'P2002';
 
+/** P2002 só conta se a restrição violada for a do e-mail de `users`. */
+function isEmailUniqueViolation(error: unknown): boolean {
+  if (
+    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+    error.code !== UNIQUE_VIOLATION
+  ) {
+    return false;
+  }
+  // Com driver adapter o alvo vem em formatos diferentes (meta.target ou
+  // driverAdapterError); em todos os casos o nome do campo/índice aparece no meta.
+  const meta = JSON.stringify(error.meta ?? {});
+  return /users_email_key|"email"/.test(meta);
+}
+
 export interface AuthResult {
   token: string;
   user: AuthUser;
@@ -32,8 +46,8 @@ export class AuthService {
   ) {}
 
   async login(dto: LoginDto): Promise<AuthResult> {
-    const user = await this.prisma.user.findFirst({
-      where: { email: { equals: dto.email, mode: 'insensitive' } },
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
     });
 
     const passwordOk = await compare(
@@ -66,8 +80,8 @@ export class AuthService {
       return await this.prisma.$transaction(async (tx) => {
         const errors: Record<string, string[]> = {};
 
-        const emailTaken = await tx.user.findFirst({
-          where: { email: { equals: dto.email, mode: 'insensitive' } },
+        const emailTaken = await tx.user.findUnique({
+          where: { email: dto.email },
           select: { id: true },
         });
         if (emailTaken) {
@@ -106,10 +120,7 @@ export class AuthService {
       });
     } catch (error) {
       // Cadastros simultâneos com o mesmo e-mail: a unicidade do banco decide.
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === UNIQUE_VIOLATION
-      ) {
+      if (isEmailUniqueViolation(error)) {
         throw new FieldValidationException({
           email: ['Este e-mail já está cadastrado.'],
         });
@@ -118,7 +129,11 @@ export class AuthService {
     }
   }
 
-  async changePassword(userId: number, dto: ChangePasswordDto): Promise<void> {
+  async changePassword(
+    userId: number,
+    dto: ChangePasswordDto,
+    currentToken?: string,
+  ): Promise<void> {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
     });
@@ -128,9 +143,14 @@ export class AuthService {
       });
     }
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { password: await hash(dto.password, BCRYPT_COST) },
+    const passwordHash = await hash(dto.password, BCRYPT_COST);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { password: passwordHash },
+      });
+      // Encerra as outras sessões; a atual continua valendo.
+      await this.tokens.revokeOthers(userId, currentToken, tx);
     });
   }
 }

@@ -11,6 +11,9 @@ import { MatchesField } from 'src/common/validators/matches-field.validator';
 import { JoinCodeService } from 'src/modules/classrooms/join-code.service';
 
 export class RegisterStudentDto {
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString({ message: 'O nome é obrigatório.' })
   @IsNotEmpty({ message: 'O nome é obrigatório.' })
   @MaxLength(120, { message: 'O nome deve ter no máximo 120 caracteres.' })

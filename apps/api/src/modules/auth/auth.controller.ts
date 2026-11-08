@@ -58,8 +58,9 @@ export class AuthController {
   @HttpCode(204)
   changePassword(
     @CurrentUser() user: AuthUser,
+    @Req() request: AuthenticatedRequest,
     @Body() dto: ChangePasswordDto,
   ): Promise<void> {
-    return this.auth.changePassword(user.id, dto);
+    return this.auth.changePassword(user.id, dto, request.accessToken);
   }
 }

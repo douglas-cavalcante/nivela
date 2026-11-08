@@ -50,6 +50,22 @@ export class TokenService implements TokenResolver {
     return { id, name, email, role: role as Role };
   }
 
+  /** Apaga todos os tokens do usuário, exceto o informado (a sessão atual). */
+  async revokeOthers(
+    userId: number,
+    keepPlain?: string,
+    client: Prisma.TransactionClient = this.prisma,
+  ): Promise<void> {
+    await client.accessToken.deleteMany({
+      where: {
+        userId,
+        ...(keepPlain
+          ? { tokenHash: { not: TokenService.hash(keepPlain) } }
+          : {}),
+      },
+    });
+  }
+
   async revoke(plain: string): Promise<void> {
     await this.prisma.accessToken.deleteMany({
       where: { tokenHash: TokenService.hash(plain) },

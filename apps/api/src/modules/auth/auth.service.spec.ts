@@ -23,11 +23,11 @@ function makeUser(overrides: Record<string, unknown> = {}) {
 }
 
 describe('AuthService', () => {
-  const findFirst = jest.fn();
+  const findUnique = jest.fn();
   const transaction = jest.fn();
   const issue = jest.fn();
   const prisma = {
-    user: { findFirst },
+    user: { findUnique },
     $transaction: transaction,
   } as unknown as PrismaService;
   const service = new AuthService(prisma, {
@@ -48,7 +48,7 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('devolve token e usuário sem a senha', async () => {
-      findFirst.mockResolvedValue(makeUser());
+      findUnique.mockResolvedValue(makeUser());
 
       const result = await service.login(loginDto());
 
@@ -60,10 +60,10 @@ describe('AuthService', () => {
     });
 
     it('usa a mesma mensagem para e-mail inexistente e senha errada', async () => {
-      findFirst.mockResolvedValueOnce(null);
+      findUnique.mockResolvedValueOnce(null);
       const missing = await service.login(loginDto()).catch((e: unknown) => e);
 
-      findFirst.mockResolvedValueOnce(makeUser());
+      findUnique.mockResolvedValueOnce(makeUser());
       const wrong = await service
         .login(loginDto({ password: 'outra-senha' }))
         .catch((e: unknown) => e);
@@ -77,7 +77,7 @@ describe('AuthService', () => {
     });
 
     it('só revela que o usuário está desativado depois de validar a senha', async () => {
-      findFirst.mockResolvedValue(makeUser({ active: false }));
+      findUnique.mockResolvedValue(makeUser({ active: false }));
 
       await expect(
         service.login(loginDto({ password: 'errada-errada' })),
@@ -88,12 +88,12 @@ describe('AuthService', () => {
     });
 
     it('aplica a regra de canal por perfil', async () => {
-      findFirst.mockResolvedValue(makeUser({ role: 'student' }));
+      findUnique.mockResolvedValue(makeUser({ role: 'student' }));
       await expect(service.login(loginDto())).rejects.toThrow(
         new ForbiddenException('Alunos acessam pelo aplicativo Nivela.'),
       );
 
-      findFirst.mockResolvedValue(makeUser({ role: 'admin' }));
+      findUnique.mockResolvedValue(makeUser({ role: 'admin' }));
       await expect(
         service.login(loginDto({ channel: 'mobile' })),
       ).rejects.toThrow(
@@ -116,6 +116,7 @@ describe('AuthService', () => {
         new Prisma.PrismaClientKnownRequestError('duplicado', {
           code: 'P2002',
           clientVersion: 'teste',
+          meta: { modelName: 'User', target: ['email'] },
         }),
       );
 
@@ -125,6 +126,17 @@ describe('AuthService', () => {
       expect((error as FieldValidationException).getResponse()).toMatchObject({
         errors: { email: ['Este e-mail já está cadastrado.'] },
       });
+    });
+
+    it('não mapeia violação de unicidade de outra restrição', async () => {
+      const failure = new Prisma.PrismaClientKnownRequestError('duplicado', {
+        code: 'P2002',
+        clientVersion: 'teste',
+        meta: { modelName: 'AccessToken', target: ['token_hash'] },
+      });
+      transaction.mockRejectedValue(failure);
+
+      await expect(service.registerStudent(dto)).rejects.toBe(failure);
     });
 
     it('propaga outros erros sem alterá-los', async () => {

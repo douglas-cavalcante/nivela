@@ -3,7 +3,7 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { hash } from 'bcryptjs';
-import { PrismaClient } from '../src/generated/prisma/client';
+import { PrismaClient } from 'src/generated/prisma/client';
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -23,8 +23,8 @@ async function main(): Promise<void> {
   });
 
   try {
-    const existing = await prisma.user.findFirst({
-      where: { email: { equals: email, mode: 'insensitive' } },
+    const existing = await prisma.user.findUnique({
+      where: { email },
       select: { id: true },
     });
     if (existing) {
