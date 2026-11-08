@@ -25,10 +25,7 @@ import { Role } from 'src/shared/enums/role.enum';
 import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
 import { paginate, toPrismaPage } from 'src/shared/pagination/paginate';
 import { containsInsensitive } from 'src/shared/prisma/contains-insensitive';
-import {
-  FOREIGN_KEY_VIOLATION,
-  hasPrismaCode,
-} from 'src/shared/prisma/prisma-error';
+import { isForeignKeyViolation } from 'src/shared/prisma/foreign-key-violation';
 
 const NOT_FOUND = 'Questão não encontrada.';
 const FORBIDDEN = 'Só o autor ou um administrador pode editar esta questão.';
@@ -112,7 +109,6 @@ export class QuestionsService {
     await this.assertSubjectAndCategory(dto);
     try {
       await this.prisma.$transaction(async (tx) => {
-        await tx.questionOption.deleteMany({ where: { questionId: id } });
         await tx.question.update({
           where: { id },
           data: {
@@ -121,10 +117,26 @@ export class QuestionsService {
             statement: dto.statement,
             difficulty: dto.difficulty,
             explanation: dto.explanation,
-            options: { create: this.optionRows(dto) },
           },
           select: { id: true },
         });
+        // As alternativas são atualizadas no lugar (nunca recriadas): as
+        // respostas dos alunos apontam para o id delas. Desmarca todas antes
+        // de marcar a nova correta para não esbarrar no índice parcial
+        // question_options_one_correct_key (uma correta por questão).
+        await tx.questionOption.updateMany({
+          where: { questionId: id },
+          data: { isCorrect: false },
+        });
+        for (const option of this.optionRows(dto)) {
+          await tx.questionOption.update({
+            where: {
+              questionId_letter: { questionId: id, letter: option.letter },
+            },
+            data: { text: option.text, isCorrect: option.isCorrect },
+            select: { id: true },
+          });
+        }
       });
       return this.present(await this.load(id), user);
     } catch (error) {
@@ -247,9 +259,12 @@ export class QuestionsService {
     }
   }
 
+  /** Disciplina ou categoria apagada entre a checagem e a gravação → 422 no campo. */
   private translate(error: unknown): unknown {
-    // Disciplina ou categoria apagada entre a checagem e a gravação.
-    if (hasPrismaCode(error, FOREIGN_KEY_VIOLATION)) {
+    if (isForeignKeyViolation(error, 'questions_subject_id_fkey')) {
+      return new FieldValidationException({ subject_id: [SUBJECT_NOT_FOUND] });
+    }
+    if (isForeignKeyViolation(error, 'questions_category_id_fkey')) {
       return new FieldValidationException({
         category_id: [CATEGORY_NOT_FOUND],
       });

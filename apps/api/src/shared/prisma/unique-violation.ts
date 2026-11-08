@@ -1,4 +1,5 @@
 import { Prisma } from 'src/generated/prisma/client';
+import { adapterConstraint, asRecord } from 'src/shared/prisma/prisma-error';
 
 const UNIQUE_VIOLATION = 'P2002';
 
@@ -8,12 +9,6 @@ function matches(target: Target, constraint: string): boolean {
   return Array.isArray(target)
     ? target.includes(constraint)
     : target === constraint;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === 'object' && value !== null
-    ? (value as Record<string, unknown>)
-    : undefined;
 }
 
 function asTarget(value: unknown): Target {
@@ -48,10 +43,9 @@ export function isUniqueViolation(error: unknown, constraint: string): boolean {
     return true;
   }
 
-  const cause = asRecord(asRecord(meta.driverAdapterError)?.cause);
-  const adapterConstraint = asRecord(cause?.constraint);
+  const adapter = adapterConstraint(meta);
   return (
-    matches(asTarget(adapterConstraint?.index), constraint) ||
-    matches(asTarget(adapterConstraint?.fields), constraint)
+    matches(asTarget(adapter?.index), constraint) ||
+    matches(asTarget(adapter?.fields), constraint)
   );
 }
