@@ -36,6 +36,46 @@ class ControllerSoAdmin {
   }
 }
 
+@AnyAuthenticated()
+class ControllerQualquerLogado {
+  @Roles(Role.Admin)
+  soAdmin() {
+    return true;
+  }
+
+  aberta() {
+    return true;
+  }
+}
+
+@Public()
+class ControllerPublico {
+  @Roles(Role.Admin)
+  soAdmin() {
+    return true;
+  }
+}
+
+@Roles(Role.Admin)
+class ControllerAdminComAbertura {
+  @AnyAuthenticated()
+  qualquerLogado() {
+    return true;
+  }
+}
+
+function contextoDe(
+  controller: { prototype: object },
+  metodo: string,
+  user?: { role: Role },
+): ExecutionContext {
+  return {
+    getHandler: () => (controller.prototype as Record<string, unknown>)[metodo],
+    getClass: () => controller,
+    switchToHttp: () => ({ getRequest: () => ({ user }) }),
+  } as unknown as ExecutionContext;
+}
+
 function criarContexto(
   metodo: keyof RotasDeTeste,
   user?: { role: Role },
@@ -93,5 +133,35 @@ describe('RolesGuard', () => {
       }) as unknown as ExecutionContext;
     expect(guard.canActivate(contexto(Role.Admin))).toBe(true);
     expect(() => guard.canActivate(contexto(Role.Teacher))).toThrow(FORBIDDEN);
+  });
+
+  it('handler @Roles(Admin) vence @AnyAuthenticated da classe', () => {
+    const aluno = contextoDe(ControllerQualquerLogado, 'soAdmin', {
+      role: Role.Student,
+    });
+    expect(() => guard.canActivate(aluno)).toThrow(ForbiddenException);
+    const admin = contextoDe(ControllerQualquerLogado, 'soAdmin', {
+      role: Role.Admin,
+    });
+    expect(guard.canActivate(admin)).toBe(true);
+  });
+
+  it('handler @Roles vence @Public da classe', () => {
+    const semUsuario = contextoDe(ControllerPublico, 'soAdmin');
+    expect(() => guard.canActivate(semUsuario)).toThrow(ForbiddenException);
+  });
+
+  it('handler @AnyAuthenticated vence @Roles(Admin) da classe', () => {
+    const aluno = contextoDe(ControllerAdminComAbertura, 'qualquerLogado', {
+      role: Role.Student,
+    });
+    expect(guard.canActivate(aluno)).toBe(true);
+  });
+
+  it('sem metadado no handler, a classe @AnyAuthenticated vale', () => {
+    const aluno = contextoDe(ControllerQualquerLogado, 'aberta', {
+      role: Role.Student,
+    });
+    expect(guard.canActivate(aluno)).toBe(true);
   });
 });

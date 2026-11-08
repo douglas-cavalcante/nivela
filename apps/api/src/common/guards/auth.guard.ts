@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import { IS_PUBLIC_KEY } from 'src/common/decorators/public.decorator';
+import { resolveAuthorizationMetadata } from 'src/common/guards/authorization-metadata';
 import { TOKEN_RESOLVER } from 'src/shared/auth/auth-user';
 import type {
   AuthenticatedRequest,
@@ -28,9 +28,10 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const isPublic = this.reflector.getAllAndOverride<boolean | undefined>(
-      IS_PUBLIC_KEY,
-      [context.getHandler(), context.getClass()],
+    const { isPublic } = resolveAuthorizationMetadata(
+      this.reflector,
+      context.getHandler(),
+      context.getClass(),
     );
     if (isPublic) {
       return true;
