@@ -71,7 +71,7 @@ scripts/test-db-migrate.js           # aplica as migrations no banco nivela_test
 src/
 ├── app/          # App.tsx, rotas, layouts (AppLayout com sidebar "fichário", AuthLayout)
 ├── features/     # Um diretório por feature
-├── components/   # UI genérica, sem regra de negócio (PageHeader, DataTable, ConfirmDialog, EmptyState…)
+├── components/   # UI genérica, sem regra de negócio, uma pasta por componente (EmptyState/index.tsx, Mascot/, PageHeader/)
 ├── lib/          # Adaptadores: axios (interceptor de token e 401), AuthContext, theme (MUI a partir dos design tokens)
 ├── hooks/        # Hooks genéricos
 ├── utils/        # Funções puras
@@ -86,7 +86,7 @@ O ESLint da web (`apps/web/eslint.config.mjs`) lê `src/features/*` para montar 
 
 **Direção das dependências:** `app → features → (components, lib, hooks, utils, constants, types)`. Nunca no sentido contrário.
 
-### Anatomia de uma feature (web e mobile)
+### Anatomia de uma feature (web)
 
 Cada feature usa só as subpastas de que precisa:
 
@@ -100,7 +100,8 @@ features/questions/
 ├── pages/        # Uma pasta por tela (componente de rota)
 │   └── QuestionList/
 │       ├── index.tsx             # a tela
-│       └── QuestionFilters.tsx   # arquivos usados só por esta tela ficam aqui
+│       ├── QuestionFilters.tsx   # arquivos usados só por esta tela ficam aqui
+│       └── QuestionList.test.tsx # teste da tela, ao lado dela
 └── index.ts      # API pública: o que outras features podem usar
 ```
 
@@ -118,11 +119,26 @@ app/                       # Rotas (Expo Router) — só montam a tela, sem lóg
 ├── plans/[id].tsx
 └── questions/[id].tsx
 src/
-├── features/<feature>/    # mesma anatomia e mesmas regras de import da web
-├── components/            # AppText, Button, EmptyState, HandTitle, Mascot, OfflineScreen, PaperBackground (fundo pautado), PenCard (borda + sombra sólida), TabIcon, TextField
+├── features/<feature>/    # mesmas regras de import da web; anatomia abaixo
+├── components/            # arquivos soltos, um por componente (AppText.tsx, Button.tsx…): AppText, Button, EmptyState, HandTitle, Mascot, OfflineScreen, PaperBackground (fundo pautado), PenCard (borda + sombra sólida), TabIcon, TextField
 ├── lib/                   # axios (Bearer e 401), auth (AuthContext, tokenStorage via expo-secure-store), theme (ThemeProvider/useTheme a partir dos design tokens)
 ├── types/ hooks/ utils/ constants/ assets/
 └── test/                  # setup do Jest (SecureStore em memória), renderApp (renderRouter) e usuários de exemplo
+```
+
+### Anatomia de uma feature (mobile)
+
+Mesmas subpastas da web, mas cada tela é **um arquivo** em `screens/` (não uma pasta em `pages/`), e os testes da feature ficam juntos em `__tests__/`:
+
+```
+features/auth/
+├── api/          # auth.api.ts e auth.action.ts
+├── components/   # AuthForm, FormTextField (usados por mais de uma tela)
+├── schemas/      # login.schema.ts, register.schema.ts (zod)
+├── types/
+├── screens/      # Uma tela por arquivo: Login.tsx, Register.tsx, Profile.tsx, Welcome.tsx
+├── __tests__/    # login.test.tsx, register.test.tsx, register.schema.test.ts…
+└── index.ts      # API pública: as telas que as rotas de app/ montam
 ```
 
 - **Rotas protegidas:** `app/_layout.tsx` usa `Stack.Protected` — o grupo `(tabs)` só existe com usuário logado e `(auth)` só sem usuário; o redirecionamento acontece sozinho quando o login muda (inclusive no 401 que expira a sessão).
@@ -159,13 +175,13 @@ src/
 
 1. **API:** criar `src/modules/<feature>/` com `dto/`, controller, service e module; importar o module no `AppModule`; adicionar os models no `prisma/schema.prisma` e gerar a migration (`npm run db:migrate -w apps/api`); escrever o teste e2e da feature (sucesso, validação, permissão) e os unitários do service.
    - **Autorização negada por padrão:** toda rota precisa declarar quem pode acessá-la — `@Roles(Role.Admin, …)` (no método ou no controller), `@AnyAuthenticated()` (qualquer usuário logado) ou `@Public()`. Sem nenhum deles, o `RolesGuard` responde 403, e o teste `test/route-authorization.e2e-spec.ts` falha apontando a rota esquecida.
-2. **Web/Mobile:** criar `src/features/<feature>/` com `api/`, `pages/` e `index.ts`; exportar no `index.ts` só o que outras features precisam.
+2. **Web/Mobile:** criar `src/features/<feature>/` com `api/`, `pages/` (web) ou `screens/` (mobile) e `index.ts`; exportar no `index.ts` só o que outras features (e, no mobile, as rotas de `app/`) precisam.
 3. Rodar `npm run lint` e `npm run test`; atualizar esta página se a estrutura mudou.
 
 ### Nova tela
 
-1. Criar `features/<feature>/pages/<NomeDaTela>/index.tsx`; subcomponentes só dessa tela ficam na mesma pasta.
-2. Web: registrar a rota em `src/app`. Mobile: criar o arquivo correspondente em `app/` que apenas renderiza a tela.
+1. **Web:** criar `features/<feature>/pages/<NomeDaTela>/index.tsx` (subcomponentes só dessa tela ficam na mesma pasta) e registrar a rota em `src/app/routes`.
+2. **Mobile:** criar `features/<feature>/screens/<NomeDaTela>.tsx`, exportá-la no `index.ts` da feature e criar o arquivo da rota em `app/` que só reexporta a tela (ex.: `app/(auth)/login.tsx` → `export default Login`).
 3. Textos de interface em português do Brasil; cores só via tema.
 
 ### Nova chamada à API
