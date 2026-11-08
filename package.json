@@ -1,0 +1,22 @@
+{
+  "name": "nivela",
+  "private": true,
+  "description": "Plataforma open source de apoio ao nivelamento estudantil (API Laravel, painel web React e app mobile Expo).",
+  "workspaces": [
+    "apps/web",
+    "apps/mobile",
+    "packages/*"
+  ],
+  "scripts": {
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "dev:api": "cd apps/api && php artisan serve --host=0.0.0.0 --port=8000",
+    "dev:web": "npm run dev -w apps/web",
+    "dev:mobile": "npm run start -w apps/mobile",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
