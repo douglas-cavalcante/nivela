@@ -279,6 +279,25 @@ describe('QuestionForm', () => {
       });
     });
 
+    it('mostra o 409 da política de edição junto das alternativas corretas', async () => {
+      const message = 'Esta questão já foi respondida; não é possível trocar a alternativa correta.';
+      lookups();
+      server.use(
+        http.get(`${API_URL}/questions/7`, () => HttpResponse.json(stored())),
+        http.put(`${API_URL}/questions/7`, () => HttpResponse.json({ message }, { status: 409 })),
+      );
+      renderPage('/questoes/7');
+      await screen.findByRole('textbox', { name: 'Enunciado' });
+
+      await userEvent.click(screen.getByRole('radio', { name: 'Alternativa C é a correta' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }));
+
+      expect(await screen.findByText(message)).toBeInTheDocument();
+      // é aviso do campo (junto das alternativas), não o alerta geral do formulário
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.queryByText('Questão atualizada.')).not.toBeInTheDocument();
+    });
+
     it('mostra a mensagem da API quando o salvamento é negado (403)', async () => {
       lookups();
       server.use(

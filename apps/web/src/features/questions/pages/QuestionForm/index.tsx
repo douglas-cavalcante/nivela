@@ -155,6 +155,11 @@ function QuestionEditor({ question }: QuestionEditorProps) {
       }
     } catch (error) {
       const info = parseApiError(error);
+      // Política de edição: questão já respondida não troca a alternativa correta (409 do PUT).
+      if (current && info.status === 409) {
+        setError('correct_letter', { message: info.message });
+        return;
+      }
       let matched = false;
       for (const [field, messages] of Object.entries(info.fieldErrors)) {
         if (SERVER_FIELD.test(field)) {
