@@ -3,14 +3,22 @@ import { Prisma } from 'src/generated/prisma/client';
 import type { CoinReason } from 'src/generated/prisma/client';
 import { BusinessRuleException } from 'src/shared/exceptions/business-rule.exception';
 
-export interface CoinMovement {
+/** Motivos de crédito (`refund` ainda não tem garantia de "uma vez": Plano 4). */
+export type CreditReason = Exclude<CoinReason, 'redemption'>;
+/** Único motivo de débito. */
+export type DebitReason = Extract<CoinReason, 'redemption'>;
+
+interface Movement<R extends CoinReason> {
   studentId: number;
   /** Sempre positivo; o sentido (crédito ou débito) vem do método chamado. */
   amount: number;
-  reason: CoinReason;
+  reason: R;
   sourceType: string;
   sourceId: number;
 }
+
+export type CreditMovement = Movement<CreditReason>;
+export type DebitMovement = Movement<DebitReason>;
 
 export interface CreditResult {
   /** Falso quando o crédito "uma vez" já existia: nada foi alterado. */
@@ -36,21 +44,37 @@ function assertPositiveInteger(amount: number): void {
   }
 }
 
+/** Trava a linha do perfil até o fim da transação (primeiro lock de toda operação de moedas). */
+async function lockProfile(
+  tx: Prisma.TransactionClient,
+  studentId: number,
+): Promise<void> {
+  await tx.$queryRaw`
+    SELECT "user_id" FROM "student_profiles"
+    WHERE "user_id" = ${studentId} FOR UPDATE`;
+}
+
 /**
  * Único caminho para mexer em moedas: grava a linha do extrato
  * (`coin_transactions`) e ajusta `coins_balance` na mesma transação do
  * chamador (`tx`). Os créditos "uma vez" usam `INSERT ... ON CONFLICT DO
  * NOTHING`: uma violação de unicidade abortaria a transação do chamador, então
  * ela nunca é provocada; o saldo só sobe se a linha realmente entrou.
+ *
+ * Ordem de locks: `credit` e `debit` travam primeiro a linha do perfil
+ * (`FOR UPDATE`), depois a vaga única do extrato — a mesma ordem do
+ * `StreakService.register`. Por isso os chamadores podem usá-los em qualquer
+ * ordem dentro da mesma transação sem risco de deadlock.
  */
 @Injectable()
 export class CoinLedger {
   async credit(
     tx: Prisma.TransactionClient,
-    movement: CoinMovement,
+    movement: CreditMovement,
   ): Promise<CreditResult> {
     assertPositiveInteger(movement.amount);
     const { studentId, amount, reason, sourceType, sourceId } = movement;
+    await lockProfile(tx, studentId);
 
     if (!ONCE_PER_SOURCE.has(reason)) {
       await tx.coinTransaction.create({
@@ -88,10 +112,11 @@ export class CoinLedger {
    */
   async debit(
     tx: Prisma.TransactionClient,
-    movement: CoinMovement,
+    movement: DebitMovement,
   ): Promise<{ balance: number }> {
     assertPositiveInteger(movement.amount);
     const { studentId, amount, reason, sourceType, sourceId } = movement;
+    await lockProfile(tx, studentId);
 
     const rows = await tx.$queryRaw<{ coins_balance: number }[]>`
       UPDATE "student_profiles"

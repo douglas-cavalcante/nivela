@@ -21,8 +21,16 @@ function setup(initial?: Partial<Profile>) {
     ...initial,
   };
   const tx = {
+    $queryRaw: jest.fn(() =>
+      Promise.resolve([
+        {
+          current_streak: profile.currentStreak,
+          best_streak: profile.bestStreak,
+          last_study_date: profile.lastStudyDate,
+        },
+      ]),
+    ),
     studentProfile: {
-      findUniqueOrThrow: jest.fn(() => Promise.resolve({ ...profile })),
       update: jest.fn(({ data }: { data: Partial<Profile> }) => {
         Object.assign(profile, data);
         return Promise.resolve({ ...profile });

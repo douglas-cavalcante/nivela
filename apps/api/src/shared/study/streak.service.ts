@@ -26,13 +26,29 @@ export class StreakService {
     studentId: number,
     now: Date,
   ): Promise<StreakResult> {
-    const profile = await tx.studentProfile.findUniqueOrThrow({
-      where: { userId: studentId },
-      select: { currentStreak: true, bestStreak: true, lastStudyDate: true },
-    });
+    // Trava o perfil: duas transações do mesmo aluno (ex.: na virada do dia)
+    // se serializam e a segunda lê o estado já gravado pela primeira.
+    const [row] = await tx.$queryRaw<
+      {
+        current_streak: number;
+        best_streak: number;
+        last_study_date: Date | null;
+      }[]
+    >`
+      SELECT "current_streak", "best_streak", "last_study_date"
+      FROM "student_profiles"
+      WHERE "user_id" = ${studentId} FOR UPDATE`;
+    if (!row) {
+      throw new Error(`Perfil de aluno ${studentId} não encontrado.`);
+    }
+    const profile = {
+      currentStreak: row.current_streak,
+      bestStreak: row.best_streak,
+      lastStudyDate: row.last_study_date,
+    };
     const today = studyDay(now);
     const todayNumber = dayNumber(today);
-    // A coluna é `date`: o Prisma a devolve como meia-noite UTC do dia gravado.
+    // A coluna é `date`: o driver a devolve como meia-noite UTC do dia gravado.
     const lastNumber = profile.lastStudyDate
       ? dayNumber(profile.lastStudyDate.toISOString().slice(0, 10))
       : null;

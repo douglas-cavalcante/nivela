@@ -6,7 +6,7 @@ import { isUniqueViolation } from 'src/shared/prisma/unique-violation';
 import { StreakService } from 'src/shared/study/streak.service';
 import { StudyModule } from 'src/shared/study/study.module';
 import { createTestApp } from './helpers/create-test-app';
-import { createUser } from './helpers/factories';
+import { createQuestion, createUser } from './helpers/factories';
 import { resetDatabase } from './helpers/reset-database';
 
 describe('CoinLedger (e2e)', () => {
@@ -294,5 +294,80 @@ describe('StreakService (e2e)', () => {
     }
     const fourteenth = await register(student.id, '2026-11-14T15:00:00Z');
     expect(fourteenth).toEqual({ current: 14, best: 14, bonus_awarded: 20 });
+  });
+
+  it('duas transações na virada do dia de Fortaleza não corrompem a sequência', async () => {
+    const student = await createUser(prisma);
+    await prisma.studentProfile.update({
+      where: { userId: student.id },
+      data: {
+        currentStreak: 6,
+        bestStreak: 6,
+        lastStudyDate: new Date('2026-11-06T00:00:00Z'),
+      },
+    });
+    // 06/11 foi o dia 6; 02:59:59Z de 08/11 ainda é dia 7 em Fortaleza.
+    const results = await Promise.all([
+      register(student.id, '2026-11-08T02:59:59Z'),
+      register(student.id, '2026-11-08T03:00:01Z'),
+    ]);
+    const profile = await prisma.studentProfile.findUniqueOrThrow({
+      where: { userId: student.id },
+    });
+    expect(profile.currentStreak).toBe(8);
+    expect(profile.bestStreak).toBe(8);
+    expect(profile.lastStudyDate?.toISOString().slice(0, 10)).toBe(
+      '2026-11-08',
+    );
+    expect(results.reduce((sum, r) => sum + r.bonus_awarded, 0)).toBe(20);
+    expect(profile.coinsBalance).toBe(20);
+    expect(
+      await prisma.coinTransaction.count({
+        where: { studentId: student.id, reason: 'streak_bonus' },
+      }),
+    ).toBe(1);
+  });
+});
+
+describe('question_attempts (e2e)', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+
+  beforeAll(async () => {
+    app = await createTestApp();
+    prisma = app.get(PrismaService);
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('rejeita alternativa que pertence a outra questão', async () => {
+    await resetDatabase(prisma);
+    const student = await createUser(prisma);
+    const q1 = await createQuestion(prisma);
+    const q2 = await createQuestion(prisma);
+    const own = await prisma.questionOption.findFirstOrThrow({
+      where: { questionId: q1.id },
+    });
+    const other = await prisma.questionOption.findFirstOrThrow({
+      where: { questionId: q2.id },
+    });
+    const data = {
+      studentId: student.id,
+      questionId: q1.id,
+      attemptNumber: 1,
+      isCorrect: false,
+    };
+    await expect(
+      prisma.questionAttempt.create({
+        data: { ...data, selectedOptionId: other.id },
+      }),
+    ).rejects.toThrow();
+    await expect(
+      prisma.questionAttempt.create({
+        data: { ...data, selectedOptionId: own.id },
+      }),
+    ).resolves.toBeDefined();
   });
 });
