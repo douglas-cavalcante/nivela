@@ -40,6 +40,7 @@ function RootNavigator() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Protected guard={!!user} redirectTo="/welcome">
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="practice/[subjectId]" />
         </Stack.Protected>
         <Stack.Protected guard={!user} redirectTo="/">
           <Stack.Screen name="(auth)" />
