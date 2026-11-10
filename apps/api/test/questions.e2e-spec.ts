@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Role } from 'src/shared/enums/role.enum';
+import { isForeignKeyViolation } from 'src/shared/prisma/foreign-key-violation';
 import { createTestApp } from './helpers/create-test-app';
 import {
   createCategory,
@@ -273,6 +274,42 @@ describe('Questões (e2e)', () => {
       await create(student).expect(403);
       await http().post('/api/v1/questions').send(payload()).expect(401);
       expect(await prisma.question.count()).toBe(0);
+    });
+  });
+
+  describe('integridade categoria × disciplina no banco', () => {
+    it('gravar direto uma questão com categoria de outra disciplina é rejeitado pelo banco', async () => {
+      const other = await createCategory(prisma, { name: 'Outra' });
+      const author = await createUser(prisma, { role: Role.Teacher });
+      const attempt = prisma.question.create({
+        data: {
+          authorId: author.id,
+          subjectId,
+          categoryId: other.id,
+          statement: 'Enunciado?',
+          difficulty: 'easy',
+          explanation: 'Explicação.',
+        },
+      });
+      const error: unknown = await attempt.then(
+        () => null,
+        (e: unknown) => e,
+      );
+      expect(
+        isForeignKeyViolation(error, 'questions_category_subject_fkey'),
+      ).toBe(true);
+      expect(await prisma.question.count()).toBe(0);
+    });
+
+    it('mover a categoria para outra disciplina com questões vinculadas é rejeitado', async () => {
+      await createQuestion(prisma, { subjectId, categoryId });
+      const otherSubject = await createSubject(prisma, { name: 'Outra disc.' });
+      await expect(
+        prisma.category.update({
+          where: { id: categoryId },
+          data: { subjectId: otherSubject.id },
+        }),
+      ).rejects.toBeDefined();
     });
   });
 
@@ -658,21 +695,6 @@ describe('Questões (e2e)', () => {
       expect(await prisma.category.count({ where: { id: categoryId } })).toBe(
         1,
       );
-    });
-
-    it('excluir disciplina com questão mas sem categorias → 409 pela contagem de questões', async () => {
-      // Dado inconsistente de propósito (a API não o produz): a disciplina "vazia"
-      // não tem categorias, só uma questão apontando para ela.
-      const empty = await createSubject(prisma, { name: 'Sem categorias' });
-      await createQuestion(prisma, { subjectId: empty.id, categoryId });
-      const res = await http()
-        .delete(`/api/v1/subjects/${empty.id}`)
-        .set(as(teacher))
-        .expect(409);
-      expect(res.body.message).toBe(
-        'Não é possível excluir: a disciplina tem categorias ou questões.',
-      );
-      expect(await prisma.subject.count({ where: { id: empty.id } })).toBe(1);
     });
   });
 

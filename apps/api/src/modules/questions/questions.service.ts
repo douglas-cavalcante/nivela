@@ -270,6 +270,11 @@ export class QuestionsService {
         category_id: [CATEGORY_NOT_FOUND],
       });
     }
+    if (isForeignKeyViolation(error, 'questions_category_subject_fkey')) {
+      return new FieldValidationException({
+        category_id: [CATEGORY_MISMATCH],
+      });
+    }
     return error;
   }
 }

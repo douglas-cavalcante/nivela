@@ -126,6 +126,8 @@ model Category {
   subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Restrict)
   questions Question[]
 
+  // Alvo da FK composta questions_category_subject_fkey (categoria × disciplina).
+  @@unique([id, subjectId], map: "categories_id_subject_id_key")
   @@index([subjectId])
   @@map("categories")
 }
@@ -153,7 +155,7 @@ model Question {
 
   author   User             @relation(fields: [authorId], references: [id], onDelete: Restrict)
   subject  Subject          @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  category Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  category Category         @relation(fields: [categoryId, subjectId], references: [id, subjectId], onDelete: Restrict, onUpdate: NoAction, map: "questions_category_subject_fkey")
   options  QuestionOption[]
 
   @@index([subjectId, categoryId, active])
