@@ -90,6 +90,7 @@ describe('QuestionsService', () => {
     question: { update: jest.fn() },
     questionAttempt: { count: jest.fn() },
     questionOption: {
+      findFirst: jest.fn(),
       updateMany: jest.fn(),
       update: jest.fn(),
       deleteMany: jest.fn(),
@@ -122,6 +123,8 @@ describe('QuestionsService', () => {
     );
     subjectFindUnique.mockResolvedValue({ id: 1 });
     categoryFindUnique.mockResolvedValue({ subjectId: 1 });
+    // Correta atual lida dentro da transação, depois do lock da questão.
+    tx.questionOption.findFirst.mockResolvedValue({ letter: 'C' });
   });
 
   it('findOne: 404 quando não existe; can_edit só para o autor e o admin', async () => {
@@ -239,6 +242,20 @@ describe('QuestionsService', () => {
       ),
     );
     expect(tx.questionOption.update).not.toHaveBeenCalled();
+  });
+
+  it('update: decide pela correta lida na transação, não pela leitura inicial', async () => {
+    // A leitura de fora ainda mostra C, mas outro PUT já trocou para B antes
+    // do lock: o 409 precisa sair da letra lida depois do lock.
+    questionFindUnique.mockResolvedValue(row());
+    tx.questionOption.findFirst.mockResolvedValue({ letter: 'B' });
+    tx.questionAttempt.count.mockResolvedValue(1);
+    await expect(
+      service.update(10, dto({ correct_letter: 'C' }), author),
+    ).rejects.toBeInstanceOf(BusinessRuleException);
+    expect(tx.question.update.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.questionOption.findFirst.mock.invocationCallOrder[0],
+    );
   });
 
   it('update: mantendo a correta, nem consulta as tentativas', async () => {

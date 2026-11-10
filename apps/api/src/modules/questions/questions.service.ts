@@ -112,9 +112,6 @@ export class QuestionsService {
     const current = await this.load(id);
     this.assertCanEdit(current, user);
     await this.assertSubjectAndCategory(dto);
-    const changesCorrect =
-      current.options.find((option) => option.isCorrect)?.letter !==
-      dto.correct_letter;
     try {
       await this.prisma.$transaction(async (tx) => {
         // O update trava a linha da questão; `POST /answers` pega um lock
@@ -132,8 +129,15 @@ export class QuestionsService {
           select: { id: true },
         });
         // Política de edição: com tentativas registradas a correta não troca
-        // (as respostas e as moedas já pagas dependem dela). O erro desfaz o
+        // (as respostas e as moedas já pagas dependem dela). A letra correta
+        // atual é lida aqui, depois do lock da linha, para que dois PUTs
+        // simultâneos não decidam com uma leitura velha. O erro desfaz o
         // update acima.
+        const currentCorrect = await tx.questionOption.findFirst({
+          where: { questionId: id, isCorrect: true },
+          select: { letter: true },
+        });
+        const changesCorrect = currentCorrect?.letter !== dto.correct_letter;
         if (
           changesCorrect &&
           (await tx.questionAttempt.count({ where: { questionId: id } })) > 0
