@@ -29,3 +29,12 @@ export type {
   ApiStudentQuestion,
   ApiStudentStats,
 } from './study';
+export type {
+  ApiPlan,
+  ApiPlanAssignment,
+  ApiPlanChapter,
+  ApiPlanProgressRow,
+  ApiPlanSummary,
+  ApiStudentPlanProgress,
+  PlanStatus,
+} from './plans';
