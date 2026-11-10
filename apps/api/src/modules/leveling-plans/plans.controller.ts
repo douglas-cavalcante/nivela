@@ -14,6 +14,7 @@ import type {
   ApiList,
   ApiPlan,
   ApiPlanAssignment,
+  ApiPlanProgressRow,
   ApiPlanSummary,
   Paginated,
 } from '@nivela/api-contract';
@@ -28,6 +29,7 @@ import { ChapterQuestionsDto } from 'src/modules/leveling-plans/dto/chapter-ques
 import { ChapterDto } from 'src/modules/leveling-plans/dto/chapter.dto';
 import { ListPlansQuery } from 'src/modules/leveling-plans/dto/list-plans.query';
 import { PlanDto } from 'src/modules/leveling-plans/dto/plan.dto';
+import { PlanProgressService } from 'src/modules/leveling-plans/plan-progress.service';
 import { PlansService } from 'src/modules/leveling-plans/plans.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
 import { Role } from 'src/shared/enums/role.enum';
@@ -45,6 +47,7 @@ export class PlansController {
     private readonly plans: PlansService,
     private readonly chapters: ChaptersService,
     private readonly assignments: AssignmentsService,
+    private readonly progress: PlanProgressService,
   ) {}
 
   @Get()
@@ -144,6 +147,14 @@ export class PlansController {
     @CurrentUser() user: AuthUser,
   ): Promise<ApiPlan> {
     return this.chapters.setQuestions(id, chapter, dto.question_ids, user);
+  }
+
+  @Get(':id/progress')
+  listProgress(
+    @Param('id', planId()) id: number,
+    @CurrentUser() user: AuthUser,
+  ): Promise<ApiList<ApiPlanProgressRow>> {
+    return this.progress.progress(id, user);
   }
 
   @Get(':id/assignments')
