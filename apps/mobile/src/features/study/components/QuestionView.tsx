@@ -1,7 +1,7 @@
 import { resolveAssetUrl } from '@nivela/api-contract';
 import type { ApiStudentQuestion, OptionLetter } from '@nivela/api-contract';
 import { radius, spacing } from '@nivela/design-tokens';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Image, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from 'src/components/AppText';
 import { Button } from 'src/components/Button';
@@ -30,17 +30,21 @@ export function QuestionView({ question, onAnswer, disabled = false }: QuestionV
   const [selected, setSelected] = useState<OptionLetter | null>(null);
   const [busy, setBusy] = useState(false);
   const [sizeIndex, setSizeIndex] = useState(DEFAULT_SIZE_INDEX);
+  const submitting = useRef(false);
   const [zoomed, setZoomed] = useState(false);
   const imageUrl = resolveAssetUrl(process.env.EXPO_PUBLIC_API_URL ?? '', question.image_url);
   const locked = disabled || busy;
   const fontSize = TEXT_SIZES[sizeIndex];
 
   const submit = async () => {
-    if (!selected || locked) return;
+    // o ref barra um 2º toque antes de o estado `busy` renderizar
+    if (!selected || locked || submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     try {
       await onAnswer(selected);
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   };
@@ -67,9 +71,7 @@ export function QuestionView({ question, onAnswer, disabled = false }: QuestionV
             />
           </View>
         </View>
-        <AppText size={fontSize}>
-          {question.statement}
-        </AppText>
+        <AppText size={fontSize}>{question.statement}</AppText>
         {imageUrl ? (
           <Pressable
             accessibilityRole="imagebutton"
@@ -162,7 +164,11 @@ function SizeButton({
 const styles = StyleSheet.create({
   wrapper: { gap: spacing(4) },
   statementCard: { gap: spacing(3) },
-  sizeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sizeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   sizeButtons: { flexDirection: 'row', gap: spacing(2) },
   sizeButton: {
     minWidth: 44,
@@ -172,7 +178,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderRadius: radius.sm,
   },
-  image: { width: '100%', height: 200, borderRadius: radius.sm, borderWidth: 1 },
+  image: {
+    width: '100%',
+    height: 200,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+  },
   options: { gap: spacing(3) },
   modal: {
     flex: 1,
@@ -180,6 +191,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing(4),
     padding: spacing(4),
-      },
+  },
   zoomImage: { width: '100%', height: '75%' },
 });

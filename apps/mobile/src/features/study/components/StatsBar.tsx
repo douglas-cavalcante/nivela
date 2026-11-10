@@ -2,6 +2,7 @@ import { radius, spacing } from '@nivela/design-tokens';
 import { StyleSheet, View } from 'react-native';
 import { AppText } from 'src/components/AppText';
 import { getStatsAction } from 'src/features/study/api/study.action';
+import { useReloadOnFocus } from 'src/hooks/useReloadOnFocus';
 import { useRemote } from 'src/hooks/useRemote';
 import { useTheme } from 'src/lib/theme/useTheme';
 
@@ -30,7 +31,8 @@ function Pill({ emoji, value, label }: { emoji: string; value: number; label: st
 
 /** 🔥 sequência e 🪙 moedas do aluno (`GET /me/stats`), atualizadas pelo resultado da última resposta. */
 export function StatsBar({ latest = null }: StatsBarProps) {
-  const { data } = useRemote('me-stats', (signal) => getStatsAction(signal));
+  const { data, reload } = useRemote('me-stats', (signal) => getStatsAction(signal));
+  useReloadOnFocus(reload);
   const streak = latest?.streak ?? data?.current_streak;
   const coins = latest?.coinsBalance ?? data?.coins_balance;
   if (streak === undefined || coins === undefined) return null;

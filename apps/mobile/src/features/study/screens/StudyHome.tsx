@@ -9,10 +9,11 @@ import { PaperBackground } from 'src/components/PaperBackground';
 import { PenCard } from 'src/components/PenCard';
 import { listPracticeSubjectsAction } from 'src/features/study/api/study.action';
 import { SubjectIcon } from 'src/features/study/components/SubjectIcon';
+import { useReloadOnFocus } from 'src/hooks/useReloadOnFocus';
 import { useRemote } from 'src/hooks/useRemote';
 import { useTheme } from 'src/lib/theme/useTheme';
 
-const questionsLabel = (count: number): string => `${count} ${count === 1 ? 'questão' : 'questões'}.`;
+const questionsLabel = (count: number): string => `${count} ${count === 1 ? 'questão' : 'questões'}`;
 
 function SubjectCard({
   subject,
@@ -48,7 +49,9 @@ function SubjectCard({
             {subject.name}
           </AppText>
           <AppText variant="bold" style={{ color: palette.foreground }}>
-            {empty ? 'Você praticou tudo por aqui.' : `${subject.available_questions} ${subject.available_questions === 1 ? 'questão' : 'questões'} para praticar.`}
+            {empty
+              ? 'Você praticou tudo por aqui.'
+              : `${subject.available_questions} ${subject.available_questions === 1 ? 'questão' : 'questões'} para praticar.`}
           </AppText>
         </View>
       </Pressable>
@@ -66,7 +69,7 @@ function SubjectCard({
               <AppText variant="bold" size={18} style={styles.flex}>
                 {category.name}
               </AppText>
-              <AppText variant="muted">{questionsLabel(category.available_questions)}</AppText>
+              <AppText variant="muted">{`${questionsLabel(category.available_questions)}.`}</AppText>
             </Pressable>
           ))}
         </View>
@@ -79,7 +82,10 @@ function SubjectCard({
 export function StudyHome() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { data, loading, error, reload } = useRemote('practice-subjects', (signal) => listPracticeSubjectsAction(signal));
+  const { data, loading, error, reload } = useRemote('practice-subjects', (signal) =>
+    listPracticeSubjectsAction(signal),
+  );
+  useReloadOnFocus(reload);
   const [openId, setOpenId] = useState<number | null>(null);
   const loadError = loading ? null : error;
 
@@ -124,7 +130,13 @@ const styles = StyleSheet.create({
   gap: { gap: spacing(2) },
   flex: { flex: 1 },
   card: { padding: 0, overflow: 'hidden' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: spacing(3), padding: spacing(4), minHeight: 72 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing(3),
+    padding: spacing(4),
+    minHeight: 72,
+  },
   headerText: { flex: 1 },
   icon: {
     width: 52,

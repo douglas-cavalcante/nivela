@@ -31,4 +31,6 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({ content: { gap: spacing(4), padding: spacing(5) } });
+const styles = StyleSheet.create({
+  content: { gap: spacing(4), padding: spacing(5) },
+});

@@ -46,7 +46,11 @@ export const question: ApiStudentQuestion = {
 
 export const nextOf = (q: ApiStudentQuestion | null, remaining = 3): ApiPracticeNext => ({ question: q, remaining });
 
-export const stats: ApiStudentStats = { coins_balance: 120, current_streak: 3, best_streak: 5 };
+export const stats: ApiStudentStats = {
+  coins_balance: 120,
+  current_streak: 3,
+  best_streak: 5,
+};
 
 export const correctResult: ApiAnswerResult = {
   is_correct: true,

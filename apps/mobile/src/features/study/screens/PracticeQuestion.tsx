@@ -1,5 +1,5 @@
 import { parseApiError } from '@nivela/api-contract';
-import type { ApiAnswerResult, ApiStudentQuestion, OptionLetter } from '@nivela/api-contract';
+import type { ApiAnswerResult, OptionLetter } from '@nivela/api-contract';
 import { radius, spacing, subjectColors } from '@nivela/design-tokens';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -13,6 +13,7 @@ import { answerAction, getPracticeNextAction } from 'src/features/study/api/stud
 import { FeedbackView } from 'src/features/study/components/FeedbackView';
 import { QuestionView } from 'src/features/study/components/QuestionView';
 import { StatsBar } from 'src/features/study/components/StatsBar';
+import { useQuestionRound } from 'src/features/study/hooks/useQuestionRound';
 import { useRemote } from 'src/hooks/useRemote';
 import { useTheme } from 'src/lib/theme/useTheme';
 
@@ -27,48 +28,58 @@ function toId(value: string | string[] | undefined): number | undefined {
 export function PracticeQuestion() {
   const { colors, mode } = useTheme();
   const router = useRouter();
-  const params = useLocalSearchParams<{ subjectId: string; category_id?: string }>();
+  const params = useLocalSearchParams<{
+    subjectId: string;
+    category_id?: string;
+  }>();
   const subjectId = toId(params.subjectId);
   const categoryId = toId(params.category_id);
 
   const [round, setRound] = useState(0);
   const [result, setResult] = useState<ApiAnswerResult | null>(null);
-  const [retried, setRetried] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [answerError, setAnswerError] = useState<string | null>(null);
-  const [latest, setLatest] = useState<{ coinsBalance: number; streak: number } | null>(null);
+  const [latest, setLatest] = useState<{
+    coinsBalance: number;
+    streak: number;
+  } | null>(null);
   const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
 
-  const { data, loading, error, reload } = useRemote(`practice-${subjectId}-${categoryId ?? 'all'}-${round}`, (signal) =>
-    subjectId === undefined
-      ? Promise.reject(new Error('Disciplina inválida.'))
-      : getPracticeNextAction(subjectId, categoryId, signal),
+  const { data, loading, error, reload } = useRemote(
+    `practice-${subjectId}-${categoryId ?? 'all'}-${round}`,
+    (signal) =>
+      subjectId === undefined
+        ? Promise.reject(new Error('Disciplina inválida.'))
+        : getPracticeNextAction(subjectId, categoryId, signal),
   );
   const loadError = loading ? null : error;
+  const { question, retry, reset } = useQuestionRound(data?.question ?? null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
-  }, [result, round, retried]);
+  }, [result, round, question?.attempts_left]);
 
   const leave = () => (router.canGoBack() ? router.back() : router.replace('/study'));
 
   const advance = () => {
     setResult(null);
-    setRetried(false);
+    reset();
     setRound((current) => current + 1);
   };
-
-  const baseQuestion = data?.question ?? null;
-  const question: ApiStudentQuestion | null =
-    baseQuestion && retried ? { ...baseQuestion, attempts_left: 1 } : baseQuestion;
 
   const handleAnswer = async (letter: OptionLetter) => {
     if (!question) return;
     setNotice(null);
     setAnswerError(null);
     try {
-      const outcome = await answerAction({ question_id: question.id, selected_letter: letter });
-      setLatest({ coinsBalance: outcome.coins_balance, streak: outcome.streak.current });
+      const outcome = await answerAction({
+        question_id: question.id,
+        selected_letter: letter,
+      });
+      setLatest({
+        coinsBalance: outcome.coins_balance,
+        streak: outcome.streak.current,
+      });
       setResult(outcome);
     } catch (err) {
       const info = parseApiError(err);
@@ -110,7 +121,12 @@ export function PracticeQuestion() {
         ) : null}
 
         {notice ? (
-          <AppText accessibilityRole="alert" accessibilityLiveRegion="polite" variant="bold" style={{ color: colors.primary }}>
+          <AppText
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+            variant="bold"
+            style={{ color: colors.primary }}
+          >
             {notice}
           </AppText>
         ) : null}
@@ -132,7 +148,7 @@ export function PracticeQuestion() {
             question={question}
             onRetry={() => {
               setResult(null);
-              setRetried(true);
+              retry();
             }}
             onNext={() => {
               setNotice(null);
@@ -141,7 +157,11 @@ export function PracticeQuestion() {
           />
         ) : (
           <View style={styles.gap}>
-            <QuestionView key={`${question.id}-${question.attempts_left}`} question={question} onAnswer={handleAnswer} />
+            <QuestionView
+              key={`${question.id}-${question.attempts_left}`}
+              question={question}
+              onAnswer={handleAnswer}
+            />
             {answerError ? (
               <AppText accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: colors.danger }}>
                 {answerError}
@@ -157,7 +177,11 @@ export function PracticeQuestion() {
 const styles = StyleSheet.create({
   content: { gap: spacing(4), padding: spacing(5), paddingBottom: spacing(10) },
   gap: { gap: spacing(3) },
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  top: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   back: {
     width: 48,
     height: 48,
@@ -166,5 +190,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderRadius: radius.pill,
   },
-  chip: { alignSelf: 'flex-start', paddingHorizontal: spacing(3), paddingVertical: spacing(1), borderRadius: radius.pill },
+  chip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing(3),
+    paddingVertical: spacing(1),
+    borderRadius: radius.pill,
+  },
 });

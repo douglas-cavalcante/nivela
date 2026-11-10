@@ -33,7 +33,11 @@ function FlyingCoin({ x, y, index }: { x: number; y: number; index: number }) {
   }, [progress, index]);
   const style = useAnimatedStyle(() => ({
     opacity: 1 - progress.value * progress.value,
-    transform: [{ translateX: x * progress.value }, { translateY: y * progress.value }, { scale: 1 - progress.value * 0.4 }],
+    transform: [
+      { translateX: x * progress.value },
+      { translateY: y * progress.value },
+      { scale: 1 - progress.value * 0.4 },
+    ],
   }));
   return (
     <Animated.View pointerEvents="none" style={[styles.coin, style]}>
@@ -55,12 +59,16 @@ export function CoinBurst({ amount }: { amount: number }) {
     // eslint-disable-next-line react-hooks/immutability
     if (!reduced) pop.value = withSequence(withTiming(1.2, { duration: 180 }), withTiming(1, { duration: 140 }));
   }, [pop, reduced]);
-  const popStyle = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
+  const popStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pop.value }],
+  }));
 
   return (
     <View style={styles.wrapper} accessible accessibilityLabel={`Você ganhou ${amount} moedas.`}>
       {reduced ? null : FLIGHTS.map((flight, index) => <FlyingCoin key={index} index={index} {...flight} />)}
-      <Animated.View style={[styles.badge, { backgroundColor: colors.highlight, borderColor: colors.border }, popStyle]}>
+      <Animated.View
+        style={[styles.badge, { backgroundColor: colors.highlight, borderColor: colors.border }, popStyle]}
+      >
         <AppText variant="bold" size={24} style={{ color: colors.onHighlight }}>
           {`+${amount} 🪙`}
         </AppText>

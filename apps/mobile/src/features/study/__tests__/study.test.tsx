@@ -1,4 +1,4 @@
-import { screen, userEvent } from '@testing-library/react-native';
+import { act, fireEvent, screen, userEvent } from '@testing-library/react-native';
 import { renderApp } from 'src/test/render';
 import type { FakeHandler } from 'src/test/render';
 import { expectParams } from 'src/test/expectParams';
@@ -16,7 +16,10 @@ import {
 
 type RequestConfig = Parameters<FakeHandler>[1];
 
-const subjects = () => ({ status: 200, data: { data: [mathSubject, historySubject] } });
+const subjects = () => ({
+  status: 200,
+  data: { data: [mathSubject, historySubject] },
+});
 const statsRoute = () => ({ status: 200, data: stats });
 
 describe('aba Estudar', () => {
@@ -24,7 +27,10 @@ describe('aba Estudar', () => {
     await renderApp({
       user: student,
       initialUrl: '/study',
-      routes: { 'GET /practice/subjects': subjects, 'GET /me/stats': statsRoute },
+      routes: {
+        'GET /practice/subjects': subjects,
+        'GET /me/stats': statsRoute,
+      },
     });
 
     expect(await screen.findByText('Matemática')).toBeTruthy();
@@ -93,9 +99,14 @@ describe('prática livre', () => {
   it('responde enviando question_id e a letra; o acerto mostra moedas e explicação', async () => {
     const answer = jest.fn(() => ({ status: 200, data: correctResult }));
     const user = userEvent.setup();
-    await open({ 'GET /practice/next': () => ({ status: 200, data: nextOf(question) }), 'POST /answers': answer });
+    await open({
+      'GET /practice/next': () => ({ status: 200, data: nextOf(question) }),
+      'POST /answers': answer,
+    });
 
-    const optionB = await screen.findByRole('radio', { name: 'Alternativa B: Quatro' });
+    const optionB = await screen.findByRole('radio', {
+      name: 'Alternativa B: Quatro',
+    });
     expect(screen.queryByRole('button', { name: 'Responder' })).toBeNull();
     expect(optionB.props.accessibilityState).toMatchObject({ checked: false });
     await user.press(optionB);
@@ -141,7 +152,11 @@ describe('prática livre', () => {
   });
 
   it('"Próxima" busca outra questão', async () => {
-    const second = { ...question, id: 6, statement: 'Quanto é três vezes três?' };
+    const second = {
+      ...question,
+      id: 6,
+      statement: 'Quanto é três vezes três?',
+    };
     const queue = [nextOf(question), nextOf(second, 2)];
     const user = userEvent.setup();
     await open({
@@ -169,12 +184,19 @@ describe('prática livre', () => {
   });
 
   it('409 mostra a mensagem e carrega a próxima questão', async () => {
-    const second = { ...question, id: 6, statement: 'Quanto é três vezes três?' };
+    const second = {
+      ...question,
+      id: 6,
+      statement: 'Quanto é três vezes três?',
+    };
     const queue = [nextOf(question), nextOf(second, 2)];
     const user = userEvent.setup();
     await open({
       'GET /practice/next': () => ({ status: 200, data: queue.shift() }),
-      'POST /answers': () => ({ status: 409, data: { message: 'Você já terminou esta questão.' } }),
+      'POST /answers': () => ({
+        status: 409,
+        data: { message: 'Você já terminou esta questão.' },
+      }),
     });
 
     await user.press(await screen.findByRole('radio', { name: 'Alternativa B: Quatro' }));
@@ -182,6 +204,71 @@ describe('prática livre', () => {
 
     expect(await screen.findByText('Quanto é três vezes três?')).toBeTruthy();
     expect(screen.getByText('Você já terminou esta questão.')).toBeTruthy();
+  });
+
+  it('dois toques rápidos em Responder enviam uma única resposta', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const answer = jest.fn(async () => {
+      await gate;
+      return { status: 200, data: correctResult };
+    });
+    const user = userEvent.setup();
+    await open({
+      'GET /practice/next': () => ({ status: 200, data: nextOf(question) }),
+      'POST /answers': answer,
+    });
+
+    await user.press(await screen.findByRole('radio', { name: 'Alternativa B: Quatro' }));
+    const button = screen.getByRole('button', { name: 'Responder' });
+    await act(async () => {
+      fireEvent.press(button);
+      fireEvent.press(button);
+      release();
+    });
+
+    expect(await screen.findByText('Isso aí!')).toBeTruthy();
+    expect(answer).toHaveBeenCalledTimes(1);
+  });
+
+  it('ao voltar da prática, Estudar e Início mostram os valores novos', async () => {
+    let coins = 120;
+    let available = 12;
+    const user = userEvent.setup();
+    await renderApp({
+      user: student,
+      routes: {
+        'GET /me/stats': () => ({
+          status: 200,
+          data: { ...stats, coins_balance: coins },
+        }),
+        'GET /practice/subjects': () => ({
+          status: 200,
+          data: { data: [{ ...mathSubject, available_questions: available }] },
+        }),
+        'GET /practice/next': () => ({ status: 200, data: nextOf(question) }),
+        'POST /answers': () => {
+          coins = 130;
+          available = 11;
+          return { status: 200, data: correctResult };
+        },
+      },
+    });
+
+    expect(await screen.findByLabelText('120 moedas.')).toBeTruthy();
+    await user.press(screen.getByRole('button', { name: 'Praticar agora' }));
+    await user.press(await screen.findByRole('button', { name: 'Praticar Matemática' }));
+    await user.press(screen.getByRole('button', { name: 'Todas as categorias' }));
+    await user.press(await screen.findByRole('radio', { name: 'Alternativa B: Quatro' }));
+    await user.press(screen.getByRole('button', { name: 'Responder' }));
+    await screen.findByText('Isso aí!');
+    await user.press(screen.getByRole('button', { name: 'Sair da prática.' }));
+
+    expect(await screen.findByText('11 questões para praticar.')).toBeTruthy();
+    await user.press(screen.getByText('Início'));
+    expect(await screen.findByLabelText('130 moedas.')).toBeTruthy();
   });
 
   it('mostra a imagem da questão com a URL resolvida', async () => {
@@ -213,7 +300,10 @@ describe('Início', () => {
     const user = userEvent.setup();
     await renderApp({
       user: student,
-      routes: { 'GET /me/stats': statsRoute, 'GET /practice/subjects': subjects },
+      routes: {
+        'GET /me/stats': statsRoute,
+        'GET /practice/subjects': subjects,
+      },
     });
 
     await user.press(await screen.findByRole('button', { name: 'Praticar agora' }));

@@ -3,14 +3,7 @@ import { radius, spacing } from '@nivela/design-tokens';
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
-import {
-  Animated,
-  Easing,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from 'src/lib/motion';
+import { Animated, Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'src/lib/motion';
 import { AppText } from 'src/components/AppText';
 import { Button } from 'src/components/Button';
 import { Mascot } from 'src/components/Mascot';
@@ -38,10 +31,13 @@ function MarkerTitle({ text }: { text: string }) {
   const grow = useSharedValue(reduced ? 1 : 0);
   useEffect(() => {
     // valores compartilhados do Reanimated são mutáveis por desenho
+    if (reduced) return;
     // eslint-disable-next-line react-hooks/immutability
-    if (!reduced) grow.value = withTiming(1, { duration: 450, easing: Easing.out(Easing.cubic) });
+    grow.value = withTiming(1, { duration: 450, easing: Easing.out(Easing.cubic) });
   }, [grow, reduced]);
-  const markerStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: grow.value }] }));
+  const markerStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleX: grow.value }],
+  }));
 
   return (
     <View style={styles.titleWrap}>
@@ -57,7 +53,14 @@ function MarkerTitle({ text }: { text: string }) {
  * O que acontece depois de responder: acerto (moedas e explicação), erro na 1ª tentativa
  * (sem revelar a resposta) ou erro na 2ª (resposta e explicação). Reutilizado nos planos.
  */
-export function FeedbackView({ result, question, onNext, onRetry, nextLabel = 'Próxima', children }: FeedbackViewProps) {
+export function FeedbackView({
+  result,
+  question,
+  onNext,
+  onRetry,
+  nextLabel = 'Próxima',
+  children,
+}: FeedbackViewProps) {
   const { colors } = useTheme();
   const retry = !result.is_correct && !result.finished;
   const title = result.is_correct
@@ -68,14 +71,18 @@ export function FeedbackView({ result, question, onNext, onRetry, nextLabel = 'P
 
   useEffect(() => {
     void AccessibilityInfo.announceForAccessibility(
-      result.is_correct ? `Isso aí! Resposta correta.` : retry ? 'Quase! Tente de novo.' : `Resposta correta: ${result.correct_letter}.`,
+      result.is_correct
+        ? `Isso aí! Resposta correta.`
+        : retry
+          ? 'Quase! Tente de novo.'
+          : `Resposta correta: ${result.correct_letter}.`,
     );
   }, [result, retry]);
 
   const correctOption = question?.options.find((option) => option.letter === result.correct_letter);
 
   return (
-    <View style={styles.wrapper} accessibilityLiveRegion="polite">
+    <View style={styles.wrapper}>
       {result.is_correct ? (
         <MarkerTitle text={title} />
       ) : retry ? (
@@ -124,11 +131,7 @@ export function FeedbackView({ result, question, onNext, onRetry, nextLabel = 'P
 
       {children}
 
-      {retry ? (
-        <Button title="Tentar de novo" onPress={onRetry} />
-      ) : (
-        <Button title={nextLabel} onPress={onNext} />
-      )}
+      {retry ? <Button title="Tentar de novo" onPress={onRetry} /> : <Button title={nextLabel} onPress={onNext} />}
     </View>
   );
 }
