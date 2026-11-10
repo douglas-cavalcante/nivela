@@ -14,7 +14,7 @@ import { useTheme } from 'src/lib/theme/useTheme';
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
-  const { user, loading, offline, retrying, retry } = useAuth();
+  const { user, loading, offline, offlineStatus, retrying, retry, signOut } = useAuth();
   const { mode } = useTheme();
 
   // A splash fica até validar o token salvo, para não piscar a tela de entrada.
@@ -24,12 +24,12 @@ function RootNavigator() {
 
   if (loading) return null;
 
-  // Sessão salva, mas a API não respondeu: mantém o token e oferece tentar de novo.
+  // Sessão salva, mas a checagem falhou (sem resposta, 5xx, 403/404/429): mantém o token e oferece tentar de novo ou sair.
   if (offline) {
     return (
       <>
         <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
-        <OfflineScreen onRetry={retry} retrying={retrying} />
+        <OfflineScreen status={offlineStatus} onRetry={retry} onSignOut={() => void signOut()} retrying={retrying} />
       </>
     );
   }

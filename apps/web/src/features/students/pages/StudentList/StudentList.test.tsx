@@ -41,22 +41,33 @@ function renderPage(route = '/alunos') {
   );
 }
 
-function listHandler(onList?: (params: URLSearchParams) => void, rows = [lucas, bia]) {
+const nona = { id: 7, name: '9º A', school_year: '2026', join_code: 'NIV-4K7Q', active: true, students_count: 1, teacher: { id: 2, name: 'Paulo' }, created_at: lucas.created_at };
+const oitava = { ...nona, id: 8, name: '8º B', school_year: null, join_code: 'NIV-AAAA' };
+
+function listHandler(
+  onList?: (params: URLSearchParams) => void,
+  rows = [lucas, bia],
+  onClassrooms?: (params: URLSearchParams) => void,
+) {
   server.use(
     http.get(`${API_URL}/students`, ({ request }) => {
       const params = new URL(request.url).searchParams;
       onList?.(params);
       return HttpResponse.json({ data: rows, meta: meta(rows.length, Number(params.get('page') ?? 1)) });
     }),
-    http.get(`${API_URL}/classrooms`, () =>
-      HttpResponse.json({
-        data: [
-          { id: 7, name: '9º A', school_year: '2026', join_code: 'NIV-4K7Q', active: true, students_count: 1, teacher: { id: 2, name: 'Paulo' }, created_at: lucas.created_at },
-          { id: 8, name: '8º B', school_year: null, join_code: 'NIV-AAAA', active: true, students_count: 1, teacher: { id: 2, name: 'Paulo' }, created_at: lucas.created_at },
-        ],
-        meta: meta(2),
-      }),
-    ),
+    http.get(`${API_URL}/classrooms`, ({ request }) => {
+      const params = new URL(request.url).searchParams;
+      onClassrooms?.(params);
+      const search = (params.get('search') ?? '').toLowerCase();
+      const data = [nona, oitava].filter((room) => room.name.toLowerCase().includes(search));
+      return HttpResponse.json({ data, meta: meta(data.length) });
+    }),
+    http.get(`${API_URL}/classrooms/:id`, ({ params }) => {
+      const found = [nona, oitava].find((room) => String(room.id) === params.id);
+      return found
+        ? HttpResponse.json({ ...found, students: [] })
+        : HttpResponse.json({ message: 'Turma não encontrada.' }, { status: 404 });
+    }),
   );
 }
 
@@ -100,6 +111,41 @@ describe('StudentList', () => {
 
     expect(await screen.findByTestId('where')).toHaveTextContent('/alunos?classroom_id=7');
     await waitFor(() => expect(seen).toHaveBeenLastCalledWith('7'));
+  });
+
+  it('digitar no filtro de turma busca no servidor com per_page=20', async () => {
+    const classroomsQuery = vi.fn();
+    listHandler(undefined, [lucas, bia], (params) => classroomsQuery(params.get('search'), params.get('per_page')));
+    renderPage();
+    await screen.findByText('Lucas Lima');
+
+    await userEvent.type(screen.getByRole('combobox', { name: 'Turma' }), '8º');
+
+    await waitFor(() => expect(classroomsQuery).toHaveBeenLastCalledWith('8º', '20'));
+    expect(await screen.findByRole('option', { name: '8º B' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: '9º A' })).toBeNull();
+  });
+
+  it('turma da URL aparece com o nome no filtro e limpar volta para todas', async () => {
+    const seen = vi.fn();
+    listHandler((params) => seen(params.get('classroom_id')));
+    renderPage('/alunos?classroom_id=7');
+
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Turma' })).toHaveValue('9º A'));
+    expect(seen).toHaveBeenLastCalledWith('7');
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Turma' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Limpar' }));
+
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/alunos$/));
+    await waitFor(() => expect(seen).toHaveBeenLastCalledWith(null));
+  });
+
+  it('turma da URL que não existe mais é removida do filtro', async () => {
+    listHandler();
+    renderPage('/alunos?classroom_id=99');
+
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/alunos$/));
   });
 
   it('turma inválida na URL não vai para a API', async () => {

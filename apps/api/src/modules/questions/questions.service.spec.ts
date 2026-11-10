@@ -184,6 +184,15 @@ describe('QuestionsService', () => {
     });
   });
 
+  it('create: FK composta categoria × disciplina violada → 422 em category_id', async () => {
+    questionCreate.mockRejectedValueOnce(
+      fkViolation('questions_category_subject_fkey'),
+    );
+    expect(await errorsOf(service.create(dto(), author))).toEqual({
+      category_id: ['A categoria não pertence à disciplina.'],
+    });
+  });
+
   it('create: outra violação de FK não vira erro de campo', async () => {
     const error = fkViolation('questions_author_id_fkey');
     questionCreate.mockRejectedValue(error);

@@ -14,6 +14,8 @@ export interface AuthContextValue {
    * O token é mantido; `retry` refaz a checagem.
    */
   offline: boolean;
+  /** Status HTTP da falha de boot (`null` quando a API nem respondeu); só vale com `offline`. */
+  offlineStatus: number | null;
   /** Verdadeiro enquanto `retry` aguarda a resposta da API. */
   retrying: boolean;
   retry: () => void;
@@ -28,21 +30,23 @@ type BootRequest = { cancelled: boolean };
 interface SessionCheck {
   user: User | null;
   offline: boolean;
+  offlineStatus: number | null;
 }
 
 /**
  * Se há token salvo, recupera o usuário em GET /auth/me. Só o 401 encerra a sessão (o
- * interceptor já limpou o token); sem resposta da API (rede, tempo esgotado ou 5xx), o
- * token fica e o app mostra a tela de reconexão.
+ * interceptor já limpou o token); qualquer outra falha (sem resposta, 5xx, 403/404/429),
+ * o token fica e o app mostra a tela de falha, com tentar de novo e sair.
  */
 async function checkSession(): Promise<SessionCheck> {
   try {
-    if ((await getToken()) === null) return { user: null, offline: false };
+    if ((await getToken()) === null) return { user: null, offline: false, offlineStatus: null };
     const { data } = await api.get<{ user: User }>('/auth/me');
-    return { user: data.user, offline: false };
+    return { user: data.user, offline: false, offlineStatus: null };
   } catch (error) {
     const offline = axios.isAxiosError(error) && error.response?.status !== 401;
-    return { user: null, offline };
+    const offlineStatus = axios.isAxiosError(error) ? (error.response?.status ?? null) : null;
+    return { user: null, offline, offlineStatus };
   }
 }
 
@@ -50,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [offline, setOffline] = useState<boolean>(false);
+  const [offlineStatus, setOfflineStatus] = useState<number | null>(null);
   const [retrying, setRetrying] = useState<boolean>(false);
 
   // 401 em qualquer requisição autenticada: o interceptor já limpou o token.
@@ -71,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (request.cancelled) return;
       setUser(result.user);
       setOffline(result.offline);
+      setOfflineStatus(result.offlineStatus);
       setLoading(false);
       setRetrying(false);
     });
@@ -94,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await setToken(token);
     setUser(nextUser);
     setOffline(false);
+    setOfflineStatus(null);
     setRetrying(false);
     setLoading(false);
   }, []);
@@ -102,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (boot.current) boot.current.cancelled = true;
     setLoading(false);
     setOffline(false);
+    setOfflineStatus(null);
     setRetrying(false);
     try {
       await api.post('/auth/logout');
@@ -114,8 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, offline, retrying, retry, signIn, signOut }),
-    [user, loading, offline, retrying, retry, signIn, signOut],
+    () => ({ user, loading, offline, offlineStatus, retrying, retry, signIn, signOut }),
+    [user, loading, offline, offlineStatus, retrying, retry, signIn, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

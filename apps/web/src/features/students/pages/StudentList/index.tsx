@@ -1,16 +1,18 @@
-import { Box, Chip, MenuItem, TextField } from '@mui/material';
-import type { ApiStudentSummary } from '@nivela/api-contract';
+import { Box, Chip } from '@mui/material';
+import { parseApiError } from '@nivela/api-contract';
+import type { ApiClassroomSummary, ApiStudentSummary } from '@nivela/api-contract';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { AsyncAutocomplete } from 'src/components/AsyncAutocomplete';
 import { DataTable } from 'src/components/DataTable';
 import type { DataTableColumn } from 'src/components/DataTable';
 import { PageHeader } from 'src/components/PageHeader';
 import { SearchField } from 'src/components/SearchField';
 import { StatusChip } from 'src/components/StatusChip';
-import { listClassroomsAction } from 'src/features/classrooms';
+import { getClassroomAction, listClassroomsAction } from 'src/features/classrooms';
 import { listStudentsAction } from 'src/features/students/api/students.action';
 import { useListQuery } from 'src/hooks/useListQuery';
 import { usePaginatedList } from 'src/hooks/usePaginatedList';
-import { useRemoteList } from 'src/hooks/useRemoteList';
 import { validId } from 'src/utils/ids';
 
 /** Alunos: busca por nome ou e-mail e filtro por turma na URL (`?search=ana&classroom_id=7`). */
@@ -32,10 +34,25 @@ export function StudentList() {
       ),
     JSON.stringify([page, search, classroomId]),
   );
-  const classrooms = useRemoteList(
-    async (signal) => (await listClassroomsAction({ per_page: 100 }, signal)).data,
-    'classrooms',
-  );
+  // turma do filtro como objeto (o autocomplete mostra o nome); vinda da URL, é resolvida por GET /classrooms/:id
+  const [selected, setSelected] = useState<ApiClassroomSummary | null>(null);
+
+  const current = selected && String(selected.id) === classroomId ? selected : null;
+  const needsFetch = Boolean(classroomId) && !current;
+
+  useEffect(() => {
+    if (!needsFetch) return;
+    const controller = new AbortController();
+    getClassroomAction(Number(classroomId), controller.signal).then(
+      (classroom) => setSelected(classroom),
+      (error: unknown) => {
+        if (controller.signal.aborted) return;
+        // turma que não existe (ou fora do escopo): tira o filtro da URL
+        if (parseApiError(error).status === 404) setFilter('classroom_id', '');
+      },
+    );
+    return () => controller.abort();
+  }, [needsFetch, classroomId, setFilter]);
 
   const columns: Array<DataTableColumn<ApiStudentSummary>> = [
     { key: 'name', header: 'Nome', render: (row) => row.name },
@@ -78,22 +95,22 @@ export function StudentList() {
           value={filters.search}
           onChange={(value) => setFilter('search', value)}
         />
-        <TextField
-          select
-          size="small"
-          label="Turma"
-          value={classrooms.rows.some((classroom) => String(classroom.id) === classroomId) ? classroomId : ''}
-          onChange={(event) => setFilter('classroom_id', event.target.value)}
-          slotProps={{ inputLabel: { shrink: true }, select: { displayEmpty: true } }}
-          sx={{ minWidth: 200 }}
-        >
-          <MenuItem value="">Todas</MenuItem>
-          {classrooms.rows.map((classroom) => (
-            <MenuItem key={classroom.id} value={String(classroom.id)}>
-              {classroom.name}
-            </MenuItem>
-          ))}
-        </TextField>
+        <Box sx={{ minWidth: 220 }}>
+          <AsyncAutocomplete<ApiClassroomSummary>
+            label="Turma"
+            size="small"
+            value={current}
+            onChange={(classroom) => {
+              setSelected(classroom);
+              setFilter('classroom_id', classroom ? String(classroom.id) : '');
+            }}
+            load={async (text, signal) =>
+              (await listClassroomsAction({ search: text || undefined, per_page: 20 }, signal)).data
+            }
+            getOptionLabel={(classroom) => classroom.name}
+            getOptionKey={(classroom) => classroom.id}
+          />
+        </Box>
       </Box>
 
       <DataTable

@@ -1,16 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FormControlLabel, FormHelperText, MenuItem, Switch, TextField } from '@mui/material';
+import { FormControlLabel, FormHelperText, Switch, TextField } from '@mui/material';
 import { parseApiError } from '@nivela/api-contract';
-import type { ApiClassroom, ApiClassroomSummary } from '@nivela/api-contract';
+import type { ApiClassroom, ApiClassroomSummary, ApiTeacher } from '@nivela/api-contract';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import type { Control, FieldErrors } from 'react-hook-form';
+import { AsyncAutocomplete } from 'src/components/AsyncAutocomplete';
 import { FormDialog } from 'src/components/FormDialog';
 import { createClassroomAction, updateClassroomAction } from 'src/features/classrooms/api/classrooms.action';
 import { adminClassroomSchema, classroomSchema } from 'src/features/classrooms/schemas/classroom.schema';
 import type { ClassroomFormValues, ClassroomPayload } from 'src/features/classrooms/schemas/classroom.schema';
 import { listTeachersAction } from 'src/features/teachers';
-import { useRemoteList } from 'src/hooks/useRemoteList';
 
 interface ClassroomFormDialogProps {
   /** Turma em edição; sem ela, cria uma nova. */
@@ -26,35 +26,31 @@ interface TeacherSelectProps {
   errors: FieldErrors<ClassroomFormValues>;
 }
 
-/** Professores ativos para o administrador escolher o dono da turma. */
+/** Professores ativos para o administrador escolher o dono da turma (busca no servidor). */
 function TeacherSelect({ control, errors }: TeacherSelectProps) {
-  const { rows, loading, error } = useRemoteList(
-    async (signal) => (await listTeachersAction({ status: 'active', per_page: 100 }, signal)).data,
-    'active-teachers',
-  );
+  const [selected, setSelected] = useState<ApiTeacher | null>(null);
 
   return (
     <Controller
       control={control}
       name="teacher_id"
       render={({ field }) => (
-        <TextField
-          select
+        <AsyncAutocomplete<ApiTeacher>
           label="Professor"
-          value={field.value}
-          onChange={field.onChange}
+          value={selected}
+          onChange={(teacher) => {
+            setSelected(teacher);
+            field.onChange(teacher ? String(teacher.id) : '');
+          }}
           onBlur={field.onBlur}
           inputRef={field.ref}
-          disabled={loading}
-          error={Boolean(errors.teacher_id) || Boolean(error)}
-          helperText={errors.teacher_id?.message ?? error ?? undefined}
-        >
-          {rows.map((teacher) => (
-            <MenuItem key={teacher.id} value={String(teacher.id)}>
-              {teacher.name}
-            </MenuItem>
-          ))}
-        </TextField>
+          load={async (search, signal) =>
+            (await listTeachersAction({ status: 'active', search: search || undefined, per_page: 20 }, signal)).data
+          }
+          getOptionLabel={(teacher) => teacher.name}
+          getOptionKey={(teacher) => teacher.id}
+          error={errors.teacher_id?.message}
+        />
       )}
     />
   );
