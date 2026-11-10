@@ -230,6 +230,16 @@ describe('Respostas (e2e)', () => {
     expect(await prisma.questionAttempt.count()).toBe(0);
   });
 
+  it('plan_chapter_id nulo vale como prática livre', async () => {
+    const question = await createQuestion(prisma);
+    const { body } = await answer(question.id, 'A', token, {
+      plan_chapter_id: null,
+    }).expect(200);
+    expect(body).toMatchObject({ is_correct: true, coins_awarded: 10 });
+    const attempt = await prisma.questionAttempt.findFirstOrThrow();
+    expect(attempt.planChapterId).toBeNull();
+  });
+
   it('só o aluno responde: equipe recebe 403 e anônimo 401', async () => {
     const question = await createQuestion(prisma);
     for (const role of [Role.Teacher, Role.Admin]) {

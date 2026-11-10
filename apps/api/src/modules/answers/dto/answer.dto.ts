@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 
 /** Maior valor de uma coluna INTEGER do PostgreSQL. */
@@ -15,7 +15,10 @@ export class AnswerDto {
   @IsIn(OPTION_LETTERS, { message: 'Escolha uma alternativa.' })
   selected_letter: (typeof OPTION_LETTERS)[number];
 
-  /** Ausente na prática livre; o capítulo é validado na Task 8. */
+  /** Ausente (ou null) na prática livre; o capítulo é validado na Task 8. */
+  @Transform(({ value }: { value: unknown }) =>
+    value === null ? undefined : value,
+  )
   @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'Capítulo não encontrado.' })
