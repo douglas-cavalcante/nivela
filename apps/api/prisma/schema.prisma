@@ -177,6 +177,8 @@ model QuestionOption {
   attempts QuestionAttempt[]
 
   @@unique([questionId, letter])
+  // Alvo da FK composta question_attempts_option_question_fkey (alternativa × questão).
+  @@unique([id, questionId], map: "question_options_id_question_id_key")
   @@map("question_options")
 }
 
@@ -207,9 +209,11 @@ model QuestionAttempt {
 
   student        User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
   question       Question       @relation(fields: [questionId], references: [id], onDelete: Restrict)
-  selectedOption QuestionOption @relation(fields: [selectedOptionId], references: [id], onDelete: Restrict)
+  selectedOption QuestionOption @relation(fields: [selectedOptionId, questionId], references: [id, questionId], onDelete: Restrict, onUpdate: NoAction, map: "question_attempts_option_question_fkey")
 
   @@index([studentId, questionId])
+  @@index([questionId])
+  @@index([selectedOptionId])
   @@map("question_attempts")
 }
 
