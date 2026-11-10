@@ -129,7 +129,7 @@ describe('ClassroomList', () => {
     const body = vi.fn();
     const teachersQuery = vi.fn();
     listHandler();
-    teachersHandler((params) => teachersQuery(params.get('status'), params.get('per_page')));
+    teachersHandler((params) => teachersQuery(params.get('status'), params.get('per_page'), params.get('search')));
     const created = { ...sala, id: 9, name: '6º C', school_year: '2026', join_code: 'NIV-ABCD', students_count: 0, students: [] };
     server.use(
       http.post(`${API_URL}/classrooms`, async ({ request }) => {
@@ -147,14 +147,14 @@ describe('ClassroomList', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Criar turma' }));
     expect(await within(dialog).findByText('Informe o professor da turma.')).toBeInTheDocument();
 
-    await userEvent.click(within(dialog).getByRole('combobox', { name: 'Professor' }));
+    await userEvent.type(within(dialog).getByRole('combobox', { name: 'Professor' }), 'Car');
+    await waitFor(() => expect(teachersQuery).toHaveBeenLastCalledWith('active', '20', 'Car'));
     await userEvent.click(await screen.findByRole('option', { name: 'Carla Dias' }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Criar turma' }));
 
     expect(await screen.findByText('NIV-ABCD')).toBeInTheDocument();
     expect(body).toHaveBeenCalledWith({ name: '6º C', school_year: '2026', teacher_id: 3 });
-    expect(teachersQuery).toHaveBeenCalledWith('active', '100');
-    expect(screen.getByTestId('where')).toHaveTextContent('/turmas/9');
+        expect(screen.getByTestId('where')).toHaveTextContent('/turmas/9');
   });
 
   it('professor cria turma sem escolher professor', async () => {

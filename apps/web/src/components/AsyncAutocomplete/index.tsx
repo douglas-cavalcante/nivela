@@ -44,11 +44,9 @@ export function AsyncAutocomplete<T>({
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [search, setSearch] = useState('');
-  const [options, setOptions] = useState<T[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  // resultado da última busca concluída e o texto que a originou: enquanto difere do atual, está carregando
+  const [result, setResult] = useState<{ search: string; options: T[]; error: string | null } | null>(null);
   const loadRef = useRef(load);
-  const requestId = useRef(0);
 
   useEffect(() => {
     loadRef.current = load;
@@ -57,33 +55,30 @@ export function AsyncAutocomplete<T>({
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
-    const id = ++requestId.current;
-    setLoading(true);
-    setLoadError(null);
+    let stale = false;
     const timer = setTimeout(
       () => {
         loadRef
           .current(search, controller.signal)
-          .then((rows) => {
-            if (id !== requestId.current) return; // superada por uma busca mais nova
-            setOptions(rows);
-            setLoading(false);
+          .then((options) => {
+            if (!stale) setResult({ search, options, error: null });
           })
           .catch(() => {
-            if (id !== requestId.current) return;
-            setOptions([]);
-            setLoadError(LOAD_ERROR);
-            setLoading(false);
+            if (!stale) setResult({ search, options: [], error: LOAD_ERROR });
           });
       },
       search === '' ? 0 : DEBOUNCE_MS,
     );
     return () => {
+      stale = true; // uma busca mais nova (ou fechar o campo) descarta a resposta atrasada
       clearTimeout(timer);
       controller.abort();
-      requestId.current++;
     };
   }, [open, search]);
+
+  const loading = open && (result === null || result.search !== search);
+  const options = result?.options ?? [];
+  const loadError = open && !loading ? (result?.error ?? null) : null;
 
   return (
     <Autocomplete<T>
