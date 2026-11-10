@@ -45,7 +45,7 @@ function assertPositiveInteger(amount: number): void {
 }
 
 /** Trava a linha do perfil até o fim da transação (primeiro lock de toda operação de moedas). */
-async function lockProfile(
+export async function lockStudentProfile(
   tx: Prisma.TransactionClient,
   studentId: number,
 ): Promise<void> {
@@ -74,7 +74,7 @@ export class CoinLedger {
   ): Promise<CreditResult> {
     assertPositiveInteger(movement.amount);
     const { studentId, amount, reason, sourceType, sourceId } = movement;
-    await lockProfile(tx, studentId);
+    await lockStudentProfile(tx, studentId);
 
     if (!ONCE_PER_SOURCE.has(reason)) {
       await tx.coinTransaction.create({
@@ -116,7 +116,7 @@ export class CoinLedger {
   ): Promise<{ balance: number }> {
     assertPositiveInteger(movement.amount);
     const { studentId, amount, reason, sourceType, sourceId } = movement;
-    await lockProfile(tx, studentId);
+    await lockStudentProfile(tx, studentId);
 
     const rows = await tx.$queryRaw<{ coins_balance: number }[]>`
       UPDATE "student_profiles"

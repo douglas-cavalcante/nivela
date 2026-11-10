@@ -213,6 +213,17 @@ describe('CoinLedger (e2e)', () => {
   });
 });
 
+/** Repete `check` até dar verdadeiro (ou estourar o prazo, o que falha o teste). */
+async function waitUntil(check: () => Promise<boolean>, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!(await check())) {
+    if (Date.now() > deadline) {
+      throw new Error('Condição não ocorreu a tempo.');
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+}
+
 describe('StreakService (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -307,10 +318,39 @@ describe('StreakService (e2e)', () => {
       },
     });
     // 06/11 foi o dia 6; 02:59:59Z de 08/11 ainda é dia 7 em Fortaleza.
-    const results = await Promise.all([
-      register(student.id, '2026-11-08T02:59:59Z'),
-      register(student.id, '2026-11-08T03:00:01Z'),
-    ]);
+    // Ordem forçada: A trava o perfil e segura a transação aberta até B
+    // aparecer esperando o lock; só então A confirma. Assim B sempre lê o
+    // estado gravado por A (nada depende de quem chega primeiro).
+    let release!: () => void;
+    const barrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let aHoldsLock!: () => void;
+    const locked = new Promise<void>((resolve) => {
+      aHoldsLock = resolve;
+    });
+    const a = prisma.$transaction(async (tx) => {
+      const result = await streak.register(
+        tx,
+        student.id,
+        new Date('2026-11-08T02:59:59Z'),
+      );
+      aHoldsLock();
+      await barrier;
+      return result;
+    });
+    await locked;
+    const b = register(student.id, '2026-11-08T03:00:01Z');
+    await waitUntil(async () => {
+      const rows = await prisma.$queryRaw<{ waiting: number }[]>`
+        SELECT count(*)::int AS waiting FROM pg_stat_activity
+        WHERE wait_event_type = 'Lock' AND query LIKE '%student_profiles%FOR UPDATE%'`;
+      return rows[0].waiting > 0;
+    });
+    release();
+    const results = [await a, await b];
+    expect(results[0]).toEqual({ current: 7, best: 7, bonus_awarded: 20 });
+    expect(results[1]).toEqual({ current: 8, best: 8, bonus_awarded: 0 });
     const profile = await prisma.studentProfile.findUniqueOrThrow({
       where: { userId: student.id },
     });
@@ -319,7 +359,6 @@ describe('StreakService (e2e)', () => {
     expect(profile.lastStudyDate?.toISOString().slice(0, 10)).toBe(
       '2026-11-08',
     );
-    expect(results.reduce((sum, r) => sum + r.bonus_awarded, 0)).toBe(20);
     expect(profile.coinsBalance).toBe(20);
     expect(
       await prisma.coinTransaction.count({
