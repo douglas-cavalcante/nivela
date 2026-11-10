@@ -25,3 +25,20 @@ jest.mock('expo-splash-screen', () => ({
   preventAutoHideAsync: jest.fn(async () => true),
   hideAsync: jest.fn(async () => true),
 }));
+
+// Animações: nos testes `src/lib/motion` vira um dublê estático (sem worklets) e "reduzir movimento"
+// fica ligado, então nada se move e os testes são determinísticos.
+jest.mock('src/lib/motion', () => {
+  const identity = <T>(value: T): T => value;
+  const { View, Text } = jest.requireActual<typeof import('react-native')>('react-native');
+  return {
+    Animated: { View, Text },
+    useReducedMotion: () => true,
+    useSharedValue: <T>(value: T) => ({ value }),
+    useAnimatedStyle: () => ({}),
+    withTiming: identity,
+    withDelay: (_delay: number, value: unknown) => value,
+    withSequence: (...values: unknown[]) => values[values.length - 1],
+    Easing: { out: identity, cubic: identity },
+  };
+});
