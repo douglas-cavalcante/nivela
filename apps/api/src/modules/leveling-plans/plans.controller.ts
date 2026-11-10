@@ -10,11 +10,19 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import type { ApiPlan, ApiPlanSummary, Paginated } from '@nivela/api-contract';
+import type {
+  ApiList,
+  ApiPlan,
+  ApiPlanAssignment,
+  ApiPlanSummary,
+  Paginated,
+} from '@nivela/api-contract';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { ParseIdPipe } from 'src/common/pipes/parse-id.pipe';
+import { AssignmentsService } from 'src/modules/leveling-plans/assignments.service';
 import { ChaptersService } from 'src/modules/leveling-plans/chapters.service';
+import { AssignmentDto } from 'src/modules/leveling-plans/dto/assignment.dto';
 import { ChapterOrderDto } from 'src/modules/leveling-plans/dto/chapter-order.dto';
 import { ChapterQuestionsDto } from 'src/modules/leveling-plans/dto/chapter-questions.dto';
 import { ChapterDto } from 'src/modules/leveling-plans/dto/chapter.dto';
@@ -36,6 +44,7 @@ export class PlansController {
   constructor(
     private readonly plans: PlansService,
     private readonly chapters: ChaptersService,
+    private readonly assignments: AssignmentsService,
   ) {}
 
   @Get()
@@ -135,5 +144,33 @@ export class PlansController {
     @CurrentUser() user: AuthUser,
   ): Promise<ApiPlan> {
     return this.chapters.setQuestions(id, chapter, dto.question_ids, user);
+  }
+
+  @Get(':id/assignments')
+  listAssignments(
+    @Param('id', planId()) id: number,
+    @CurrentUser() user: AuthUser,
+  ): Promise<ApiList<ApiPlanAssignment>> {
+    return this.assignments.list(id, user);
+  }
+
+  @Post(':id/assignments')
+  assign(
+    @Param('id', planId()) id: number,
+    @Body() dto: AssignmentDto,
+    @CurrentUser() user: AuthUser,
+  ): Promise<ApiPlanAssignment> {
+    return this.assignments.create(id, dto, user);
+  }
+
+  @Delete(':id/assignments/:assignmentId')
+  @HttpCode(204)
+  unassign(
+    @Param('id', planId()) id: number,
+    @Param('assignmentId', new ParseIdPipe('Atribuição não encontrada.'))
+    assignment: number,
+    @CurrentUser() user: AuthUser,
+  ): Promise<void> {
+    return this.assignments.remove(id, assignment, user);
   }
 }
