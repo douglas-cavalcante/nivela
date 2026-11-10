@@ -42,7 +42,8 @@ Na API a pasta é `kebab-case` (`modules/leveling-plans`); na web e no mobile é
 | `classrooms` | CRUD de turmas, código de entrada, matrícula manual e remoção de alunos; `GET`/`POST /me/classrooms` do aluno | Lista e ficha da turma | "Minhas turmas" e entrada pelo código no Perfil |
 | `students` | Listagem e ficha de alunos (escopo do professor) | Lista e ficha do aluno | — |
 | `health` | `GET /health` | — | — |
-| `answers`, `levelingPlans`, `rewards`, `dashboard` | planejadas (Planos 3 a 5) | planejadas | planejadas |
+| `answers` | prática livre (`/practice/*`), respostas com tentativas, moedas e sequência (`POST /answers`), `GET /me/stats` | planejadas | planejadas |
+| `levelingPlans`, `rewards`, `dashboard` | planejadas (Planos 3 a 5) | planejadas | planejadas |
 
 ---
 
