@@ -341,13 +341,19 @@ describe('StreakService (e2e)', () => {
     });
     await locked;
     const b = register(student.id, '2026-11-08T03:00:01Z');
-    await waitUntil(async () => {
-      const rows = await prisma.$queryRaw<{ waiting: number }[]>`
-        SELECT count(*)::int AS waiting FROM pg_stat_activity
-        WHERE wait_event_type = 'Lock' AND query LIKE '%student_profiles%FOR UPDATE%'`;
-      return rows[0].waiting > 0;
-    });
-    release();
+    try {
+      await waitUntil(async () => {
+        const rows = await prisma.$queryRaw<{ waiting: number }[]>`
+          SELECT count(*)::int AS waiting FROM pg_stat_activity
+          WHERE datname = current_database()
+            AND wait_event_type = 'Lock'
+            AND query LIKE '%student_profiles%FOR UPDATE%'`;
+        return rows[0].waiting > 0;
+      });
+    } finally {
+      // Sem isto, uma falha da espera deixaria A segurando o lock para sempre.
+      release();
+    }
     const results = [await a, await b];
     expect(results[0]).toEqual({ current: 7, best: 7, bonus_awarded: 20 });
     expect(results[1]).toEqual({ current: 8, best: 8, bonus_awarded: 0 });
