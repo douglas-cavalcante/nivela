@@ -34,11 +34,13 @@ model User {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  studentProfile StudentProfile?
-  accessTokens   AccessToken[]
-  classrooms     Classroom[]
-  enrollments    ClassroomStudent[]
-  questions      Question[]
+  studentProfile   StudentProfile?
+  accessTokens     AccessToken[]
+  classrooms       Classroom[]
+  enrollments      ClassroomStudent[]
+  questions        Question[]
+  attempts         QuestionAttempt[]
+  coinTransactions CoinTransaction[]
 
   @@map("users")
 }
@@ -153,10 +155,11 @@ model Question {
   createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  author   User             @relation(fields: [authorId], references: [id], onDelete: Restrict)
-  subject  Subject          @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  category Category         @relation(fields: [categoryId, subjectId], references: [id, subjectId], onDelete: Restrict, onUpdate: NoAction, map: "questions_category_subject_fkey")
+  author   User              @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  subject  Subject           @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  category Category          @relation(fields: [categoryId, subjectId], references: [id, subjectId], onDelete: Restrict, onUpdate: NoAction, map: "questions_category_subject_fkey")
   options  QuestionOption[]
+  attempts QuestionAttempt[]
 
   @@index([subjectId, categoryId, active])
   @@index([authorId])
@@ -170,8 +173,60 @@ model QuestionOption {
   text       String
   isCorrect  Boolean @map("is_correct")
 
-  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  question Question          @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  attempts QuestionAttempt[]
 
   @@unique([questionId, letter])
   @@map("question_options")
+}
+
+enum CoinReason {
+  correct_answer
+  plan_completed
+  streak_bonus
+  redemption
+  refund
+
+  @@map("coin_reason")
+}
+
+// Unicidade das tentativas por contexto: índices únicos parciais criados à mão
+// na migration answers (question_attempts_practice_key para plan_chapter_id
+// nulo e question_attempts_chapter_key para não nulo) e CHECK de
+// attempt_number (1 ou 2). A FK de plan_chapter_id entra com os planos.
+model QuestionAttempt {
+  id               Int      @id @default(autoincrement())
+  studentId        Int      @map("student_id")
+  questionId       Int      @map("question_id")
+  planChapterId    Int?     @map("plan_chapter_id")
+  selectedOptionId Int      @map("selected_option_id")
+  attemptNumber    Int      @map("attempt_number") @db.SmallInt
+  isCorrect        Boolean  @map("is_correct")
+  coinsAwarded     Int      @default(0) @map("coins_awarded")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  student        User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  question       Question       @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  selectedOption QuestionOption @relation(fields: [selectedOptionId], references: [id], onDelete: Restrict)
+
+  @@index([studentId, questionId])
+  @@map("question_attempts")
+}
+
+// "Uma vez" por origem: índices únicos parciais criados à mão na migration
+// answers (coin_once_per_question, coin_once_per_plan, coin_once_per_streak_day)
+// e CHECK amount <> 0.
+model CoinTransaction {
+  id         Int        @id @default(autoincrement())
+  studentId  Int        @map("student_id")
+  amount     Int
+  reason     CoinReason
+  sourceType String     @map("source_type") @db.VarChar(30)
+  sourceId   Int        @map("source_id")
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, createdAt])
+  @@map("coin_transactions")
 }
