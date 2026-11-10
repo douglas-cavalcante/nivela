@@ -21,3 +21,11 @@ export type {
   ApiMyClassroom,
 } from './classrooms';
 export type { ApiStudent, ApiStudentSummary } from './students';
+export type {
+  ApiAnswerPayload,
+  ApiAnswerResult,
+  ApiPracticeNext,
+  ApiPracticeSubject,
+  ApiStudentQuestion,
+  ApiStudentStats,
+} from './study';
