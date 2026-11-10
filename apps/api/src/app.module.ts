@@ -13,11 +13,13 @@ import { StudentsModule } from 'src/modules/students/students.module';
 import { SubjectsModule } from 'src/modules/subjects/subjects.module';
 import { TeachersModule } from 'src/modules/teachers/teachers.module';
 import { PrismaModule } from 'src/prisma/prisma.module';
+import { ClockModule } from 'src/shared/clock/clock.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    ClockModule,
     AuthModule,
     ClassroomsModule,
     SubjectsModule,
