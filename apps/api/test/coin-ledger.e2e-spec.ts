@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CoinLedger } from 'src/shared/coins/coin-ledger';
 import { isUniqueViolation } from 'src/shared/prisma/unique-violation';
+import { StreakService } from 'src/shared/study/streak.service';
 import { StudyModule } from 'src/shared/study/study.module';
 import { createTestApp } from './helpers/create-test-app';
 import { createUser } from './helpers/factories';
@@ -47,6 +48,7 @@ describe('CoinLedger (e2e)', () => {
       imports: [StudyModule],
     }).compile();
     expect(moduleRef.get(CoinLedger)).toBeInstanceOf(CoinLedger);
+    expect(moduleRef.get(StreakService)).toBeInstanceOf(StreakService);
   });
 
   it('credita: grava a linha e soma no saldo', async () => {
@@ -208,5 +210,89 @@ describe('CoinLedger (e2e)', () => {
       expect(isUniqueViolation(error, index)).toBe(true);
       expect(isUniqueViolation(error, 'outro_indice')).toBe(false);
     }
+  });
+});
+
+describe('StreakService (e2e)', () => {
+  let app: INestApplication;
+  let prisma: PrismaService;
+  const streak = new StreakService(new CoinLedger());
+  const originalTz = process.env.TZ;
+
+  const register = (studentId: number, now: string) =>
+    prisma.$transaction((tx) => streak.register(tx, studentId, new Date(now)));
+
+  beforeAll(async () => {
+    // O servidor em UTC não pode mudar o dia de estudo.
+    process.env.TZ = 'UTC';
+    app = await createTestApp();
+    prisma = app.get(PrismaService);
+  });
+
+  afterAll(async () => {
+    await app.close();
+    if (originalTz === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = originalTz;
+    }
+  });
+
+  beforeEach(async () => {
+    await resetDatabase(prisma);
+  });
+
+  it('23h50 e 00h10 em Fortaleza contam dias consecutivos; pular um dia zera', async () => {
+    const student = await createUser(prisma);
+    await register(student.id, '2026-11-10T02:50:00Z'); // 09/11 23h50
+    const next = await register(student.id, '2026-11-10T03:10:00Z'); // 10/11 00h10
+    expect(next).toEqual({ current: 2, best: 2, bonus_awarded: 0 });
+
+    const skipped = await register(student.id, '2026-11-12T15:00:00Z');
+    expect(skipped).toEqual({ current: 1, best: 2, bonus_awarded: 0 });
+
+    const profile = await prisma.studentProfile.findUniqueOrThrow({
+      where: { userId: student.id },
+    });
+    expect(profile.lastStudyDate?.toISOString().slice(0, 10)).toBe(
+      '2026-11-12',
+    );
+  });
+
+  it('o bônus de 7 dias entra uma vez por marco, mesmo repetindo o dia ou em paralelo', async () => {
+    const student = await createUser(prisma);
+    for (let day = 1; day <= 6; day += 1) {
+      await register(student.id, `2026-11-0${day}T15:00:00Z`);
+    }
+    const [a, b] = await Promise.all([
+      register(student.id, '2026-11-07T15:00:00Z'),
+      register(student.id, '2026-11-07T16:00:00Z'),
+    ]);
+    expect(a.current).toBe(7);
+    expect(b.current).toBe(7);
+    expect(a.bonus_awarded + b.bonus_awarded).toBe(20);
+
+    const again = await register(student.id, '2026-11-07T20:00:00Z');
+    expect(again.bonus_awarded).toBe(0);
+
+    const profile = await prisma.studentProfile.findUniqueOrThrow({
+      where: { userId: student.id },
+    });
+    expect(profile.coinsBalance).toBe(20);
+    expect(
+      await prisma.coinTransaction.count({
+        where: { studentId: student.id, reason: 'streak_bonus' },
+      }),
+    ).toBe(1);
+
+    // O marco seguinte (14º dia) paga de novo.
+    for (let day = 8; day <= 13; day += 1) {
+      await register(
+        student.id,
+        `2026-11-${String(day).padStart(2, '0')}T15:00:00Z`,
+      );
+    }
+    const fourteenth = await register(student.id, '2026-11-14T15:00:00Z');
+    expect(fourteenth).toEqual({ current: 14, best: 14, bonus_awarded: 20 });
   });
 });
