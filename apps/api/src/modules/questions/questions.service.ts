@@ -23,6 +23,7 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
 import { Role } from 'src/shared/enums/role.enum';
+import { BusinessRuleException } from 'src/shared/exceptions/business-rule.exception';
 import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
 import { paginate, toPrismaPage } from 'src/shared/pagination/paginate';
 import { containsInsensitive } from 'src/shared/prisma/contains-insensitive';
@@ -33,6 +34,8 @@ const FORBIDDEN = 'Só o autor ou um administrador pode editar esta questão.';
 const SUBJECT_NOT_FOUND = 'Disciplina não encontrada.';
 const CATEGORY_NOT_FOUND = 'Categoria não encontrada.';
 const CATEGORY_MISMATCH = 'A categoria não pertence à disciplina.';
+const ANSWERED =
+  'Esta questão já foi respondida; não é possível trocar a alternativa correta.';
 
 const WITH_RELATIONS = {
   subject: { select: { id: true, name: true, color: true } },
@@ -106,10 +109,17 @@ export class QuestionsService {
     dto: QuestionDto,
     user: AuthUser,
   ): Promise<ApiQuestion> {
-    this.assertCanEdit(await this.load(id), user);
+    const current = await this.load(id);
+    this.assertCanEdit(current, user);
     await this.assertSubjectAndCategory(dto);
+    const changesCorrect =
+      current.options.find((option) => option.isCorrect)?.letter !==
+      dto.correct_letter;
     try {
       await this.prisma.$transaction(async (tx) => {
+        // O update trava a linha da questão; `POST /answers` pega um lock
+        // compartilhado nela. Assim, depois deste ponto nenhuma tentativa nova
+        // entra até o fim da transação e a contagem abaixo é definitiva.
         await tx.question.update({
           where: { id },
           data: {
@@ -121,6 +131,15 @@ export class QuestionsService {
           },
           select: { id: true },
         });
+        // Política de edição: com tentativas registradas a correta não troca
+        // (as respostas e as moedas já pagas dependem dela). O erro desfaz o
+        // update acima.
+        if (
+          changesCorrect &&
+          (await tx.questionAttempt.count({ where: { questionId: id } })) > 0
+        ) {
+          throw new BusinessRuleException(ANSWERED);
+        }
         // As alternativas são atualizadas no lugar (nunca recriadas): as
         // respostas dos alunos apontam para o id delas. Desmarca todas antes
         // de marcar a nova correta para não esbarrar no índice parcial

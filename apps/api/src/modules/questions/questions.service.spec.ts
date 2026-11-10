@@ -6,6 +6,7 @@ import { QuestionsService } from 'src/modules/questions/questions.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
 import { Role } from 'src/shared/enums/role.enum';
+import { BusinessRuleException } from 'src/shared/exceptions/business-rule.exception';
 import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
 
 const author: AuthUser = {
@@ -87,6 +88,7 @@ describe('QuestionsService', () => {
   const categoryFindUnique = jest.fn();
   const tx = {
     question: { update: jest.fn() },
+    questionAttempt: { count: jest.fn() },
     questionOption: {
       updateMany: jest.fn(),
       update: jest.fn(),
@@ -201,6 +203,7 @@ describe('QuestionsService', () => {
 
   it('update: atualiza as alternativas no lugar, desmarcando todas antes de marcar a correta', async () => {
     questionFindUnique.mockResolvedValue(row());
+    tx.questionAttempt.count.mockResolvedValue(0);
 
     await service.update(10, dto({ correct_letter: 'E' }), author);
 
@@ -223,6 +226,26 @@ describe('QuestionsService', () => {
       data: Record<string, unknown>;
     };
     expect(data).not.toHaveProperty('options');
+  });
+
+  it('update: trocar a correta com tentativas registradas dá 409 e não mexe nas alternativas', async () => {
+    questionFindUnique.mockResolvedValue(row());
+    tx.questionAttempt.count.mockResolvedValue(1);
+    await expect(
+      service.update(10, dto({ correct_letter: 'E' }), author),
+    ).rejects.toThrow(
+      new BusinessRuleException(
+        'Esta questão já foi respondida; não é possível trocar a alternativa correta.',
+      ),
+    );
+    expect(tx.questionOption.update).not.toHaveBeenCalled();
+  });
+
+  it('update: mantendo a correta, nem consulta as tentativas', async () => {
+    questionFindUnique.mockResolvedValue(row());
+    await service.update(10, dto({ correct_letter: 'C' }), author);
+    expect(tx.questionAttempt.count).not.toHaveBeenCalled();
+    expect(tx.questionOption.update).toHaveBeenCalledTimes(5);
   });
 
   it('update e status: 403 para quem não é autor nem admin', async () => {
