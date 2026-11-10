@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
+import { AnswersModule } from 'src/modules/answers/answers.module';
 import { AuthModule } from 'src/modules/auth/auth.module';
 import { CategoriesModule } from 'src/modules/categories/categories.module';
 import { ClassroomsModule } from 'src/modules/classrooms/classrooms.module';
@@ -24,6 +25,7 @@ import { PrismaModule } from 'src/prisma/prisma.module';
     TeachersModule,
     StudentsModule,
     QuestionsModule,
+    AnswersModule,
     HealthModule,
   ],
   providers: [

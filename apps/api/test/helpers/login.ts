@@ -9,6 +9,11 @@ export async function tokenFor(
   app: INestApplication,
   role: Role,
 ): Promise<string> {
+  return (await sessionFor(app, role)).token;
+}
+
+/** Como `tokenFor`, mas devolve também o usuário criado. */
+export async function sessionFor(app: INestApplication, role: Role) {
   const user = await createUser(app.get(PrismaService), { role });
   const { body } = await request(app.getHttpServer())
     .post('/api/v1/auth/login')
@@ -18,5 +23,5 @@ export async function tokenFor(
       channel: role === Role.Student ? 'mobile' : 'web',
     })
     .expect(200);
-  return body.token as string;
+  return { user, token: body.token as string };
 }

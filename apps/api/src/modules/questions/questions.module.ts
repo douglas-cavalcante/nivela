@@ -6,5 +6,6 @@ import { QuestionsService } from 'src/modules/questions/questions.service';
 @Module({
   controllers: [QuestionsController],
   providers: [QuestionsService, QuestionImageService],
+  exports: [QuestionImageService],
 })
 export class QuestionsModule {}
