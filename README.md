@@ -17,7 +17,7 @@ Integração contínua: [workflow de CI](.github/workflows/ci.yml) (lint, tipos,
 | `packages/api-contract` | Tipos de resposta da API e `parseApiError`, compartilhados |
 | `docs/` | Documentação e especificação |
 
-> Em construção: as funcionalidades chegam ao longo do [plano de implementação](docs/superpowers/plans/). Hoje já funcionam o login (web e mobile), o cadastro do aluno com código de turma, o perfil com troca de senha e, no painel web, os cadastros de professores, disciplinas, categorias, questões (com imagem), turmas e alunos; no app, o aluno vê as turmas e entra em outra pelo código.
+> Em construção: as funcionalidades chegam ao longo do [plano de implementação](docs/superpowers/plans/). Hoje já funcionam o login (web e mobile), o cadastro do aluno com código de turma, o perfil com troca de senha e, no painel web, os cadastros de professores, disciplinas, categorias, questões (com imagem), turmas e alunos; no app, o aluno vê as turmas, entra em outra pelo código, pratica por disciplina, segue planos de nivelamento por capítulos e ganha moedas e sequência de estudo. Planos (criação, atribuição e progresso) já existem no painel; a loja de prêmios e os relatórios ainda estão por vir.
 
 ## Pré-requisitos
 
@@ -71,6 +71,19 @@ Troque a senha em **Perfil** no primeiro acesso.
 > **Outra porta no web:** o CORS padrão só libera o Vite em `http://localhost:5173` (e o Expo web em 8081/19006). Se subir o painel em outra porta (por exemplo `npm run dev:web -- --port 5174`), defina `CORS_ORIGINS=http://localhost:5174` no `apps/api/.env` e reinicie a API; o mesmo vale para acessar o painel pelo IP da máquina. Se mudar a porta da API, ajuste também `VITE_API_URL` e `EXPO_PUBLIC_API_URL`.
 
 Se `VITE_API_URL` (web) ou `EXPO_PUBLIC_API_URL` (mobile) não estiver definida, o app falha logo ao abrir com uma mensagem dizendo qual `.env` copiar.
+
+## Testando o fluxo do aluno
+
+Com API, web e (opcionalmente) o app rodando e o administrador do seed:
+
+1. No painel web (`http://localhost:5173`), entre como administrador e crie uma **disciplina** e uma **categoria** em **Disciplinas** e **Categorias**.
+2. Em **Questões**, cadastre pelo menos 3 questões da disciplina (5 alternativas, 1 correta, com explicação).
+3. Em **Turmas**, crie uma turma e copie o **código** (`NIV-XXXX`).
+4. Em **Planos**, crie um plano (disciplina, bônus de conclusão), adicione 2 capítulos com questões, **publique** e, na aba **Atribuições**, atribua à turma.
+5. No app (emulador ou Expo Go), toque em **Tenho um código de turma**, cadastre o aluno com o código e entre.
+6. No **Início**, abra o plano: o capítulo 1 está disponível e o 2 trancado. Responda uma questão errando duas vezes (a correção e a explicação aparecem só no fim), acerte as outras (10 moedas na 1ª tentativa, 5 na 2ª) e conclua o capítulo 1; o 2 é liberado. Concluindo o 2, o plano termina e o bônus entra no saldo.
+7. Em **Estudar**, pratique por disciplina; moedas e sequência (conta o dia em `America/Fortaleza`) aparecem na barra do topo.
+8. No painel, abra o plano e veja o **Progresso** da turma.
 
 ## Testes e outros comandos
 

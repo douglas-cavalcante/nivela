@@ -124,7 +124,7 @@ src/
 ### 3.4 Mobile — `apps/mobile` (aluno)
 
 - Expo SDK 58, **Expo Router**, TypeScript estrito, Axios, `expo-secure-store` (token), `react-native-reanimated` (microanimações), `react-native-svg` (mascote), fontes Caveat + Nunito (`@expo-google-fonts`).
-- Rotas em `app/` (Expo Router): `(auth)/welcome`, `(auth)/login`, `(auth)/register`, `(tabs)/index`, `(tabs)/study`, `(tabs)/store`, `(tabs)/profile`, `plans/[id]`, `questions/[id]`.
+- Rotas em `app/` (Expo Router): `(auth)/welcome`, `(auth)/login`, `(auth)/register`, `(tabs)/index`, `(tabs)/study`, `(tabs)/store`, `(tabs)/profile`, `plans/[id]`, `plans/[id]/chapters/[chapterId]` (questão do capítulo), `practice/[subjectId]` (questão da prática livre).
 - Lógica em `src/features/<feature>/` com a mesma anatomia e as mesmas regras de import da web.
 - Testes: jest-expo + Testing Library.
 
@@ -207,12 +207,12 @@ Exporta em TypeScript: paleta (claro/escuro), tipografia, raios, espaçamentos, 
 | `plan_assignments` | id, leveling_plan_id, classroom_id?, student_id?, due_date? — exatamente um de classroom/student (CHECK) |
 | `chapter_completions` | student_id, plan_chapter_id, completed_at — PK composta |
 | `plan_completions` | student_id, leveling_plan_id, completed_at, bonus_awarded — PK composta |
-| `question_attempts` | id, student_id, question_id, plan_chapter_id?, selected_option_id, attempt_number (1/2), is_correct, coins_awarded, created_at |
+| `question_attempts` | id, student_id, question_id, plan_chapter_id?, selected_option_id, attempt_number (1/2), is_correct, coins_awarded, created_at — o cliente envia `selected_letter` (A–E) e a API resolve `selected_option_id` por `(question_id, letter)`; únicos parciais por contexto (prática × capítulo) |
 | `coin_transactions` | id, student_id, amount (±), reason (`correct_answer`/`plan_completed`/`streak_bonus`/`redemption`/`refund`), source_type, source_id, created_at |
 | `rewards` | id, created_by, name, description, image_path?, price, stock, active, timestamps |
 | `reward_redemptions` | id, reward_id, student_id, price_paid, status (`pending`/`delivered`/`rejected`), handled_by?, handled_at?, rejection_reason?, timestamps |
 
-Índices em todas as FKs e em `questions(subject_id, category_id, active)`, `question_attempts(student_id, question_id)`, `reward_redemptions(status)`.
+Moedas "uma vez" (acerto por questão, bônus do plano, bônus de sequência por dia) são garantidas por índices únicos parciais em `coin_transactions(student_id, source_id)` por `reason`. Índices em todas as FKs e em `questions(subject_id, category_id, active)`, `question_attempts(student_id, question_id)`, `reward_redemptions(status)`.
 
 ---
 
@@ -221,12 +221,12 @@ Exporta em TypeScript: paleta (claro/escuro), tipografia, raios, espaçamentos, 
 | Código | Regra |
 |---|---|
 | RN01 | Toda questão tem exatamente 5 alternativas (A–E) e exatamente 1 correta. |
-| RN02 | Só o autor ou o admin edita uma questão. Questão com tentativas registradas não é excluída, só desativada. Questões inativas não aparecem para alunos. |
+| RN02 | Só o autor ou o admin edita uma questão. Questão com tentativas registradas não é excluída, só desativada. Questões inativas não aparecem para alunos. Com tentativas registradas, a alternativa correta não pode ser trocada (409); o restante continua editável. |
 | RN03 | O aluno tem no máximo 2 tentativas por questão **por contexto** (capítulo de plano ou prática livre). |
 | RN04 | Moedas por acerto: 10 na 1ª tentativa, 5 na 2ª. O aluno só ganha moedas na **primeira vez** que acerta cada questão (em qualquer contexto). |
 | RN05 | A alternativa correta e a explicação só são enviadas ao app **depois** da resposta (acerto ou 2ª tentativa errada). |
-| RN06 | Um capítulo é concluído quando todas as suas questões foram acertadas ou tiveram as 2 tentativas esgotadas. O capítulo N+1 só libera após concluir o N. |
-| RN07 | Ao concluir o último capítulo, o plano é concluído e o aluno recebe `completion_bonus` uma única vez. |
+| RN06 | Um capítulo é concluído quando todas as suas questões **ativas** foram acertadas ou tiveram as 2 tentativas esgotadas; o estado é derivado (questão desativada depois não trava o aluno) e a conclusão é gravada de forma idempotente, na resposta ou ao abrir o plano. Capítulo sem questão ativa conta como concluído se o anterior está concluído. O capítulo N+1 só libera após concluir o N (estados `locked`, `available`, `completed`). Responder em capítulo já concluído é aceito, sem novo bônus. |
+| RN07 | Ao concluir o último capítulo, o plano é concluído e o aluno recebe `completion_bonus` uma única vez. Na resposta da API, `chapter.completed` e `plan.completed` são **eventos**: verdadeiros só na resposta que concluiu (falsos se já estavam concluídos). |
 | RN08 | Plano só pode ser atribuído depois de publicado; plano publicado com progresso de alunos não pode ter capítulos/questões removidos. |
 | RN09 | Sequência: responder ≥ 1 questão num dia (fuso America/Fortaleza) mantém/incrementa o streak; pular um dia zera. A cada 7 dias consecutivos, +20 moedas. |
 | RN10 | Toda movimentação de moedas gera linha em `coin_transactions` e atualiza `coins_balance` na mesma transação do banco. Saldo nunca fica negativo. |
