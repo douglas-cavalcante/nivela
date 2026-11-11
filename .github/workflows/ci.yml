@@ -49,6 +49,16 @@ jobs:
         run: npm run typecheck -w apps/api
       - name: Testes unitários
         run: npm test -w apps/api
+      # Drift: aplica as migrations num banco-sombra descartável e compara com o
+      # schema.prisma (--exit-code: 0 = sem diferença, 2 = drift, 1 = erro).
+      - name: Drift do schema (migrations × schema.prisma)
+        working-directory: apps/api
+        env:
+          PGPASSWORD: nivela
+          SHADOW_DATABASE_URL: postgresql://nivela:nivela@localhost:5432/nivela_shadow
+        run: |
+          psql -h localhost -U nivela -d nivela_test -c 'CREATE DATABASE nivela_shadow'
+          npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code
       # Aplica as migrations (prisma migrate deploy) no banco do serviço e roda os e2e.
       - name: Testes e2e
         run: npm run test:e2e -w apps/api
@@ -110,5 +120,6 @@ jobs:
         run: npm run lint -w apps/mobile
       - name: Tipos
         run: npm run typecheck -w apps/mobile
+      # Metade dos núcleos: menos disputa de CPU entre os workers do jest-expo.
       - name: Testes
-        run: npm test -w apps/mobile
+        run: npm test -w apps/mobile -- --maxWorkers=50%

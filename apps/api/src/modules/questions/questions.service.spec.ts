@@ -87,7 +87,9 @@ describe('QuestionsService', () => {
   const subjectFindUnique = jest.fn();
   const categoryFindUnique = jest.fn();
   const tx = {
+    $queryRaw: jest.fn(),
     question: { update: jest.fn() },
+    chapterQuestion: { count: jest.fn() },
     questionAttempt: { count: jest.fn() },
     questionOption: {
       findFirst: jest.fn(),
@@ -125,6 +127,8 @@ describe('QuestionsService', () => {
     categoryFindUnique.mockResolvedValue({ subjectId: 1 });
     // Correta atual lida dentro da transação, depois do lock da questão.
     tx.questionOption.findFirst.mockResolvedValue({ letter: 'C' });
+    // Disciplina atual lida com FOR UPDATE.
+    tx.$queryRaw.mockResolvedValue([{ subject_id: 1 }]);
   });
 
   it('findOne: 404 quando não existe; can_edit só para o autor e o admin', async () => {
@@ -256,6 +260,24 @@ describe('QuestionsService', () => {
     expect(tx.question.update.mock.invocationCallOrder[0]).toBeLessThan(
       tx.questionOption.findFirst.mock.invocationCallOrder[0],
     );
+  });
+
+  it('update: questão em capítulo não troca de disciplina (422, nada gravado)', async () => {
+    questionFindUnique.mockResolvedValue(row());
+    tx.$queryRaw.mockResolvedValue([{ subject_id: 2 }]);
+    tx.chapterQuestion.count.mockResolvedValue(1);
+    expect(await errorsOf(service.update(10, dto(), author))).toEqual({
+      subject_id: [
+        'A questão está em um plano; não é possível trocar a disciplina.',
+      ],
+    });
+    expect(tx.question.update).not.toHaveBeenCalled();
+  });
+
+  it('update: mesma disciplina nem consulta os capítulos', async () => {
+    questionFindUnique.mockResolvedValue(row());
+    await service.update(10, dto(), author);
+    expect(tx.chapterQuestion.count).not.toHaveBeenCalled();
   });
 
   it('update: mantendo a correta, nem consulta as tentativas', async () => {

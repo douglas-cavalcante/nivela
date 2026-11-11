@@ -34,6 +34,8 @@ const FORBIDDEN = 'Só o autor ou um administrador pode editar esta questão.';
 const SUBJECT_NOT_FOUND = 'Disciplina não encontrada.';
 const CATEGORY_NOT_FOUND = 'Categoria não encontrada.';
 const CATEGORY_MISMATCH = 'A categoria não pertence à disciplina.';
+const IN_PLAN =
+  'A questão está em um plano; não é possível trocar a disciplina.';
 const ANSWERED =
   'Esta questão já foi respondida; não é possível trocar a alternativa correta.';
 
@@ -114,9 +116,25 @@ export class QuestionsService {
     await this.assertSubjectAndCategory(dto);
     try {
       await this.prisma.$transaction(async (tx) => {
-        // O update trava a linha da questão; `POST /answers` pega um lock
-        // compartilhado nela. Assim, depois deste ponto nenhuma tentativa nova
-        // entra até o fim da transação e a contagem abaixo é definitiva.
+        // Trava a linha da questão (única trava desta transação); `POST
+        // /answers` e a montagem de capítulos pegam um lock compartilhado
+        // nela. Assim, depois deste ponto nenhuma tentativa nova nem vínculo
+        // novo com capítulo entra até o fim da transação e as contagens abaixo
+        // são definitivas.
+        const [locked] = await tx.$queryRaw<{ subject_id: number }[]>`
+          SELECT "subject_id" FROM "questions" WHERE "id" = ${id} FOR UPDATE`;
+        if (!locked) {
+          throw new NotFoundException(NOT_FOUND);
+        }
+        // O plano é de uma disciplina só: questão de capítulo não troca de
+        // disciplina (nem por categoria de outra disciplina, que já cai na
+        // checagem de categoria).
+        if (
+          locked.subject_id !== dto.subject_id &&
+          (await tx.chapterQuestion.count({ where: { questionId: id } })) > 0
+        ) {
+          throw new FieldValidationException({ subject_id: [IN_PLAN] });
+        }
         await tx.question.update({
           where: { id },
           data: {

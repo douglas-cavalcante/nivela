@@ -11,10 +11,42 @@ export interface StreakResult {
   bonus_awarded: number;
 }
 
+/** O que fica gravado em `student_profiles` sobre a sequência. */
+export interface StoredStreak {
+  currentStreak: number;
+  bestStreak: number;
+  /** Coluna `date`: o driver a devolve como meia-noite UTC do dia gravado. */
+  lastStudyDate: Date | null;
+}
+
+/** Número do dia (`dayNumber`) gravado numa coluna `date`. */
+function storedDayNumber(lastStudyDate: Date): number {
+  return dayNumber(lastStudyDate.toISOString().slice(0, 10));
+}
+
 /** Sequência de dias estudados (RN09), contada em dias de Fortaleza. */
 @Injectable()
 export class StreakService {
   constructor(private readonly coins: CoinLedger) {}
+
+  /**
+   * Ruling 10: sequência efetiva para toda leitura. A gravada só é atualizada
+   * quando o aluno responde; se o último dia de estudo foi há mais de 1 dia
+   * (em Fortaleza), a sequência já está quebrada (RN09: pular um dia zera) e
+   * vale 0. O melhor nunca muda.
+   */
+  effective(
+    profile: StoredStreak,
+    now: Date,
+  ): { current: number; best: number } {
+    const broken =
+      profile.lastStudyDate === null ||
+      dayNumber(studyDay(now)) - storedDayNumber(profile.lastStudyDate) > 1;
+    return {
+      current: broken ? 0 : profile.currentStreak,
+      best: profile.bestStreak,
+    };
+  }
 
   /**
    * Registra estudo no dia de `now`, na transação `tx`: mesmo dia não muda
@@ -41,16 +73,15 @@ export class StreakService {
     if (!row) {
       throw new Error(`Perfil de aluno ${studentId} não encontrado.`);
     }
-    const profile = {
+    const profile: StoredStreak = {
       currentStreak: row.current_streak,
       bestStreak: row.best_streak,
       lastStudyDate: row.last_study_date,
     };
     const today = studyDay(now);
     const todayNumber = dayNumber(today);
-    // A coluna é `date`: o driver a devolve como meia-noite UTC do dia gravado.
     const lastNumber = profile.lastStudyDate
-      ? dayNumber(profile.lastStudyDate.toISOString().slice(0, 10))
+      ? storedDayNumber(profile.lastStudyDate)
       : null;
 
     if (lastNumber !== null && todayNumber <= lastNumber) {

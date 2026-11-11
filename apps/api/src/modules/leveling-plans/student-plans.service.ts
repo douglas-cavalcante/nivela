@@ -6,9 +6,10 @@ import type {
 } from '@nivela/api-contract';
 import type { Prisma } from 'src/generated/prisma/client';
 import {
-  resolveChapterStates,
-  type ResolvedChapter,
-} from 'src/modules/leveling-plans/chapter-states';
+  PlanCompletionService,
+  stateOf,
+  type ChapterResult,
+} from 'src/modules/leveling-plans/plan-completion.service';
 import { PLAN_NOT_FOUND } from 'src/modules/leveling-plans/plans.service';
 import {
   presentMyPlan,
@@ -16,7 +17,6 @@ import {
 } from 'src/modules/leveling-plans/presenters/my-plan.presenter';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
-import { CoinLedger, lockStudentProfile } from 'src/shared/coins/coin-ledger';
 import { BusinessRuleException } from 'src/shared/exceptions/business-rule.exception';
 import {
   assignmentReaches,
@@ -37,12 +37,7 @@ const MY_PLAN_SELECT = (studentId: number) =>
       where: assignmentReaches(studentId),
       select: { dueDate: true },
     },
-    completions: { where: { studentId }, select: { studentId: true } },
   }) satisfies Prisma.LevelingPlanSelect;
-
-type MyPlanRow = Prisma.LevelingPlanGetPayload<{
-  select: ReturnType<typeof MY_PLAN_SELECT>;
-}>;
 
 /** O prazo mais próximo entre as atribuições que alcançam o aluno. */
 function earliest(rows: Array<{ dueDate: Date | null }>): Date | null {
@@ -50,27 +45,11 @@ function earliest(rows: Array<{ dueDate: Date | null }>): Date | null {
   return dates.length === 0 ? null : dates.reduce((a, b) => (a <= b ? a : b));
 }
 
-/** Concluído se registrado ou se todos os capítulos (ao menos um) estão concluídos. */
-function isPlanDone(
-  plan: { completions: unknown[] },
-  chapters: ResolvedChapter[],
-): boolean {
-  return (
-    plan.completions.length > 0 ||
-    (chapters.length > 0 && chapters.every((chapter) => chapter.completed))
-  );
-}
-
-export interface ChapterResult {
-  chapter: { completed: boolean; next_chapter_id: number | null };
-  plan: { completed: boolean; bonus_awarded: number };
-}
-
 @Injectable()
 export class StudentPlansService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly coins: CoinLedger,
+    private readonly completion: PlanCompletionService,
   ) {}
 
   /** Planos publicados que alcançam o aluno: não concluídos primeiro, depois prazo e título. */
@@ -79,22 +58,28 @@ export class StudentPlansService {
       where: studentPlanScope(user.id),
       select: MY_PLAN_SELECT(user.id),
     });
-    const chapters = await this.loadChapters(
-      this.prisma,
-      user.id,
+    // Ruling 11: plano concluído (derivado) ainda não gravado é assentado aqui,
+    // com o bônus, para a lista nunca mostrar conclusão sem pagamento.
+    const states = await this.completion.loadSettled(
+      [user.id],
       plans.map((plan) => plan.id),
+      'plan',
     );
-    const rows = plans.map((plan) => ({
-      plan,
-      dueDate: earliest(plan.assignments),
-      completed: isPlanDone(plan, chapters.get(plan.id) ?? []),
-      summary: presentMyPlanSummary(
+    const rows = plans.map((plan) => {
+      const state = stateOf(states, user.id, plan.id);
+      const dueDate = earliest(plan.assignments);
+      return {
         plan,
-        chapters.get(plan.id) ?? [],
-        earliest(plan.assignments),
-        isPlanDone(plan, chapters.get(plan.id) ?? []),
-      ),
-    }));
+        dueDate,
+        completed: state.completed,
+        summary: presentMyPlanSummary(
+          plan,
+          state.chapters,
+          dueDate,
+          state.completed,
+        ),
+      };
+    });
     rows.sort((a, b) => {
       if (a.completed !== b.completed) {
         return a.completed ? 1 : -1;
@@ -120,16 +105,20 @@ export class StudentPlansService {
     if (!plan) {
       throw new NotFoundException(PLAN_NOT_FOUND);
     }
-    // Ruling 6: assenta conclusões pendentes (questão desativada depois).
-    await this.settle(user.id, plan.id);
-    const [fresh, chapters] = await Promise.all([
-      this.prisma.levelingPlan.findUniqueOrThrow({
-        where: { id: plan.id },
-        select: MY_PLAN_SELECT(user.id),
-      }),
-      this.loadChapters(this.prisma, user.id, [plan.id]),
-    ]);
-    return this.present(fresh, chapters.get(plan.id) ?? []);
+    // Rulings 6 e 11: assenta conclusões pendentes (questão desativada
+    // depois, capítulo vazio); sem pendência, não escreve.
+    const states = await this.completion.loadSettled(
+      [user.id],
+      [plan.id],
+      'any',
+    );
+    const state = stateOf(states, user.id, plan.id);
+    return presentMyPlan(
+      plan,
+      state.chapters,
+      earliest(plan.assignments),
+      state.completed,
+    );
   }
 
   /**
@@ -149,8 +138,8 @@ export class StudentPlansService {
       throw new NotFoundException(PLAN_NOT_FOUND);
     }
     const chapters = (
-      await this.loadChapters(this.prisma, studentId, [plan.id])
-    ).get(plan.id);
+      await this.completion.loadFor(this.prisma, studentId, [plan.id])
+    ).get(plan.id)?.chapters;
     const chapter = chapters?.find((item) => item.id === chapterId);
     if (!chapter) {
       throw new NotFoundException(CHAPTER_NOT_FOUND);
@@ -187,9 +176,9 @@ export class StudentPlansService {
     if (!visible) {
       throw new NotFoundException(CHAPTER_NOT_FOUND);
     }
-    const chapters = (await this.loadChapters(tx, studentId, [planId])).get(
-      planId,
-    );
+    const chapters = (
+      await this.completion.loadFor(tx, studentId, [planId])
+    ).get(planId)?.chapters;
     // Ruling 7: capítulo já concluído continua aceitando respostas (questões
     // adicionadas depois ficam alcançáveis); só o trancado é barrado.
     if (chapters?.find((item) => item.id === chapterId)?.state === 'locked') {
@@ -214,12 +203,8 @@ export class StudentPlansService {
   }
 
   /**
-   * Depois de gravar a tentativa: conclui o capítulo se todas as questões
-   * ativas dele estão terminadas nele (a PK de `chapter_completions` evita
-   * duplicar) e, se todos os capítulos do plano estão concluídos (Ruling 4),
-   * registra a conclusão do plano e paga o bônus (RN07). A PK de
-   * `plan_completions` e o índice único do extrato garantem uma vez só, mesmo
-   * que o plano mude depois.
+   * Depois de gravar a tentativa terminada: assenta capítulos e plano pela
+   * regra única (`PlanCompletionService.settleInTx`) e devolve a transição.
    */
   async completeAfterAnswer(
     tx: Prisma.TransactionClient,
@@ -227,174 +212,11 @@ export class StudentPlansService {
     planId: number,
     chapterId: number,
   ): Promise<ChapterResult> {
-    return this.settleInTx(tx, studentId, planId, chapterId);
+    return this.completion.settleInTx(tx, studentId, planId, chapterId);
   }
 
-  /**
-   * Ruling 6: assenta, de forma idempotente, as conclusões pendentes do aluno
-   * no plano, numa transação (perfil `FOR UPDATE`, depois plano `FOR SHARE`).
-   * Cobre a questão desativada depois de o aluno terminar as outras, que não
-   * passa mais por `POST /answers`.
-   */
+  /** Ruling 6: assenta as conclusões pendentes do aluno no plano. */
   async settle(studentId: number, planId: number): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      await lockStudentProfile(tx, studentId);
-      const locked = await tx.$queryRaw<{ id: number }[]>`
-        SELECT "id" FROM "leveling_plans" WHERE "id" = ${planId} FOR SHARE`;
-      if (locked.length > 0) {
-        await this.settleInTx(tx, studentId, planId, null);
-      }
-    });
-  }
-
-  /**
-   * Registra `chapter_completions` dos capítulos derivados como concluídos
-   * (a PK evita duplicar) e, com todos concluídos, a conclusão do plano e o
-   * bônus (RN07). A PK de `plan_completions` e o índice único do extrato
-   * garantem uma vez só, mesmo que o plano mude depois.
-   */
-  private async settleInTx(
-    tx: Prisma.TransactionClient,
-    studentId: number,
-    planId: number,
-    chapterId: number | null,
-  ): Promise<ChapterResult> {
-    const resolved =
-      (await this.loadChapters(tx, studentId, [planId])).get(planId) ?? [];
-    const pending = resolved.filter(
-      (item) => item.completed && !item.recorded && item.total > 0,
-    );
-    if (pending.length > 0) {
-      await tx.chapterCompletion.createMany({
-        data: pending.map((item) => ({ studentId, planChapterId: item.id })),
-        skipDuplicates: true,
-      });
-    }
-    const index = resolved.findIndex((item) => item.id === chapterId);
-    const chapterDone = index >= 0 && resolved[index].completed;
-    // "Concluído POR ESTA resposta": só a transição (ainda não registrado) conta.
-    const chapterJustDone =
-      chapterDone && pending.some((item) => item.id === chapterId);
-    const allDone =
-      resolved.length > 0 && resolved.every((item) => item.completed);
-
-    let planDone = false;
-    let bonusAwarded = 0;
-    if (allDone) {
-      const { count } = await tx.planCompletion.createMany({
-        data: [{ studentId, levelingPlanId: planId }],
-        skipDuplicates: true,
-      });
-      if (count === 1) {
-        planDone = true;
-        const { completionBonus } = await tx.levelingPlan.findUniqueOrThrow({
-          where: { id: planId },
-          select: { completionBonus: true },
-        });
-        if (completionBonus > 0) {
-          const { applied } = await this.coins.credit(tx, {
-            studentId,
-            amount: completionBonus,
-            reason: 'plan_completed',
-            sourceType: 'plan',
-            sourceId: planId,
-          });
-          bonusAwarded = applied ? completionBonus : 0;
-        }
-        await tx.planCompletion.update({
-          where: {
-            studentId_levelingPlanId: { studentId, levelingPlanId: planId },
-          },
-          data: { bonusAwarded },
-        });
-      }
-    }
-
-    return {
-      chapter: {
-        completed: chapterJustDone,
-        next_chapter_id: chapterDone ? (resolved[index + 1]?.id ?? null) : null,
-      },
-      plan: { completed: planDone, bonus_awarded: bonusAwarded },
-    };
-  }
-
-  private present(plan: MyPlanRow, chapters: ResolvedChapter[]): ApiMyPlan {
-    return presentMyPlan(
-      plan,
-      chapters,
-      earliest(plan.assignments),
-      isPlanDone(plan, chapters),
-    );
-  }
-
-  /** Capítulos dos planos, na ordem, com estado e contagens do aluno. */
-  private async loadChapters(
-    client: Prisma.TransactionClient,
-    studentId: number,
-    planIds: number[],
-  ): Promise<Map<number, ResolvedChapter[]>> {
-    const result = new Map<number, ResolvedChapter[]>();
-    if (planIds.length === 0) {
-      return result;
-    }
-    const chapters = await client.planChapter.findMany({
-      where: { levelingPlanId: { in: planIds } },
-      orderBy: [{ position: 'asc' }, { id: 'asc' }],
-      select: {
-        id: true,
-        levelingPlanId: true,
-        title: true,
-        position: true,
-        questions: {
-          where: { question: { active: true } },
-          select: { questionId: true },
-        },
-        completions: { where: { studentId }, select: { studentId: true } },
-      },
-    });
-    const finished = await client.questionAttempt.findMany({
-      where: {
-        studentId,
-        planChapterId: { in: chapters.map((chapter) => chapter.id) },
-        OR: [{ isCorrect: true }, { attemptNumber: 2 }],
-      },
-      select: { planChapterId: true, questionId: true },
-    });
-    const finishedIn = new Map<number, Set<number>>();
-    for (const row of finished) {
-      if (row.planChapterId === null) continue;
-      const set = finishedIn.get(row.planChapterId) ?? new Set<number>();
-      set.add(row.questionId);
-      finishedIn.set(row.planChapterId, set);
-    }
-
-    const byPlan = new Map<number, typeof chapters>();
-    for (const chapter of chapters) {
-      byPlan.set(chapter.levelingPlanId, [
-        ...(byPlan.get(chapter.levelingPlanId) ?? []),
-        chapter,
-      ]);
-    }
-    for (const planId of planIds) {
-      result.set(
-        planId,
-        resolveChapterStates(
-          (byPlan.get(planId) ?? []).map((chapter) => {
-            const done = finishedIn.get(chapter.id);
-            return {
-              id: chapter.id,
-              title: chapter.title,
-              position: chapter.position,
-              total: chapter.questions.length,
-              answered: chapter.questions.filter((q) => done?.has(q.questionId))
-                .length,
-              recorded: chapter.completions.length > 0,
-            };
-          }),
-        ),
-      );
-    }
-    return result;
+    await this.completion.settle(studentId, planId);
   }
 }

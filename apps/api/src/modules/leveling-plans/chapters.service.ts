@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { ApiPlan } from '@nivela/api-contract';
-import type { Prisma } from 'src/generated/prisma/client';
+import { Prisma } from 'src/generated/prisma/client';
 import type { ChapterDto } from 'src/modules/leveling-plans/dto/chapter.dto';
 import { QUESTIONS_MESSAGE } from 'src/modules/leveling-plans/dto/chapter-questions.dto';
 import {
@@ -172,6 +172,16 @@ export class ChaptersService {
           select: { questionId: true },
         });
         const keptIds = new Set(existing.map((row) => row.questionId));
+        // Trava (compartilhado, depois do plano) as questões pedidas: um `PUT
+        // /questions/:id` que troca a disciplina espera este vínculo terminar
+        // e então o enxerga (422), ou termina antes e a checagem abaixo já lê
+        // a disciplina nova.
+        if (questionIds.length > 0) {
+          await tx.$queryRaw`
+            SELECT "id" FROM "questions"
+            WHERE "id" IN (${Prisma.join(questionIds)})
+            ORDER BY "id" FOR SHARE`;
+        }
         // Só questões da disciplina do plano; as novas precisam estar ativas
         // (uma já presente no capítulo pode ser reordenada ou mantida mesmo
         // depois de desativada).

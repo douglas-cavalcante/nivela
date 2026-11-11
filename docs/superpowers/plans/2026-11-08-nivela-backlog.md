@@ -41,10 +41,29 @@ Fazer no início do Plano 3, antes das telas de estudo:
 - (continua aberto) `KeyboardAvoidingView` com `padding` no Android edge-to-edge: conferir num aparelho.
 - (continua aberto) `PenCard`: `margin` via `style` desalinha a sombra.
 
+## Plano 3 — Onda final de correções (revisão final)
+
+Resolvido na branch `feature/plan3-hardening`:
+
+- ~~Bônus de plano sem nenhuma resposta~~ — o plano só conclui (e paga) com ao menos uma tentativa terminada num capítulo dele (Ruling 9).
+- ~~Sequência vencida em `/me/stats` e na ficha~~ — `StreakService.effective` em toda leitura (Ruling 10).
+- ~~Duas fontes de verdade da conclusão~~ — `PlanCompletionService` único para aluno e equipe; capítulos vazios derivados são gravados; lista e leituras da equipe assentam planos concluídos ainda não gravados; leitura sem pendência não escreve (Ruling 11).
+- ~~Questão de plano trocando de disciplina~~ — 422 em `subject_id`.
+- ~~Regra de travas do extrato e das transações da equipe~~ — documentada (`docs/architecture.md`, "Ordem de travas") e no `CoinLedger`.
+- ~~e2e dependentes da hora real~~ — `createTestApp` usa um `TestClock` fixo.
+- ~~`DELETE` de atribuição fora do escopo do professor~~ — mesmo `reachableTargets` da lista (404).
+- ~~Comentário enganoso na criação de atribuição~~ — agora trava o plano com `FOR SHARE`.
+- ~~Drift de migrations sem checagem no CI~~ — passo `prisma migrate diff --from-migrations --to-schema --exit-code` com banco-sombra.
+- ~~`lockStudentProfile` sem perfil virava 500~~ — 404 "Aluno não encontrado.".
+- ~~Flake do mobile sob carga~~ — `asyncUtilTimeout: 3000` e `--maxWorkers=50%` no CI.
+
 ## Plano 4 — Gamificação e relatórios
 
-- `refund` sem garantia "uma vez" no banco (os demais motivos têm índice único parcial).
-- Dashboards agrupados por dia em `America/Fortaleza`.
+- **Regra de travas (vinculante):** o perfil do aluno é sempre o primeiro lock da transação; prêmio e resgate vêm depois. Resgate: perfil `FOR UPDATE` → prêmio `FOR UPDATE` (estoque) → resgate → `CoinLedger.debit`. Estorno pela equipe: ler o `student_id` do resgate **sem trava**, travar o perfil, reler o resgate com `FOR UPDATE`, conferir o estado e só então `CoinLedger.credit`. Transações da equipe que não mexem em moedas travam só o prêmio (ou só o resgate). Ver `docs/architecture.md`, "Ordem de travas".
+- **Estorno "uma vez" no banco:** índice único parcial `coin_once_per_refund ON coin_transactions (student_id, source_id) WHERE reason = 'refund'`, com `source_id` = id do resgate; incluir `'refund'` em `ONCE_PER_SOURCE` do `CoinLedger` (o predicado do `ON CONFLICT` tem de ser idêntico ao do índice) e e2e de dois estornos simultâneos do mesmo resgate (um credita, o outro devolve `applied: false`; saldo = extrato).
+- **Dashboards por dia em `America/Fortaleza`:** agrupar por `(created_at AT TIME ZONE 'America/Fortaleza')::date` (as colunas são `timestamptz`), com um helper SQL único que espelha `studyDay` (testado contra ele na virada da meia-noite), e sempre dentro do escopo de quem pede (`studentScope`/`planScope`, RN15).
+- **Taxa de acerto:** definida por questão terminada (acerto na 1ª ou 2ª tentativa sobre questões terminadas, cada questão contada uma vez por contexto), nunca por tentativa; sempre filtrada pelo escopo.
+- **Presenter do extrato de moedas:** cada `reason` com seu texto; o `source_id` do `streak_bonus` é um número de dia (`dayNumber`), não um id — o presenter converte para a data (`YYYY-MM-DD`) em vez de buscar uma entidade.
 
 ## Plano 5 — Entrega
 
@@ -71,11 +90,11 @@ Prioridade para quem passar perto:
 
 Decisões do Plano 3 já refletidas na documentação: conclusão de capítulo derivada com assentamento ao abrir o plano, resposta em capítulo concluído aceita, `chapter.completed`/`plan.completed` como evento, ordem de travas perfil → plano → questão, únicos de posição `DEFERRABLE` declarados com `map`.
 
-- **API (planos):** a lista `/me/plans` mostra `completed` derivado sem assentar o bônus (assentar na lista quando derivado e não gravado); plano com todas as questões desativadas paga o bônus sem nenhuma resposta (exigir ao menos uma?); o progresso da equipe conta só conclusões gravadas; o assentamento não re-checa a visibilidade dentro da transação e abre uma transação de escrita a cada abertura do plano; prazo sem teste de borda da meia-noite; tradução de FK/posição no `ChaptersService` sem teste; cast em `presentAssignment`; corrida remoção × resposta sem e2e (fechada por lock, verificada por leitura).
-- **API (respostas e moedas):** o e2e concorrente da resposta não prova o bloqueio (o da virada da meia-noite foi tornado determinístico nas Tasks 5 e 7: barreira + espera em `pg_stat_activity`, filtro por `datname` e release em `finally`); `MAX_ID` repetido em 7 lugares e `OPTION_LETTERS` em 2 (mover para `src/shared/validation`); `remaining`/`attempts_left` lidos fora da transação (cosmético); `refund` sem garantia "uma vez".
+- **API (planos):** ~~a lista `/me/plans` mostra `completed` derivado sem assentar o bônus~~, ~~plano com todas as questões desativadas paga o bônus sem nenhuma resposta~~, ~~o progresso da equipe conta só conclusões gravadas~~ e ~~transação de escrita a cada abertura do plano~~ — resolvidos na onda final (acima); ainda aberto: o assentamento não re-checa a visibilidade dentro da transação; prazo sem teste de borda da meia-noite; tradução de FK/posição no `ChaptersService` sem teste; cast em `presentAssignment`; corrida remoção × resposta sem e2e (fechada por lock, verificada por leitura).
+- **API (respostas e moedas):** o e2e concorrente da resposta não prova o bloqueio (o da virada da meia-noite foi tornado determinístico nas Tasks 5 e 7: barreira + espera em `pg_stat_activity`, filtro por `datname` e release em `finally`); `MAX_ID` repetido em 7 lugares e `OPTION_LETTERS` em 2 (mover para `src/shared/validation`); `remaining`/`attempts_left` lidos fora da transação (cosmético); `refund` sem garantia "uma vez" (planejado no Plano 4, acima).
 - **API (cadastros):** ramo `questions_category_id_fkey` morto no `translate` (e teste); checagem de questões em `SubjectsService.remove` inalcançável sem teste; e2e "mover categoria" usa `rejects.toBeDefined`.
 - **Web:** `QuestionPicker` filtra "já no capítulo" depois dos 20 da página, sem "carregar mais"; `aria-controls` de abas não renderizadas; botões de questão sem o nome do capítulo; `useEffect` de erro morto no editor; data mínima do prazo pelo dia local do navegador; `failedId` nunca limpo; faltam testes (409 ao remover questão, paginação da lista); `AsyncAutocomplete`: valor selecionado fora das `options` (possível aviso do MUI), texto da busca mantido após selecionar, teste sem fake timers para o debounce de 300 ms, `StudentList` engole erro não-404 ao resolver a turma, `setSelected`+`setFilter` separados, indentação no `ClassroomList.test`, `selected` local no `ClassroomFormDialog`.
-- **Mobile:** `questionsLabel` ainda duplicado no cabeçalho do card da disciplina (cosmético); ramos animados sem teste (o dublê sempre reduz movimento); imagem da questão sem texto alternativo (o contrato não tem); falha no reload ao voltar zera `StatsBar`/`StudyHome` em vez de manter os valores antigos; 2 testes falharam uma vez sob carga junto com o e2e (passam isolados); `PageTurn` não visto em aparelho; `signOut` limpa o token só depois do `POST /auth/logout`; `joined` local sobrescreve a cópia do servidor; sem teste de retry atualizando `offlineStatus`; o `catch` do `expectParams` descarta o diff do Jest.
+- **Mobile:** `questionsLabel` ainda duplicado no cabeçalho do card da disciplina (cosmético); ramos animados sem teste (o dublê sempre reduz movimento); imagem da questão sem texto alternativo (o contrato não tem); falha no reload ao voltar zera `StatsBar`/`StudyHome` em vez de manter os valores antigos; ~~2 testes falharam uma vez sob carga junto com o e2e~~ (resolvido na onda final: `asyncUtilTimeout: 3000`); `PageTurn` não visto em aparelho; `signOut` limpa o token só depois do `POST /auth/logout`; `joined` local sobrescreve a cópia do servidor; sem teste de retry atualizando `offlineStatus`; o `catch` do `expectParams` descarta o diff do Jest.
 - **Histórico:** o commit `59de96c` tem erro de lint (corrigido no seguinte); typo na mensagem do commit `1ee3443`.
 
 ## Pequenos (quando passar perto)

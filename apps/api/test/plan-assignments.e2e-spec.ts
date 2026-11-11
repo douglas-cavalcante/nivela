@@ -297,6 +297,36 @@ describe('Atribuição de planos (e2e)', () => {
       .expect(200);
   });
 
+  it('RN15: professor não remove atribuição que o administrador fez fora das turmas dele (404); o administrador remove', async () => {
+    const planId = await plan(teacherA.token, true);
+    const { classroom: foreignClassroom, student: foreign } = await enrolled(
+      teacherB.id,
+    );
+    const loose = await createUser(prisma, { name: 'Sem turma' });
+    const created = [
+      await assign(admin.token, planId, {
+        classroom_id: foreignClassroom.id,
+      }).expect(201),
+      await assign(admin.token, planId, { student_id: foreign.id }).expect(201),
+      await assign(admin.token, planId, { student_id: loose.id }).expect(201),
+    ].map((response) => response.body.id as number);
+    for (const id of created) {
+      const { body } = await http()
+        .delete(`/api/v1/plans/${planId}/assignments/${id}`)
+        .set(as(teacherA.token))
+        .expect(404);
+      expect(body.message).toBe('Atribuição não encontrada.');
+    }
+    expect(await prisma.planAssignment.count()).toBe(3);
+    for (const id of created) {
+      await http()
+        .delete(`/api/v1/plans/${planId}/assignments/${id}`)
+        .set(as(admin.token))
+        .expect(204);
+    }
+    expect(await prisma.planAssignment.count()).toBe(0);
+  });
+
   it('aluno recebe 403 nas rotas de atribuição', async () => {
     const planId = await plan(teacherA.token, true);
     const student = await session(Role.Student);

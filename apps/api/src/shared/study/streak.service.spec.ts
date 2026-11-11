@@ -133,4 +133,60 @@ describe('StreakService', () => {
     const result = await service.register(tx, 1, at('2026-11-07'));
     expect(result).toEqual({ current: 7, best: 7, bonus_awarded: 0 });
   });
+
+  describe('effective (Ruling 10: leitura da sequência)', () => {
+    const { service } = setup();
+    const stored = (lastStudyDate: string | null) => ({
+      currentStreak: 4,
+      bestStreak: 9,
+      lastStudyDate: lastStudyDate
+        ? new Date(`${lastStudyDate}T00:00:00Z`)
+        : null,
+    });
+
+    it('estudou hoje ou ontem (em Fortaleza): mantém a gravada', () => {
+      expect(service.effective(stored('2026-11-10'), at('2026-11-10'))).toEqual(
+        {
+          current: 4,
+          best: 9,
+        },
+      );
+      expect(service.effective(stored('2026-11-09'), at('2026-11-10'))).toEqual(
+        {
+          current: 4,
+          best: 9,
+        },
+      );
+    });
+
+    it('último estudo há mais de 1 dia: current 0 e best preservado', () => {
+      expect(service.effective(stored('2026-11-07'), at('2026-11-10'))).toEqual(
+        {
+          current: 0,
+          best: 9,
+        },
+      );
+    });
+
+    it('usa o dia de Fortaleza: 23h59 do dia seguinte ainda vale; 00h01 do outro zera', () => {
+      const profile = stored('2026-11-09');
+      // 2026-11-11T02:59Z = 23h59 de 10/11 em Fortaleza.
+      expect(
+        service.effective(profile, new Date('2026-11-11T02:59:00Z')).current,
+      ).toBe(4);
+      // 2026-11-11T03:01Z = 00h01 de 11/11 em Fortaleza.
+      expect(
+        service.effective(profile, new Date('2026-11-11T03:01:00Z')).current,
+      ).toBe(0);
+    });
+
+    it('sem estudo registrado: 0', () => {
+      expect(
+        service.effective(
+          { currentStreak: 0, bestStreak: 0, lastStudyDate: null },
+          at('2026-11-10'),
+        ),
+      ).toEqual({ current: 0, best: 0 });
+    });
+  });
 });

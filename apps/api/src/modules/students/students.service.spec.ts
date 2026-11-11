@@ -3,8 +3,15 @@ import { compare } from 'bcryptjs';
 import { StudentsService } from 'src/modules/students/students.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
+import type { Clock } from 'src/shared/clock/clock';
+import type { CoinLedger } from 'src/shared/coins/coin-ledger';
 import { Role } from 'src/shared/enums/role.enum';
 import { studentScope } from 'src/shared/scopes/student-scope';
+import { StreakService } from 'src/shared/study/streak.service';
+
+/** Relógio fixo: 10/11/2026, meio-dia em Fortaleza. */
+const clock: Clock = { now: () => new Date('2026-11-10T15:00:00Z') };
+const streaks = new StreakService({} as CoinLedger);
 
 const user = (role: Role, id = 5): AuthUser => ({
   id,
@@ -19,7 +26,12 @@ const row = (overrides: Record<string, unknown> = {}) => ({
   email: 'ana@aluno.test',
   active: true,
   createdAt: new Date('2026-01-02T03:04:05.000Z'),
-  studentProfile: { coinsBalance: 12, currentStreak: 2, bestStreak: 6 },
+  studentProfile: {
+    coinsBalance: 12,
+    currentStreak: 2,
+    bestStreak: 6,
+    lastStudyDate: new Date('2026-11-09T00:00:00Z'),
+  },
   enrollments: [{ classroom: { id: 3, name: '9º A' } }],
   ...overrides,
 });
@@ -49,9 +61,11 @@ describe('StudentsService', () => {
   const findMany = jest.fn();
   const findFirst = jest.fn();
   const count = jest.fn();
-  const service = new StudentsService({
-    user: { findMany, findFirst, count },
-  } as unknown as PrismaService);
+  const service = new StudentsService(
+    { user: { findMany, findFirst, count } } as unknown as PrismaService,
+    streaks,
+    clock,
+  );
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -132,6 +146,23 @@ describe('StudentsService', () => {
     });
   });
 
+  it('Ruling 10: ficha mostra a sequência efetiva (0 depois de pular um dia)', async () => {
+    findFirst.mockResolvedValueOnce(
+      row({
+        studentProfile: {
+          coinsBalance: 0,
+          currentStreak: 4,
+          bestStreak: 9,
+          lastStudyDate: new Date('2026-11-07T00:00:00Z'),
+        },
+      }),
+    );
+    await expect(service.findOne(1, user(Role.Admin))).resolves.toMatchObject({
+      current_streak: 0,
+      best_streak: 9,
+    });
+  });
+
   it('aluno fora do escopo → 404 "Aluno não encontrado."', async () => {
     findFirst.mockResolvedValue(null);
 
@@ -147,7 +178,7 @@ describe('StudentsService', () => {
 });
 
 describe('StudentsService.createAccount', () => {
-  const service = new StudentsService({} as PrismaService);
+  const service = new StudentsService({} as PrismaService, streaks, clock);
   const created = { id: 42, name: 'Ana', email: 'ana@aluno.test' };
 
   function fakeTx() {

@@ -3,7 +3,7 @@ import type { ApiAnswerResult } from '@nivela/api-contract';
 import request from 'supertest';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Role } from 'src/shared/enums/role.enum';
-import { createTestApp } from './helpers/create-test-app';
+import { createTestApp, testClock } from './helpers/create-test-app';
 import { createQuestion } from './helpers/factories';
 import { sessionFor, tokenFor } from './helpers/login';
 import { resetDatabase } from './helpers/reset-database';
@@ -41,6 +41,7 @@ describe('Respostas (e2e)', () => {
   });
 
   beforeEach(async () => {
+    testClock(app).reset();
     await resetDatabase(prisma);
     const session = await sessionFor(app, Role.Student);
     token = session.token;
@@ -197,6 +198,59 @@ describe('Respostas (e2e)', () => {
       current_streak: 1,
       best_streak: 1,
     });
+  });
+
+  it('a sequência segue o relógio injetado: a virada do dia em Fortaleza soma 1', async () => {
+    const clock = testClock(app);
+    clock.set('2026-11-11T02:59:00Z'); // 23h59 de 10/11 em Fortaleza
+    const first = await createQuestion(prisma);
+    const before = await answer(first.id, 'A').expect(200);
+    expect(before.body.streak).toEqual({
+      current: 1,
+      best: 1,
+      bonus_awarded: 0,
+    });
+    clock.set('2026-11-11T03:01:00Z'); // 00h01 de 11/11
+    const second = await createQuestion(prisma);
+    const after = await answer(second.id, 'A').expect(200);
+    expect(after.body.streak).toEqual({
+      current: 2,
+      best: 2,
+      bonus_awarded: 0,
+    });
+    expect((await profile()).lastStudyDate?.toISOString().slice(0, 10)).toBe(
+      '2026-11-11',
+    );
+  });
+
+  it('Ruling 10: último estudo há 3 dias → /me/stats mostra sequência 0 e a melhor intacta', async () => {
+    await prisma.studentProfile.update({
+      where: { userId: studentId },
+      data: {
+        currentStreak: 5,
+        bestStreak: 8,
+        lastStudyDate: new Date('2026-11-07T00:00:00Z'), // relógio: 10/11
+      },
+    });
+    const { body } = await request(server())
+      .get('/api/v1/me/stats')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(body).toEqual({
+      coins_balance: 0,
+      current_streak: 0,
+      best_streak: 8,
+    });
+    // Ontem ainda vale.
+    await prisma.studentProfile.update({
+      where: { userId: studentId },
+      data: { lastStudyDate: new Date('2026-11-09T00:00:00Z') },
+    });
+    const yesterday = await request(server())
+      .get('/api/v1/me/stats')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(yesterday.body.current_streak).toBe(5);
   });
 
   it('questão inativa ou inexistente responde 404', async () => {

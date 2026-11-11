@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { hash } from 'bcryptjs';
 import type {
   ApiStudent,
@@ -13,12 +13,14 @@ import {
 } from 'src/modules/students/presenters/student.presenter';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
+import { CLOCK, type Clock } from 'src/shared/clock/clock';
 import { Role } from 'src/shared/enums/role.enum';
 import { paginate, toPrismaPage } from 'src/shared/pagination/paginate';
 import { containsInsensitive } from 'src/shared/prisma/contains-insensitive';
 import { classroomScope } from 'src/shared/scopes/classroom-scope';
 import { studentScope } from 'src/shared/scopes/student-scope';
 import { BCRYPT_COST } from 'src/shared/security/password';
+import { StreakService } from 'src/shared/study/streak.service';
 
 const NOT_FOUND = 'Aluno não encontrado.';
 
@@ -43,7 +45,11 @@ const includeFor = (user: AuthUser) =>
 
 @Injectable()
 export class StudentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly streaks: StreakService,
+    @Inject(CLOCK) private readonly clock: Clock,
+  ) {}
 
   /**
    * Único jeito de criar a conta de um aluno: o usuário (perfil `student`) e
@@ -107,6 +113,10 @@ export class StudentsService {
     if (!student) {
       throw new NotFoundException(NOT_FOUND);
     }
-    return presentStudent(student);
+    // Ruling 10: a ficha mostra a sequência efetiva (0 se o aluno pulou um dia).
+    const streak = student.studentProfile
+      ? this.streaks.effective(student.studentProfile, this.clock.now())
+      : { current: 0, best: 0 };
+    return presentStudent(student, streak);
   }
 }

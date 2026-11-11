@@ -490,4 +490,137 @@ describe('Respostas em capítulos de plano (e2e)', () => {
       });
     });
   });
+
+  describe('fonte única da conclusão (Rulings 9 e 11)', () => {
+    const get = (path: string, token = student.token) =>
+      request(app.getHttpServer())
+        .get(`/api/v1${path}`)
+        .set('Authorization', `Bearer ${token}`);
+    const deactivate = (ids: number[]) =>
+      prisma.question.updateMany({
+        where: { id: { in: ids } },
+        data: { active: false },
+      });
+
+    it('Ruling 9: todas as questões desativadas: abrir o plano não paga nada e o plano não conclui', async () => {
+      const { planId, chapters } = await plan([1, 2], 50);
+      await assign(planId);
+      await deactivate(chapters.flatMap((c) => c.questions));
+      for (let i = 0; i < 2; i++) {
+        const detail = await get(`/me/plans/${planId}`).expect(200);
+        expect(detail.body.completed).toBe(false);
+        expect(
+          detail.body.chapters.map((c: { state: string }) => c.state),
+        ).toEqual(['completed', 'completed']);
+        const list = await get('/me/plans').expect(200);
+        expect(list.body.data[0].completed).toBe(false);
+      }
+      expect(await prisma.planCompletion.count()).toBe(0);
+      expect(await prisma.coinTransaction.count()).toBe(0);
+      expect(await balance()).toBe(0);
+    });
+
+    it('Ruling 9: uma resposta terminada no capítulo 1 e o resto esvaziado: a lista conclui e paga o bônus uma vez', async () => {
+      const { planId, chapters } = await plan([1, 1, 2], 50);
+      await assign(planId);
+      await answer(chapters[0].questions[0], 'A', chapters[0].id).expect(200);
+      await deactivate([...chapters[1].questions, ...chapters[2].questions]);
+      for (let i = 0; i < 3; i++) {
+        const list = await get('/me/plans').expect(200);
+        expect(list.body.data[0]).toMatchObject({
+          completed: true,
+          progress: { completed_chapters: 3, total_chapters: 3 },
+        });
+      }
+      expect(await prisma.planCompletion.count()).toBe(1);
+      expect(
+        await prisma.coinTransaction.count({
+          where: { reason: 'plan_completed' },
+        }),
+      ).toBe(1);
+      expect(await balance()).toBe(60);
+      expect(await ledgerSum()).toBe(60);
+    });
+
+    it('Ruling 11: capítulo vazio derivado é gravado; questão adicionada depois não tranca o seguinte', async () => {
+      const { planId, chapters } = await plan([1, 0, 1]);
+      await assign(planId);
+      await answer(chapters[0].questions[0], 'A', chapters[0].id).expect(200);
+      expect(
+        await prisma.chapterCompletion.count({
+          where: { planChapterId: chapters[1].id },
+        }),
+      ).toBe(1);
+      const extra = await createQuestion(prisma, { subjectId });
+      await prisma.chapterQuestion.create({
+        data: {
+          planChapterId: chapters[1].id,
+          questionId: extra.id,
+          position: 1,
+        },
+      });
+      const { body } = await get(`/me/plans/${planId}`).expect(200);
+      expect(body.chapters.map((c: { state: string }) => c.state)).toEqual([
+        'completed',
+        'completed',
+        'available',
+      ]);
+      await answer(chapters[2].questions[0], 'A', chapters[2].id).expect(200);
+    });
+
+    it('Ruling 11: progresso da equipe e ficha do aluno mostram o mesmo que o aluno', async () => {
+      const admin = await sessionFor(app, Role.Admin);
+      const { planId, chapters } = await plan([0, 1, 1], 50);
+      await assign(planId);
+      const staffRow = async () =>
+        (await get(`/plans/${planId}/progress`, admin.token).expect(200)).body
+          .data[0];
+      const fileRow = async () =>
+        (
+          await get(`/students/${student.user.id}/plans`, admin.token).expect(
+            200,
+          )
+        ).body.data[0];
+
+      // Capítulo 1 vazio: concluído para o aluno e para a equipe.
+      const before = (await get(`/me/plans/${planId}`).expect(200)).body;
+      expect(before.progress).toMatchObject({
+        completed_chapters: 1,
+        total_chapters: 3,
+      });
+      for (const row of [await staffRow(), await fileRow()]) {
+        expect(row).toMatchObject({
+          completed_chapters: 1,
+          total_chapters: 3,
+          completed_at: null,
+        });
+      }
+
+      // Termina o capítulo 2 e o 3 é esvaziado: a equipe vê a conclusão
+      // (assentada) antes mesmo de o aluno abrir o plano.
+      await answer(chapters[1].questions[0], 'A', chapters[1].id).expect(200);
+      await deactivate(chapters[2].questions);
+      const staff = await staffRow();
+      expect(staff).toMatchObject({ completed_chapters: 3, total_chapters: 3 });
+      expect(staff.completed_at).not.toBeNull();
+      const file = await fileRow();
+      expect(file).toMatchObject({ completed_chapters: 3, total_chapters: 3 });
+      expect(file.completed_at).toBe(staff.completed_at);
+
+      const after = (await get(`/me/plans/${planId}`).expect(200)).body;
+      expect(after.completed).toBe(true);
+      expect(after.progress).toMatchObject({
+        completed_chapters: 3,
+        total_chapters: 3,
+      });
+      const recorded = await prisma.planCompletion.findFirstOrThrow();
+      expect(recorded.completedAt.toISOString()).toBe(staff.completed_at);
+      expect(
+        await prisma.coinTransaction.count({
+          where: { reason: 'plan_completed' },
+        }),
+      ).toBe(1);
+      expect(await balance()).toBe(60);
+    });
+  });
 });

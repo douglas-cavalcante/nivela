@@ -103,14 +103,20 @@ export class AssignmentsService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        // O escopo vale também na escrita: o plano precisa continuar visível e
-        // publicado no mesmo instante em que a atribuição é gravada.
-        const stillVisible = await tx.levelingPlan.findFirst({
-          where: {
-            AND: [{ id: planId, status: 'published' }, planScope(user)],
-          },
-          select: { id: true },
-        });
+        // O escopo vale também na escrita: `FOR SHARE` na linha do plano
+        // (única trava desta transação) segura edições e exclusão do plano
+        // até o commit, então o plano conferido aqui continua publicado e
+        // visível enquanto a atribuição é gravada.
+        const locked = await tx.$queryRaw<{ id: number }[]>`
+          SELECT "id" FROM "leveling_plans" WHERE "id" = ${planId} FOR SHARE`;
+        const stillVisible =
+          locked.length > 0 &&
+          (await tx.levelingPlan.findFirst({
+            where: {
+              AND: [{ id: planId, status: 'published' }, planScope(user)],
+            },
+            select: { id: true },
+          }));
         if (!stillVisible) {
           throw new NotFoundException(PLAN_NOT_FOUND);
         }
@@ -144,11 +150,14 @@ export class AssignmentsService {
     user: AuthUser,
   ): Promise<void> {
     await this.assertVisible(planId, user);
+    // RN15: o mesmo filtro da lista; o professor não remove (nem descobre) a
+    // atribuição que o administrador fez fora das turmas dele.
     const { count } = await this.prisma.planAssignment.deleteMany({
       where: {
         id: assignmentId,
         levelingPlanId: planId,
         levelingPlan: planScope(user),
+        ...reachableTargets(user),
       },
     });
     if (count === 0) {

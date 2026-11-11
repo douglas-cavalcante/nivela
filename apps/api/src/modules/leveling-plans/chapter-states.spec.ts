@@ -1,6 +1,7 @@
 import {
   percentOf,
   resolveChapterStates,
+  resolvePlanState,
   type ChapterProgress,
 } from 'src/modules/leveling-plans/chapter-states';
 
@@ -74,6 +75,57 @@ describe('resolveChapterStates (RN06 e Ruling 4)', () => {
       chapter(2),
     ]);
     expect([a.completed, b.completed]).toEqual([true, false]);
+  });
+});
+
+describe('resolvePlanState (Rulings 4, 9 e 11)', () => {
+  const plan = (
+    chapters: ChapterProgress[],
+    overrides: { recorded?: boolean; hasFinishedAttempt?: boolean } = {},
+  ) =>
+    resolvePlanState({
+      chapters,
+      recorded: false,
+      hasFinishedAttempt: false,
+      ...overrides,
+    });
+
+  it('todos os capítulos vazios sem nenhuma resposta terminada não concluem o plano (Ruling 9)', () => {
+    const state = plan([chapter(1, { total: 0 }), chapter(2, { total: 0 })]);
+    expect(state.chapters.map((c) => c.state)).toEqual([
+      'completed',
+      'completed',
+    ]);
+    expect(state.completed).toBe(false);
+    expect(state.pendingPlan).toBe(false);
+  });
+
+  it('uma resposta terminada e o resto vazio concluem o plano, pendente de gravação', () => {
+    const state = plan(
+      [chapter(1, { total: 1, answered: 1 }), chapter(2, { total: 0 })],
+      { hasFinishedAttempt: true },
+    );
+    expect(state.completed).toBe(true);
+    expect(state.pendingPlan).toBe(true);
+    expect(state.pendingChapters.map((c) => c.id)).toEqual([1, 2]);
+  });
+
+  it('plano gravado continua concluído mesmo com capítulo novo', () => {
+    const state = plan([chapter(1, { recorded: true }), chapter(2)], {
+      recorded: true,
+    });
+    expect(state.completed).toBe(true);
+    expect(state.pendingPlan).toBe(false);
+  });
+
+  it('plano sem capítulos nunca conclui', () => {
+    expect(plan([], { hasFinishedAttempt: true }).completed).toBe(false);
+  });
+
+  it('capítulo vazio derivado também fica pendente de gravação (Ruling 11)', () => {
+    const state = plan([chapter(1, { total: 0 }), chapter(2)]);
+    expect(state.pendingChapters.map((c) => c.id)).toEqual([1]);
+    expect(state.completed).toBe(false);
   });
 });
 

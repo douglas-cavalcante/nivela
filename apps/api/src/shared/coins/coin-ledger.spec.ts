@@ -1,10 +1,21 @@
+import { NotFoundException } from '@nestjs/common';
 import type { Prisma } from 'src/generated/prisma/client';
-import { CoinLedger } from 'src/shared/coins/coin-ledger';
+import { CoinLedger, lockStudentProfile } from 'src/shared/coins/coin-ledger';
 
-function fakeTx(inserted: number, balance = 10) {
+function fakeTx(inserted: number, balance = 10, profileExists = true) {
   const executeRaw = jest.fn(() => Promise.resolve(inserted));
-  const queryRaw = jest.fn(() =>
-    Promise.resolve(inserted ? [{ coins_balance: balance }] : []),
+  // O lock do perfil (`FOR UPDATE`) devolve a linha se o perfil existe; o
+  // UPDATE do débito devolve o saldo se a linha mudou.
+  const queryRaw = jest.fn((strings: TemplateStringsArray) =>
+    Promise.resolve(
+      strings.join('').includes('FOR UPDATE')
+        ? profileExists
+          ? [{ user_id: 1 }]
+          : []
+        : inserted
+          ? [{ coins_balance: balance }]
+          : [],
+    ),
   );
   const update = jest.fn(() => Promise.resolve({ coinsBalance: balance }));
   const findUniqueOrThrow = jest.fn(() =>
@@ -17,7 +28,7 @@ function fakeTx(inserted: number, balance = 10) {
     coinTransaction: { create },
     studentProfile: { update, findUniqueOrThrow },
   } as unknown as Prisma.TransactionClient;
-  return { tx, update, findUniqueOrThrow, create };
+  return { tx, update, findUniqueOrThrow, create, executeRaw };
 }
 
 const input = {
@@ -74,6 +85,28 @@ describe('CoinLedger', () => {
         sourceId: 3,
       }),
     ).rejects.toThrow('Saldo insuficiente.');
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('perfil inexistente: lockStudentProfile responde 404 "Aluno não encontrado." antes de qualquer gravação', async () => {
+    const { tx, update, create, executeRaw } = fakeTx(1, 10, false);
+    await expect(lockStudentProfile(tx, 99)).rejects.toThrow(
+      new NotFoundException('Aluno não encontrado.'),
+    );
+    await expect(ledger.credit(tx, input)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(
+      ledger.debit(tx, {
+        studentId: 99,
+        amount: 5,
+        reason: 'redemption',
+        sourceType: 'redemption',
+        sourceId: 1,
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(executeRaw).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
   });
 });

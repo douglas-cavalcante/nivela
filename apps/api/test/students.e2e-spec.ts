@@ -9,6 +9,7 @@ import {
   DEFAULT_PASSWORD,
 } from './helpers/factories';
 import { resetDatabase } from './helpers/reset-database';
+import { TEST_NOW } from './helpers/test-clock';
 
 const NOT_FOUND = 'Aluno não encontrado.';
 
@@ -261,7 +262,13 @@ describe('Alunos (e2e)', () => {
     await enroll(turma.id, student.id);
     await prisma.studentProfile.update({
       where: { userId: student.id },
-      data: { coinsBalance: 15, currentStreak: 3, bestStreak: 7 },
+      data: {
+        coinsBalance: 15,
+        currentStreak: 3,
+        bestStreak: 7,
+        // Estudou ontem (no relógio fixo dos e2e): a sequência continua valendo.
+        lastStudyDate: new Date('2026-11-09T00:00:00Z'),
+      },
     });
 
     const { body } = await http()
@@ -281,6 +288,28 @@ describe('Alunos (e2e)', () => {
       created_at: expect.any(String),
     });
     expect(body).not.toHaveProperty('password');
+  });
+
+  it('Ruling 10: ficha com último estudo há 3 dias mostra sequência 0 e preserva a melhor', async () => {
+    const turma = await createClassroom(prisma, { teacherId: teacherA.id });
+    const student = await createUser(prisma, { name: 'Ana' });
+    await enroll(turma.id, student.id);
+    const threeDaysAgo = new Date(TEST_NOW.getTime() - 3 * 86_400_000);
+    await prisma.studentProfile.update({
+      where: { userId: student.id },
+      data: {
+        currentStreak: 5,
+        bestStreak: 8,
+        lastStudyDate: new Date(
+          `${threeDaysAgo.toISOString().slice(0, 10)}T00:00:00Z`,
+        ),
+      },
+    });
+    const { body } = await http()
+      .get(`/api/v1/students/${student.id}`)
+      .set(as(teacherA.token))
+      .expect(200);
+    expect(body).toMatchObject({ current_streak: 0, best_streak: 8 });
   });
 
   describe('visibilidade entre professores (RN15)', () => {

@@ -46,6 +46,51 @@ export function resolveChapterStates(
   });
 }
 
+/** O que o resolvedor precisa saber de um (aluno, plano). */
+export interface PlanProgressInput {
+  /** Capítulos do plano, já na ordem. */
+  chapters: ChapterProgress[];
+  /** Existe linha em `plan_completions`. */
+  recorded: boolean;
+  /** O aluno terminou ao menos uma tentativa num capítulo do plano (Ruling 9). */
+  hasFinishedAttempt: boolean;
+}
+
+export interface ResolvedPlan {
+  chapters: ResolvedChapter[];
+  completed: boolean;
+  recorded: boolean;
+  /** Capítulos concluídos (derivados) ainda sem linha em `chapter_completions`. */
+  pendingChapters: ResolvedChapter[];
+  /** Plano concluído (derivado) ainda sem linha em `plan_completions`. */
+  pendingPlan: boolean;
+}
+
+/**
+ * Única regra de conclusão de plano (Rulings 4, 9 e 11), usada pelo aluno
+ * (lista, detalhe, assentamento) e pela equipe (progresso, ficha): o plano
+ * está concluído se já foi gravado ou se tem capítulos, todos concluídos, e o
+ * aluno terminou ao menos uma tentativa num deles (desativar todas as
+ * questões não paga bônus a quem nunca respondeu).
+ */
+export function resolvePlanState(input: PlanProgressInput): ResolvedPlan {
+  const chapters = resolveChapterStates(input.chapters);
+  const derived =
+    chapters.length > 0 &&
+    chapters.every((chapter) => chapter.completed) &&
+    input.hasFinishedAttempt;
+  const completed = input.recorded || derived;
+  return {
+    chapters,
+    completed,
+    recorded: input.recorded,
+    pendingChapters: chapters.filter(
+      (chapter) => chapter.completed && !chapter.recorded,
+    ),
+    pendingPlan: completed && !input.recorded,
+  };
+}
+
 /** Percentual inteiro de 0 a 100; 0 quando não há capítulos. */
 export function percentOf(completed: number, total: number): number {
   return total === 0 ? 0 : Math.round((completed / total) * 100);

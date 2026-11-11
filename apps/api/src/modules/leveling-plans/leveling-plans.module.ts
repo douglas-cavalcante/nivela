@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AssignmentsService } from 'src/modules/leveling-plans/assignments.service';
 import { ChaptersService } from 'src/modules/leveling-plans/chapters.service';
 import { MePlansController } from 'src/modules/leveling-plans/me-plans.controller';
+import { PlanCompletionService } from 'src/modules/leveling-plans/plan-completion.service';
 import { PlanProgressService } from 'src/modules/leveling-plans/plan-progress.service';
 import { PlansController } from 'src/modules/leveling-plans/plans.controller';
 import { StudentPlansController } from 'src/modules/leveling-plans/student-plans.controller';
@@ -16,6 +17,7 @@ import { StudyModule } from 'src/shared/study/study.module';
     PlansService,
     ChaptersService,
     AssignmentsService,
+    PlanCompletionService,
     PlanProgressService,
     StudentPlansService,
   ],
