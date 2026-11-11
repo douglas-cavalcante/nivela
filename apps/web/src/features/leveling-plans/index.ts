@@ -4,3 +4,6 @@ import { lazy } from 'react';
 export const PlanList = lazy(() =>
   import('src/features/leveling-plans/pages/PlanList').then((m) => ({ default: m.PlanList })),
 );
+export const PlanEditor = lazy(() =>
+  import('src/features/leveling-plans/pages/PlanEditor').then((m) => ({ default: m.PlanEditor })),
+);

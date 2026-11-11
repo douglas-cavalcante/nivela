@@ -10,7 +10,7 @@ import { ProtectedRoute } from 'src/app/routes/ProtectedRoute';
 import { Login, Profile } from 'src/features/auth';
 import { CategoryList } from 'src/features/categories';
 import { ClassroomDetail, ClassroomList } from 'src/features/classrooms';
-import { PlanList } from 'src/features/leveling-plans';
+import { PlanEditor, PlanList } from 'src/features/leveling-plans';
 import { QuestionForm, QuestionList } from 'src/features/questions';
 import { StudentDetail, StudentList } from 'src/features/students';
 import { SubjectList } from 'src/features/subjects';
@@ -60,6 +60,7 @@ export function AppRoutes() {
           <Route path="/questoes/nova" element={page(<QuestionForm />)} />
           <Route path="/questoes/:id" element={page(<QuestionForm />)} />
           <Route path="/planos" element={page(<PlanList />)} />
+          <Route path="/planos/:id" element={page(<PlanEditor />)} />
           <Route path="/disciplinas" element={page(<SubjectList />)} />
           <Route path="/categorias" element={page(<CategoryList />)} />
           <Route path="/turmas" element={page(<ClassroomList />)} />
