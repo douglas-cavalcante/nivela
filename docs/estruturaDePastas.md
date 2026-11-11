@@ -28,7 +28,7 @@ tcc/
 
 `Auth`, `Users` (professores/admin), `Classrooms`, `Students`, `Subjects`, `Categories`, `Questions`, `Answers`, `LevelingPlans`, `Rewards`, `Dashboard`.
 
-Na API a pasta é `kebab-case` (`modules/leveling-plans`); na web e no mobile é `camelCase` (`features/questions`, `features/levelingPlans`).
+Na API e na web a pasta é `kebab-case` (`modules/leveling-plans`, `features/leveling-plans`). No mobile a tela de estudo vive em `features/study` e a do plano em `features/plans` (o aluno enxerga "estudar" e "plano", não "resposta" nem "plano de nivelamento"); as duas consomem os endpoints das features `answers` e `leveling-plans` da API.
 
 ### Situação das features
 
@@ -42,8 +42,9 @@ Na API a pasta é `kebab-case` (`modules/leveling-plans`); na web e no mobile é
 | `classrooms` | CRUD de turmas, código de entrada, matrícula manual e remoção de alunos; `GET`/`POST /me/classrooms` do aluno | Lista e ficha da turma | "Minhas turmas" e entrada pelo código no Perfil |
 | `students` | Listagem e ficha de alunos (escopo do professor) | Lista e ficha do aluno | — |
 | `health` | `GET /health` | — | — |
-| `answers` | prática livre (`/practice/*`), respostas com tentativas, moedas e sequência (`POST /answers`), `GET /me/stats` | planejadas | planejadas |
-| `levelingPlans`, `rewards`, `dashboard` | planejadas (Planos 3 a 5) | planejadas | planejadas |
+| `answers` | prática livre (`GET /practice/subjects`, `GET /practice/next`), próxima questão do capítulo (`GET /me/plans/:id/chapters/:chapterId/next`), respostas com tentativas, moedas e sequência (`POST /answers`), `GET /me/stats` | — (o professor vê o desempenho no Plano 4) | `study` (`features/study`): Estudar (prática por disciplina), tela de questão e feedback, barra de moedas/sequência |
+| `leveling-plans` | CRUD de planos, capítulos ordenáveis, questões do capítulo, publicar, atribuições a turma/aluno com prazo, progresso; `GET /me/plans`, `GET /me/plans/:id`, `GET /students/:id/plans` | `leveling-plans`: lista e editor de planos (capítulos, seletor de questões, atribuições, progresso) | `plans` (`features/plans`): Meus planos no Início, tela do plano com capítulos (cadeado/progresso) e estudo do capítulo |
+| `rewards`, `dashboard` | planejadas (Plano 4) | planejadas | planejadas |
 
 ---
 
@@ -59,7 +60,7 @@ src/
 │       ├── <feature>.service.spec.ts  # unitário com Prisma mockado
 │       └── <feature>.module.ts        # `exports` define o que outras features podem usar
 ├── common/                        # filters, pipes, guards (AuthGuard, RolesGuard), decorators (@Public, @Roles, @AnyAuthenticated, @CurrentUser), validators (sem regra de negócio)
-├── shared/                        # enums, exceções, contrato de autenticação (auth/auth-user.ts), relógio injetável (clock/), paginação (pagination/), helpers do Prisma (prisma/, ex.: `isUniqueViolation`) e regras usadas por mais de uma feature
+├── shared/                        # enums, exceções, contrato de autenticação (auth/auth-user.ts), relógio injetável (clock/: `CLOCK` + `ClockModule`), moedas (coins/: `CoinLedger` e `coin-rules.ts`), dia de estudo e sequência (study/: `studyDay`, `StreakService`, `StudyModule`), escopos de leitura (scopes/), paginação (pagination/), helpers do Prisma (prisma/, ex.: `isUniqueViolation`) e regras usadas por mais de uma feature
 ├── prisma/                        # PrismaModule (global) e PrismaService (adapter-pg)
 ├── generated/prisma/              # client do Prisma (gerado, ignorado pelo git)
 ├── app.factory.ts                 # configureApp(): prefixo, validação, filtro, CORS, Swagger
@@ -70,6 +71,10 @@ test/*.e2e-spec.ts                 # e2e com supertest contra o banco nivela_tes
 test/helpers/                      # createTestApp(), resetDatabase(), factories (createUser/createClassroom) e rotas só de teste
 scripts/test-db-migrate.js           # aplica as migrations no banco nivela_test antes do e2e
 ```
+
+**Como `answers` e `leveling-plans` se dividem:** `answers` registra a resposta (`AnswersService`) e serve a prática livre; `leveling-plans` cuida do plano, dos capítulos, das atribuições, do progresso e do estado dos capítulos do aluno (`StudentPlansService`, exportado). A resposta com `plan_chapter_id` chama o `StudentPlansService` (a dependência vai só de `answers` para `leveling-plans`, pelo service exportado). `CoinLedger` e `StreakService` ficam em `shared/` porque `answers` os usa hoje e a loja (Plano 4) os usará amanhã.
+
+**Escopos de leitura (`src/shared/scopes/`):** `classroomScope(user)`, `studentScope(user)`, `planScope(user)` (planos do professor; admin vê todos) e `studentPlanScope(studentId)` (o plano visível a um aluno: publicado e atribuído a ele ou a uma turma em que está matriculado; único filtro das rotas do aluno que leem plano, capítulo ou questão de capítulo). Consultas partem sempre de um escopo.
 
 **Regras de dependência (ESLint, `apps/api/eslint.config.mjs`):**
 
@@ -87,7 +92,7 @@ scripts/test-db-migrate.js           # aplica as migrations no banco nivela_test
 src/
 ├── app/          # App.tsx, rotas, layouts (AppLayout com sidebar "fichário", AuthLayout)
 ├── features/     # Um diretório por feature
-├── components/   # UI genérica, sem regra de negócio, uma pasta por componente (DataTable, FormDialog, ConfirmDialog, SearchField, StatusChip, PasswordField, ErrorBoundary, EmptyState, ResourceState, Mascot, PageHeader)
+├── components/   # UI genérica, sem regra de negócio, uma pasta por componente (DataTable, FormDialog, ConfirmDialog, SearchField, AsyncAutocomplete (busca no servidor, substitui selects que cortavam em 100 itens), StatusChip, PasswordField, ErrorBoundary, EmptyState, ResourceState, Mascot, PageHeader)
 ├── lib/          # Adaptadores: axios (interceptor de token e 401), AuthContext, notify (avisos rápidos), theme (MUI a partir dos design tokens)
 ├── hooks/        # Hooks genéricos de lista: useListQuery (filtros na URL), usePaginatedList, useRemoteList
 ├── utils/        # Funções puras
@@ -97,6 +102,8 @@ src/
 ├── styles/       # Estilos globais
 └── test/         # Infra dos testes: setup (jest-dom, MSW), server MSW, renderWithProviders, usuários de exemplo
 ```
+
+**`leveling-plans` (web):** `pages/PlanList` e `pages/PlanEditor` (abas Capítulos, Atribuições e Progresso), `components/` (`QuestionPicker`, `ChapterCard`, `ChapterFormDialog`, `AssignDialog`, `ProgressTable`…) e `schemas/`. Usa `questions`, `classrooms` e `students` só pelos `index.ts` delas.
 
 O ESLint da web (`apps/web/eslint.config.mjs`) lê `src/features/*` para montar as regras de cada feature; `src/lib/theme` é o único lugar de `src/` onde cor hexadecimal é permitida (o tema MUI gerado a partir dos tokens).
 
@@ -134,8 +141,9 @@ app/                       # Rotas (Expo Router) — só montam a tela, sem lóg
 ├── _layout.tsx            # fontes, ThemeProvider, AuthProvider e Stack.Protected (grupos (tabs) e (auth))
 ├── (auth)/                # welcome, login, register
 ├── (tabs)/                # index, study, store, profile (barra de abas: Início, Estudar, Loja, Perfil)
-├── plans/[id].tsx         # planejada (Plano 3)
-└── questions/[id].tsx     # planejada (Plano 3)
+├── plans/[id].tsx         # tela do plano (capítulos)
+├── plans/[id]/chapters/[chapterId].tsx   # estudo de um capítulo (questão + feedback)
+└── practice/[subjectId].tsx              # prática livre de uma disciplina
 src/
 ├── features/<feature>/    # mesmas regras de import da web; anatomia abaixo
 ├── components/            # arquivos soltos, um por componente (AppText.tsx, Button.tsx…): AppText, Button, EmptyState, HandTitle, Mascot, OfflineScreen, PaperBackground (fundo pautado), PenCard (borda + sombra sólida), TabIcon, TextField
@@ -146,7 +154,7 @@ src/
 
 ### Anatomia de uma feature (mobile)
 
-Mesmas subpastas da web, mas cada tela é **um arquivo** em `screens/` (não uma pasta em `pages/`), e os testes da feature ficam juntos em `__tests__/`:
+Mesmas subpastas da web, mas cada tela é **um arquivo** em `screens/` (não uma pasta em `pages/`), e os testes da feature ficam juntos em `__tests__/`. Features de estudo também usam `hooks/` (ex.: `useQuestionRound`, a rodada de uma questão compartilhada pela prática e pelo capítulo):
 
 ```
 features/auth/
@@ -159,6 +167,8 @@ features/auth/
 └── index.ts      # API pública: as telas que as rotas de app/ montam
 ```
 
+- **`study` e `plans`:** `plans` usa `study` pelo `index.ts` (`QuestionView`, `FeedbackView`, `StatsBar`, `CoinBurst`, `useQuestionRound`); `study` nunca importa de `plans`. As duas telas de questão (prática e capítulo) são finas e só diferem na origem da próxima questão e no `plan_chapter_id` enviado.
+- **Dados remotos:** telas do aluno leem pelo hook `useRemote` (`src/hooks`: cancelamento, resposta atrasada descartada, `reload`) e recarregam ao voltar à tela (`useReloadOnFocus`), para moedas, sequência e contagens não ficarem velhas.
 - **Rotas protegidas:** `app/_layout.tsx` usa `Stack.Protected` — o grupo `(tabs)` só existe com usuário logado e `(auth)` só sem usuário; o redirecionamento acontece sozinho quando o login muda (inclusive no 401 que expira a sessão).
 - **Sem conexão:** na abertura, se há token salvo e o `GET /auth/me` falha por rede, tempo esgotado (15 s) ou 5xx, o token é mantido e `app/_layout.tsx` mostra a `OfflineScreen` ("Sem conexão com o servidor." + "Tentar de novo"); só o 401 encerra a sessão.
 - **Testes** ficam em `__tests__/` ao lado do código (`app/(tabs)/__tests__`, `src/lib/__tests__`); o Metro não os inclui no bundle.
