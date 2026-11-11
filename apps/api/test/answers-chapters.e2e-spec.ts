@@ -356,6 +356,98 @@ describe('Respostas em capítulos de plano (e2e)', () => {
       expect(await ledgerSum()).toBe(70);
     });
 
+    const getPlan = (planId: number) =>
+      request(app.getHttpServer())
+        .get(`/api/v1/me/plans/${planId}`)
+        .set('Authorization', `Bearer ${student.token}`);
+
+    it('Ruling 6: questão desativada depois de terminar as outras: GET do plano assenta o capítulo e libera o próximo', async () => {
+      const { planId, chapters } = await plan([2, 1]);
+      await assign(planId);
+      const [q1, q2] = chapters[0].questions;
+      await answer(q1, 'A', chapters[0].id).expect(200);
+      await prisma.question.update({
+        where: { id: q2 },
+        data: { active: false },
+      });
+      const { body } = await getPlan(planId).expect(200);
+      expect(body.chapters.map((c: { state: string }) => c.state)).toEqual([
+        'completed',
+        'available',
+      ]);
+      expect(
+        await prisma.chapterCompletion.count({
+          where: { planChapterId: chapters[0].id },
+        }),
+      ).toBe(1);
+      await answer(chapters[1].questions[0], 'A', chapters[1].id).expect(200);
+    });
+
+    it('Ruling 6: último capítulo esvaziado depois do anterior concluído: plano concluído e bônus uma vez, mesmo com GETs repetidos', async () => {
+      const { planId, chapters } = await plan([1, 1], 50);
+      await assign(planId);
+      await answer(chapters[0].questions[0], 'A', chapters[0].id).expect(200);
+      await prisma.question.update({
+        where: { id: chapters[1].questions[0] },
+        data: { active: false },
+      });
+      for (let i = 0; i < 3; i++) {
+        const { body } = await getPlan(planId).expect(200);
+        expect(body.completed).toBe(true);
+      }
+      expect(await prisma.planCompletion.count()).toBe(1);
+      expect(
+        await prisma.coinTransaction.count({
+          where: { reason: 'plan_completed' },
+        }),
+      ).toBe(1);
+      expect(await balance()).toBe(60);
+      expect(await ledgerSum()).toBe(60);
+    });
+
+    it('Ruling 6: next sem questão restante assenta a conclusão pendente', async () => {
+      const { planId, chapters } = await plan([2]);
+      await assign(planId);
+      const [q1, q2] = chapters[0].questions;
+      await answer(q1, 'A', chapters[0].id).expect(200);
+      await prisma.question.update({
+        where: { id: q2 },
+        data: { active: false },
+      });
+      const { body } = await request(app.getHttpServer())
+        .get(`/api/v1/me/plans/${planId}/chapters/${chapters[0].id}/next`)
+        .set('Authorization', `Bearer ${student.token}`)
+        .expect(200);
+      expect(body).toEqual({ question: null, remaining: 0 });
+      expect(await prisma.chapterCompletion.count()).toBe(1);
+      expect(await prisma.planCompletion.count()).toBe(1);
+      expect(await balance()).toBe(60);
+    });
+
+    it('Ruling 7: questão adicionada a capítulo já concluído é respondível, sem novo bônus', async () => {
+      const { planId, chapters } = await plan([1], 50);
+      await assign(planId);
+      await answer(chapters[0].questions[0], 'A', chapters[0].id).expect(200);
+      const extra = await createQuestion(prisma, { subjectId });
+      await prisma.chapterQuestion.create({
+        data: {
+          planChapterId: chapters[0].id,
+          questionId: extra.id,
+          position: 2,
+        },
+      });
+      const result = await answer(extra.id, 'A', chapters[0].id).expect(200);
+      expect(result.body.coins_awarded).toBe(10);
+      expect(result.body.plan).toEqual({ completed: true, bonus_awarded: 0 });
+      expect(await prisma.planCompletion.count()).toBe(1);
+      expect(
+        await prisma.coinTransaction.count({
+          where: { reason: 'plan_completed' },
+        }),
+      ).toBe(1);
+      expect(await balance()).toBe(70);
+    });
+
     it('/me/plans reflete a conclusão', async () => {
       const { planId, chapters } = await plan([1]);
       await assign(planId);

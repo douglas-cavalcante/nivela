@@ -167,6 +167,10 @@ describe('AnswersService', () => {
     completeAfterAnswer.mockResolvedValue(completion);
     const result = await service.answer(student, dto({ plan_chapter_id: 3 }));
     expect(enterChapter).toHaveBeenCalledWith(tx, 7, 3);
+    // O perfil é travado (primeiro $queryRaw) antes de entrar no capítulo.
+    expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      enterChapter.mock.invocationCallOrder[0],
+    );
     expect(chapterHasQuestion).toHaveBeenCalledWith(tx, 3, 10);
     expect(completeAfterAnswer).toHaveBeenCalledWith(tx, 7, 4, 3);
     expect(tx.questionAttempt.create).toHaveBeenCalledWith(

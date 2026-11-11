@@ -182,6 +182,8 @@ export class PracticeService {
       this.prisma.chapterQuestion.count({ where }),
     ]);
     if (!row) {
+      // Nada restante: assenta conclusões pendentes (questão desativada depois).
+      await this.plans.settle(user.id, planId);
       return { question: null, remaining: 0 };
     }
     const used = await this.prisma.questionAttempt.count({

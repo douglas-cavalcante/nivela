@@ -40,8 +40,25 @@ describe('resolveChapterStates (RN06 e Ruling 4)', () => {
       'available',
       'locked',
     ]);
+  });
+
+  it('capítulo vazio só conta como concluído se o anterior está concluído (Ruling 6)', () => {
     expect(states([chapter(1), chapter(2, { total: 0 }), chapter(3)])).toEqual([
       'available',
+      'locked',
+      'locked',
+    ]);
+    expect(
+      states([
+        chapter(1, { recorded: true }),
+        chapter(2, { total: 0 }),
+        chapter(3),
+      ]),
+    ).toEqual(['completed', 'completed', 'available']);
+  });
+
+  it('todas as questões ativas terminadas concluem o capítulo sem linha registrada', () => {
+    expect(states([chapter(1, { answered: 2 }), chapter(2)])).toEqual([
       'completed',
       'available',
     ]);

@@ -29,7 +29,13 @@ export function resolveChapterStates(
 ): ResolvedChapter[] {
   let previousCompleted = true;
   return chapters.map((chapter) => {
-    const completed = chapter.recorded || chapter.total === 0;
+    // Rulings 4 e 6: derivado. Linha registrada; ou todas as questões ativas
+    // terminadas no capítulo (questão desativada depois não trava o aluno); ou
+    // capítulo vazio com o anterior concluído (mantém a ordem da RN06).
+    const completed =
+      chapter.recorded ||
+      (chapter.total > 0 && chapter.answered >= chapter.total) ||
+      (chapter.total === 0 && previousCompleted);
     const state: ChapterState = completed
       ? 'completed'
       : previousCompleted
