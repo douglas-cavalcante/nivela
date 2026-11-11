@@ -78,7 +78,7 @@ Toda transação que mexe no estudo pega as travas sempre nesta ordem: **perfil 
 
 ### Política de edição de questão
 
-Questão com tentativas registradas continua editável (enunciado, alternativas, explicação), mas **não troca a alternativa correta**: `PUT /questions/:id` responde 409. A checagem acontece dentro da transação, depois de travar a linha da questão, e a ordem de travas acima garante que ou a tentativa já existe (o `PUT` recebe 409) ou a resposta lê a correta já trocada. Questão com tentativas também não é excluída, só desativada (RN02). A FK composta `questions(category_id, subject_id) → categories(id, subject_id)` garante no banco que a categoria pertence à disciplina.
+Questão com tentativas registradas continua editável (enunciado, alternativas, explicação), mas **não troca a alternativa correta**: `PUT /questions/:id` responde 409. A checagem acontece dentro da transação, depois de travar a linha da questão, e a ordem de travas acima garante que ou a tentativa já existe (o `PUT` recebe 409) ou a resposta lê a correta já trocada. Questão com tentativas também não é excluída, só desativada (RN02). Questão que está em algum capítulo de plano **não troca de disciplina** (422 em `subject_id`: "A questão está em um plano; não é possível trocar a disciplina."), porque o plano é de uma disciplina só; a checagem também acontece depois do lock da questão, e `PUT /plans/:id/chapters/:chapterId/questions` trava as questões pedidas com `FOR SHARE` antes de conferir a disciplina. A FK composta `questions(category_id, subject_id) → categories(id, subject_id)` garante no banco que a categoria pertence à disciplina.
 
 ### Planos e estado dos capítulos
 
