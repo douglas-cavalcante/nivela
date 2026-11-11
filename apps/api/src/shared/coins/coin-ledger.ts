@@ -61,10 +61,14 @@ export async function lockStudentProfile(
  * NOTHING`: uma violação de unicidade abortaria a transação do chamador, então
  * ela nunca é provocada; o saldo só sobe se a linha realmente entrou.
  *
- * Ordem de locks: `credit` e `debit` travam primeiro a linha do perfil
- * (`FOR UPDATE`), depois a vaga única do extrato — a mesma ordem do
- * `StreakService.register`. Por isso os chamadores podem usá-los em qualquer
- * ordem dentro da mesma transação sem risco de deadlock.
+ * Regra de travas: o perfil do aluno é sempre o primeiro lock da transação;
+ * prêmio e resgate vêm depois. Quem chama trava o perfil
+ * (`lockStudentProfile`) antes de qualquer outra linha (plano, questão,
+ * prêmio, resgate); `credit` e `debit` travam o perfil de novo (reentrante na
+ * mesma transação) e só então tocam no extrato. Seguida essa regra, crédito,
+ * débito e `StreakService.register` podem vir em qualquer ordem na mesma
+ * transação sem risco de deadlock. Ordem completa: `docs/architecture.md`
+ * ("Ordem de travas").
  */
 @Injectable()
 export class CoinLedger {
