@@ -57,6 +57,14 @@ Resolvido na branch `feature/plan3-hardening`:
 - ~~`lockStudentProfile` sem perfil virava 500~~ — 404 "Aluno não encontrado.".
 - ~~Flake do mobile sob carga~~ — `asyncUtilTimeout: 3000` e `--maxWorkers=50%` no CI.
 
+
+## Sobras da revisão final do Plano 3
+
+- Plano com todas as questões desativadas aparece com capítulos "concluídos" (0/0) e 100%, mas sem "Concluído" (Ruling 9 exige uma resposta para concluir) — mostrar um estado "plano sem questões disponíveis" no app e no painel.
+- Leituras da equipe que assentam conclusões (`GET /plans/:id/progress`, `GET /students/:id/plans`) fazem um `settle` por aluno em sequência; uma falha devolve 500 para a página inteira (cura na próxima leitura) — isolar com try/catch por aluno e logar.
+- `StreakService.register`: ramo "perfil inexistente" ficou inalcançável (o lock do perfil vem antes).
+- Testes e2e usam relógio fixo (`TestClock`, 2026-11-10): comparações com `created_at`/`updated_at` do banco devem usar o relógio do app.
+
 ## Plano 4 — Gamificação e relatórios
 
 - **Regra de travas (vinculante):** o perfil do aluno é sempre o primeiro lock da transação; prêmio e resgate vêm depois. Resgate: perfil `FOR UPDATE` → prêmio `FOR UPDATE` (estoque) → resgate → `CoinLedger.debit`. Estorno pela equipe: ler o `student_id` do resgate **sem trava**, travar o perfil, reler o resgate com `FOR UPDATE`, conferir o estado e só então `CoinLedger.credit`. Transações da equipe que não mexem em moedas travam só o prêmio (ou só o resgate). Ver `docs/architecture.md`, "Ordem de travas".
