@@ -150,7 +150,11 @@ describe('Progresso nos planos (e2e)', () => {
       });
       const carla = await enroll(classroom.id, 'Carla');
       const bruno = await enroll(classroom.id, 'Bruno');
-      const ana = await createUser(prisma, { name: 'Ana' });
+      // Aluna de outra turma do mesmo professor (só assim ele pode atribuir direto).
+      const ana = await enroll(
+        (await createClassroom(prisma, { teacherId: teacherA.id })).id,
+        'Ana',
+      );
       await assign(teacherA.token, planId, { classroom_id: classroom.id });
       await assign(teacherA.token, planId, { student_id: carla.id });
       await assign(teacherA.token, planId, { student_id: ana.id });

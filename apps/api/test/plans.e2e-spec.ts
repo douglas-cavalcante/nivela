@@ -366,7 +366,7 @@ describe('Planos de nivelamento (e2e)', () => {
         const { body } = await http()
           .put(`/api/v1/plans/${a.id}/chapters/${id}`)
           .set(bearer)
-          .send({ title: 'X' })
+          .send({ title: 'Título' })
           .expect(404);
         expect(body.message).toBe('Capítulo não encontrado.');
         await http()
