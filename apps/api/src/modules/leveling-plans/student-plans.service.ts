@@ -272,18 +272,21 @@ export class StudentPlansService {
     }
     const index = resolved.findIndex((item) => item.id === chapterId);
     const chapterDone = index >= 0 && resolved[index].completed;
+    // "Concluído POR ESTA resposta": só a transição (ainda não registrado) conta.
+    const chapterJustDone =
+      chapterDone && pending.some((item) => item.id === chapterId);
     const allDone =
       resolved.length > 0 && resolved.every((item) => item.completed);
 
-    let planDone: boolean;
+    let planDone = false;
     let bonusAwarded = 0;
     if (allDone) {
-      planDone = true;
       const { count } = await tx.planCompletion.createMany({
         data: [{ studentId, levelingPlanId: planId }],
         skipDuplicates: true,
       });
       if (count === 1) {
+        planDone = true;
         const { completionBonus } = await tx.levelingPlan.findUniqueOrThrow({
           where: { id: planId },
           select: { completionBonus: true },
@@ -305,20 +308,11 @@ export class StudentPlansService {
           data: { bonusAwarded },
         });
       }
-    } else {
-      // Um capítulo novo pode ter reaberto o plano; a conclusão registrada fica.
-      planDone =
-        (await tx.planCompletion.findUnique({
-          where: {
-            studentId_levelingPlanId: { studentId, levelingPlanId: planId },
-          },
-          select: { studentId: true },
-        })) !== null;
     }
 
     return {
       chapter: {
-        completed: chapterDone,
+        completed: chapterJustDone,
         next_chapter_id: chapterDone ? (resolved[index + 1]?.id ?? null) : null,
       },
       plan: { completed: planDone, bonus_awarded: bonusAwarded },

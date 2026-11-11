@@ -181,6 +181,20 @@ describe('AnswersService', () => {
     expect(result).toMatchObject(completion);
   });
 
+  it('com capítulo: erro na 1ª tentativa não assenta nem reporta conclusão', async () => {
+    enterChapter.mockResolvedValue({ planId: 4 });
+    chapterHasQuestion.mockResolvedValue(true);
+    const result = await service.answer(
+      student,
+      dto({ plan_chapter_id: 3, selected_letter: 'B' }),
+    );
+    expect(completeAfterAnswer).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      chapter: { completed: false, next_chapter_id: null },
+      plan: { completed: false, bonus_awarded: 0 },
+    });
+  });
+
   it('com capítulo: questão fora do capítulo responde 404 sem gravar', async () => {
     enterChapter.mockResolvedValue({ planId: 4 });
     chapterHasQuestion.mockResolvedValue(false);

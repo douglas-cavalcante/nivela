@@ -56,7 +56,12 @@ export interface ApiAnswerResult {
   /** Só quando `finished` (RN05). */
   explanation: string | null;
   streak: { current: number; best: number; bonus_awarded: number };
+  /**
+   * Só com `plan_chapter_id`. `completed` é um evento: verdadeiro apenas quando ESTA resposta
+   * (a que termina a questão) concluiu o capítulo; falso se já estava concluído.
+   */
   chapter?: { completed: boolean; next_chapter_id: number | null };
+  /** Idem: `completed` só na resposta que concluiu o plano; `bonus_awarded` em moedas (0 se não houve). */
   plan?: { completed: boolean; bonus_awarded: number };
 }
 

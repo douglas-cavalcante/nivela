@@ -281,7 +281,7 @@ describe('Respostas em capítulos de plano (e2e)', () => {
       });
       const result = await answer(extra.id, 'A', added.id).expect(200);
       expect(result.body.chapter.completed).toBe(true);
-      expect(result.body.plan).toEqual({ completed: true, bonus_awarded: 0 });
+      expect(result.body.plan).toEqual({ completed: false, bonus_awarded: 0 });
       expect(await prisma.planCompletion.count()).toBe(1);
       expect(
         await prisma.coinTransaction.count({
@@ -424,6 +424,32 @@ describe('Respostas em capítulos de plano (e2e)', () => {
       expect(await balance()).toBe(60);
     });
 
+    it('Ruling 8: erro na 1ª tentativa nunca reporta conclusão, mesmo com conclusão pendente', async () => {
+      const { planId, chapters } = await plan([2]);
+      await assign(planId);
+      const [q1, q2] = chapters[0].questions;
+      await answer(q1, 'A', chapters[0].id).expect(200);
+      await prisma.question.update({
+        where: { id: q2 },
+        data: { active: false },
+      });
+      const extra = await createQuestion(prisma, { subjectId });
+      await prisma.chapterQuestion.create({
+        data: {
+          planChapterId: chapters[0].id,
+          questionId: extra.id,
+          position: 3,
+        },
+      });
+      const miss = await answer(extra.id, 'B', chapters[0].id).expect(200);
+      expect(miss.body.finished).toBe(false);
+      expect(miss.body.chapter).toEqual({
+        completed: false,
+        next_chapter_id: null,
+      });
+      expect(miss.body.plan).toEqual({ completed: false, bonus_awarded: 0 });
+    });
+
     it('Ruling 7: questão adicionada a capítulo já concluído é respondível, sem novo bônus', async () => {
       const { planId, chapters } = await plan([1], 50);
       await assign(planId);
@@ -438,7 +464,9 @@ describe('Respostas em capítulos de plano (e2e)', () => {
       });
       const result = await answer(extra.id, 'A', chapters[0].id).expect(200);
       expect(result.body.coins_awarded).toBe(10);
-      expect(result.body.plan).toEqual({ completed: true, bonus_awarded: 0 });
+      // Ruling 8: conclusão é evento; já estava concluído, não celebra de novo.
+      expect(result.body.chapter.completed).toBe(false);
+      expect(result.body.plan).toEqual({ completed: false, bonus_awarded: 0 });
       expect(await prisma.planCompletion.count()).toBe(1);
       expect(
         await prisma.coinTransaction.count({

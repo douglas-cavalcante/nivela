@@ -161,15 +161,23 @@ export class AnswersService {
     });
 
     const streak = await this.streaks.register(tx, studentId, this.clock.now());
+    // Conclusão é evento de quem termina a questão: a 1ª tentativa errada nunca a reporta
+    // (uma conclusão pendente é assentada na próxima resposta final ou ao abrir o plano).
+    const finished = isCorrect || attemptNumber === 2;
     const completion =
       chapterId === null || chapterPlan === null
         ? undefined
-        : await this.plans.completeAfterAnswer(
-            tx,
-            studentId,
-            chapterPlan.planId,
-            chapterId,
-          );
+        : !finished
+          ? {
+              chapter: { completed: false, next_chapter_id: null },
+              plan: { completed: false, bonus_awarded: 0 },
+            }
+          : await this.plans.completeAfterAnswer(
+              tx,
+              studentId,
+              chapterPlan.planId,
+              chapterId,
+            );
     // Depois do bônus do plano, para o saldo devolvido já incluí-lo.
     const { coinsBalance } = await tx.studentProfile.findUniqueOrThrow({
       where: { userId: studentId },
