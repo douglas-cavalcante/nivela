@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from 'src/generated/prisma/client';
 import type { CoinReason } from 'src/generated/prisma/client';
 import { BusinessRuleException } from 'src/shared/exceptions/business-rule.exception';
@@ -44,14 +44,21 @@ function assertPositiveInteger(amount: number): void {
   }
 }
 
-/** Trava a linha do perfil até o fim da transação (primeiro lock de toda operação de moedas). */
+/**
+ * Trava a linha do perfil até o fim da transação (primeiro lock de toda
+ * operação de moedas). Sem perfil (conta que não é de aluno), responde 404
+ * logo aqui, antes de qualquer gravação, em vez de um P2025/500 tardio.
+ */
 export async function lockStudentProfile(
   tx: Prisma.TransactionClient,
   studentId: number,
 ): Promise<void> {
-  await tx.$queryRaw`
+  const rows = await tx.$queryRaw<{ user_id: number }[]>`
     SELECT "user_id" FROM "student_profiles"
     WHERE "user_id" = ${studentId} FOR UPDATE`;
+  if (rows.length === 0) {
+    throw new NotFoundException('Aluno não encontrado.');
+  }
 }
 
 /**
