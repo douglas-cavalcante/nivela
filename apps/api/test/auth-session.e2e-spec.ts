@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Role } from 'src/shared/enums/role.enum';
-import { createTestApp } from './helpers/create-test-app';
+import { createTestApp, testClock } from './helpers/create-test-app';
 import { createUser, DEFAULT_PASSWORD } from './helpers/factories';
 import { resetDatabase } from './helpers/reset-database';
 
@@ -70,7 +70,9 @@ describe('Auth - sessão (e2e)', () => {
   it('token expirado → 401 e o registro é apagado', async () => {
     const teacher = await createUser(prisma, { role: Role.Teacher });
     const token = await loginAs(teacher.email);
-    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+    const eightDaysAgo = new Date(
+      testClock(app).now().getTime() - 8 * 24 * 60 * 60 * 1000,
+    );
     await prisma.accessToken.updateMany({
       data: { createdAt: eightDaysAgo, lastUsedAt: eightDaysAgo },
     });
