@@ -1,6 +1,6 @@
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/EditOutlined';
-import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Tab, Tabs, Typography } from '@mui/material';
 import { parseApiError } from '@nivela/api-contract';
 import type { ApiPlan, ApiPlanChapter } from '@nivela/api-contract';
 import { useEffect, useState } from 'react';
@@ -16,10 +16,12 @@ import {
   reorderChaptersAction,
   setChapterQuestionsAction,
 } from 'src/features/leveling-plans/api/plans.action';
+import { AssignmentsPanel } from 'src/features/leveling-plans/components/AssignmentsPanel';
 import { ChapterCard } from 'src/features/leveling-plans/components/ChapterCard';
 import { ChapterFormDialog } from 'src/features/leveling-plans/components/ChapterFormDialog';
 import { PlanFormDialog } from 'src/features/leveling-plans/components/PlanFormDialog';
 import { PlanStatusChip } from 'src/features/leveling-plans/components/PlanStatusChip';
+import { ProgressTable } from 'src/features/leveling-plans/components/ProgressTable';
 import { QuestionPicker } from 'src/features/leveling-plans/components/QuestionPicker';
 import { SubjectBadge, listSubjectsAction } from 'src/features/subjects';
 import { useRemoteList } from 'src/hooks/useRemoteList';
@@ -28,6 +30,13 @@ import { useNotify } from 'src/lib/notify/useNotify';
 import { validId } from 'src/utils/ids';
 
 const BACK = { to: '/planos', label: 'Voltar' };
+
+type Tab = 'chapters' | 'assignments' | 'progress';
+const TABS: Array<{ value: Tab; label: string }> = [
+  { value: 'chapters', label: 'Capítulos' },
+  { value: 'assignments', label: 'Atribuições' },
+  { value: 'progress', label: 'Progresso' },
+];
 
 /** Troca dois vizinhos de lugar (`index` e `index + direction`); devolve a lista nova. */
 function swapped<T>(items: T[], index: number, direction: -1 | 1): T[] {
@@ -46,6 +55,7 @@ function PlanView({ plan, onPlan }: PlanViewProps) {
   const notify = useNotify();
   const isAdmin = useAuth().user?.role === 'admin';
   const { rows: subjects } = useRemoteList((signal) => listSubjectsAction(signal), 'subjects');
+  const [tab, setTab] = useState<Tab>('chapters');
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -130,63 +140,86 @@ function PlanView({ plan, onPlan }: PlanViewProps) {
         <Box sx={{ mb: 3 }} />
       )}
 
-      <Box component="section" aria-labelledby="chapters-title">
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 2 }}>
-          <Typography id="chapters-title" variant="h3" component="h2">
-            Capítulos ({plan.chapters.length})
-          </Typography>
-          <Button variant="contained" startIcon={<AddIcon />} disabled={busy} onClick={() => setChapterForm('new')}>
-            Novo capítulo
-          </Button>
-        </Box>
-
-        {plan.has_progress ? (
-          <Alert severity="info" role="note" sx={{ mb: 2 }}>
-            Este plano já tem progresso de alunos: dá para adicionar e reordenar, mas não para remover capítulos ou questões.
-          </Alert>
-        ) : null}
-
-        {plan.chapters.length === 0 ? (
-          <EmptyState
-            title="Nenhum capítulo ainda."
-            description="Adicione o primeiro capítulo para montar o plano."
+      <Tabs
+        value={tab}
+        onChange={(_event, value: Tab) => setTab(value)}
+        aria-label="Seções do plano"
+        sx={{ mb: 3, borderBottom: 1, borderColor: 'divider' }}
+      >
+        {TABS.map((item) => (
+          <Tab
+            key={item.value}
+            value={item.value}
+            label={item.label}
+            id={`plan-tab-${item.value}`}
+            aria-controls={`plan-panel-${item.value}`}
           />
-        ) : (
-          <Box sx={{ display: 'grid', gap: 3 }}>
-            {plan.chapters.map((chapter, index) => (
-              <ChapterCard
-                key={chapter.id}
-                number={index + 1}
-                total={plan.chapters.length}
-                chapter={chapter}
-                busy={busy}
-                onMove={(direction) => moveChapter(index, direction)}
-                onRename={() => setChapterForm(chapter)}
-                onDelete={() => {
-                  setLastDeleting(chapter);
-                  setDeleting(chapter);
-                }}
-                onAddQuestions={() => setPicking(chapter)}
-                onMoveQuestion={(questionIndex, direction) =>
-                  changeQuestions(
-                    chapter,
-                    swapped(
-                      chapter.questions.map((question) => question.id),
-                      questionIndex,
-                      direction,
-                    ),
-                  )
-                }
-                onRemoveQuestion={(questionIndex) =>
-                  changeQuestions(
-                    chapter,
-                    chapter.questions.filter((_question, position) => position !== questionIndex).map((question) => question.id),
-                  )
-                }
+        ))}
+      </Tabs>
+
+      <Box role="tabpanel" id={`plan-panel-${tab}`} aria-labelledby={`plan-tab-${tab}`}>
+        {tab === 'chapters' ? (
+          <Box component="section" aria-labelledby="chapters-title">
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+              <Typography id="chapters-title" variant="h3" component="h2">
+                Capítulos ({plan.chapters.length})
+              </Typography>
+              <Button variant="contained" startIcon={<AddIcon />} disabled={busy} onClick={() => setChapterForm('new')}>
+                Novo capítulo
+              </Button>
+            </Box>
+
+            {plan.has_progress ? (
+              <Alert severity="info" role="note" sx={{ mb: 2 }}>
+                Este plano já tem progresso de alunos: dá para adicionar e reordenar, mas não para remover capítulos ou questões.
+              </Alert>
+            ) : null}
+
+            {plan.chapters.length === 0 ? (
+              <EmptyState
+                title="Nenhum capítulo ainda."
+                description="Adicione o primeiro capítulo para montar o plano."
               />
-            ))}
+            ) : (
+              <Box sx={{ display: 'grid', gap: 3 }}>
+                {plan.chapters.map((chapter, index) => (
+                  <ChapterCard
+                    key={chapter.id}
+                    number={index + 1}
+                    total={plan.chapters.length}
+                    chapter={chapter}
+                    busy={busy}
+                    onMove={(direction) => moveChapter(index, direction)}
+                    onRename={() => setChapterForm(chapter)}
+                    onDelete={() => {
+                      setLastDeleting(chapter);
+                      setDeleting(chapter);
+                    }}
+                    onAddQuestions={() => setPicking(chapter)}
+                    onMoveQuestion={(questionIndex, direction) =>
+                      changeQuestions(
+                        chapter,
+                        swapped(
+                          chapter.questions.map((question) => question.id),
+                          questionIndex,
+                          direction,
+                        ),
+                      )
+                    }
+                    onRemoveQuestion={(questionIndex) =>
+                      changeQuestions(
+                        chapter,
+                        chapter.questions.filter((_question, position) => position !== questionIndex).map((question) => question.id),
+                      )
+                    }
+                  />
+                ))}
+              </Box>
+            )}
           </Box>
-        )}
+        ) : null}
+        {tab === 'assignments' ? <AssignmentsPanel planId={plan.id} published={!draft} /> : null}
+        {tab === 'progress' ? <ProgressTable planId={plan.id} /> : null}
       </Box>
 
       {editing ? (
