@@ -12,7 +12,7 @@ import {
   question,
   secondMiss,
   stats,
-} from 'src/features/study/__tests__/fixtures';
+} from 'src/test/studyFixtures';
 
 type RequestConfig = Parameters<FakeHandler>[1];
 
@@ -288,12 +288,15 @@ describe('prática livre', () => {
 
 describe('Início', () => {
   it('saúda pelo primeiro nome e mostra sequência e moedas', async () => {
-    await renderApp({ user: student, routes: { 'GET /me/stats': statsRoute } });
+    await renderApp({
+      user: student,
+      routes: { 'GET /me/stats': statsRoute, 'GET /me/plans': () => ({ status: 200, data: { data: [] } }) },
+    });
 
     expect(await screen.findByText('Oi, Ana!')).toBeTruthy();
     expect(await screen.findByLabelText('Sequência de 3 dias.')).toBeTruthy();
     expect(screen.getByLabelText('120 moedas.')).toBeTruthy();
-    expect(screen.getByText('Seus planos aparecem aqui quando o professor enviar.')).toBeTruthy();
+    expect(await screen.findByText('Seus planos aparecem aqui quando o professor enviar.')).toBeTruthy();
   });
 
   it('"Praticar agora" abre a aba Estudar', async () => {
@@ -302,6 +305,7 @@ describe('Início', () => {
       user: student,
       routes: {
         'GET /me/stats': statsRoute,
+        'GET /me/plans': () => ({ status: 200, data: { data: [] } }),
         'GET /practice/subjects': subjects,
       },
     });

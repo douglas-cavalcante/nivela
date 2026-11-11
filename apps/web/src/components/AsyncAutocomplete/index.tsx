@@ -25,6 +25,8 @@ const LOAD_ERROR = 'Não foi possível carregar as opções.';
 /**
  * Campo de escolha com busca no servidor: digitar dispara a busca depois de 300 ms sem digitação.
  * Uma busca nova cancela a anterior pelo `signal` e a resposta atrasada é descartada.
+ * O valor escolhido sempre aparece entre as opções (mesmo que a busca atual não o traga) e, depois de escolher,
+ * a busca é zerada: reabrir o campo lista tudo de novo.
  */
 export function AsyncAutocomplete<T>({
   label,
@@ -77,7 +79,10 @@ export function AsyncAutocomplete<T>({
   }, [open, search]);
 
   const loading = open && (result === null || result.search !== search);
-  const options = result?.options ?? [];
+  const found = result?.options ?? [];
+  // o valor escolhido precisa estar nas opções, senão o MUI avisa "valor fora das opções"
+  const options =
+    value !== null && !found.some((option) => getOptionKey(option) === getOptionKey(value)) ? [value, ...found] : found;
   const loadError = open && !loading ? (result?.error ?? null) : null;
 
   return (
@@ -91,7 +96,7 @@ export function AsyncAutocomplete<T>({
       onInputChange={(_event, text, reason) => {
         setInputValue(text);
         if (reason === 'input') setSearch(text);
-        else if (reason === 'clear') setSearch('');
+        else setSearch(''); // limpar, escolher ou sair do campo: a próxima abertura lista tudo
       }}
       options={options}
       filterOptions={(rows) => rows}

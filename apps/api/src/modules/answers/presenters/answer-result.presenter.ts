@@ -8,6 +8,9 @@ export interface AnswerOutcome {
   correctLetter: string;
   explanation: string;
   streak: { current: number; best: number; bonus_awarded: number };
+  /** Só quando a resposta foi dada num capítulo de plano. */
+  chapter?: ApiAnswerResult['chapter'];
+  plan?: ApiAnswerResult['plan'];
 }
 
 /** RN05: a correta e a explicação só saem quando a questão termina no contexto. */
@@ -22,5 +25,7 @@ export function presentAnswerResult(outcome: AnswerOutcome): ApiAnswerResult {
     correct_letter: finished ? (outcome.correctLetter as OptionLetter) : null,
     explanation: finished ? outcome.explanation : null,
     streak: outcome.streak,
+    ...(outcome.chapter ? { chapter: outcome.chapter } : {}),
+    ...(outcome.plan ? { plan: outcome.plan } : {}),
   } satisfies ApiAnswerResult;
 }

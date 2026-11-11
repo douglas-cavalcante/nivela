@@ -221,13 +221,23 @@ describe('Respostas (e2e)', () => {
     expect(missing.body.errors).toHaveProperty('selected_letter');
   });
 
-  it('capítulo ainda não existe nesta etapa: plan_chapter_id responde 422', async () => {
+  it('plan_chapter_id de capítulo que não existe responde 404', async () => {
     const question = await createQuestion(prisma);
     const { body } = await answer(question.id, 'A', token, {
       plan_chapter_id: 1,
-    }).expect(422);
-    expect(body.errors.plan_chapter_id).toEqual(['Capítulo não encontrado.']);
+    }).expect(404);
+    expect(body.message).toBe('Capítulo não encontrado.');
     expect(await prisma.questionAttempt.count()).toBe(0);
+  });
+
+  it('plan_chapter_id nulo vale como prática livre', async () => {
+    const question = await createQuestion(prisma);
+    const { body } = await answer(question.id, 'A', token, {
+      plan_chapter_id: null,
+    }).expect(200);
+    expect(body).toMatchObject({ is_correct: true, coins_awarded: 10 });
+    const attempt = await prisma.questionAttempt.findFirstOrThrow();
+    expect(attempt.planChapterId).toBeNull();
   });
 
   it('só o aluno responde: equipe recebe 403 e anônimo 401', async () => {

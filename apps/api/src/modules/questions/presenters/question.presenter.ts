@@ -6,19 +6,12 @@ import type {
   OptionLetter,
   SubjectColorKey,
 } from '@nivela/api-contract';
+import { statementExcerpt } from 'src/shared/text/statement-excerpt';
 
-const EXCERPT_LENGTH = 140;
 const logger = new Logger('QuestionPresenter');
 
-/** Primeiros 140 caracteres do enunciado, sem quebras de linha. */
-export function statementExcerpt(statement: string): string {
-  const flat = statement.replace(/\s*[\r\n]+\s*/g, ' ');
-  // Por pontos de código, para não partir emojis ao meio.
-  const chars = Array.from(flat);
-  return chars.length > EXCERPT_LENGTH
-    ? `${chars.slice(0, EXCERPT_LENGTH).join('').trimEnd()}…`
-    : flat;
-}
+// Mantido aqui por compatibilidade: o código vive em shared/text (usado também pelos planos).
+export { statementExcerpt };
 
 interface QuestionRow {
   id: number;

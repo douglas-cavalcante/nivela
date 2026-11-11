@@ -148,6 +148,17 @@ describe('StudentList', () => {
     await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/alunos$/));
   });
 
+  it('falha (não 404) ao resolver a turma da URL avisa no campo e mantém o filtro', async () => {
+    listHandler();
+    server.use(
+      http.get(`${API_URL}/classrooms/7`, () => HttpResponse.json({ message: 'Erro interno.' }, { status: 500 })),
+    );
+    renderPage('/alunos?classroom_id=7');
+
+    expect(await screen.findByText('Não foi possível carregar a turma.')).toBeInTheDocument();
+    expect(screen.getByTestId('where')).toHaveTextContent('classroom_id=7');
+  });
+
   it('turma inválida na URL não vai para a API', async () => {
     const seen = vi.fn();
     listHandler((params) => seen(params.get('classroom_id')));

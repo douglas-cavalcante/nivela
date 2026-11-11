@@ -6,19 +6,18 @@ import {
   presentAnswerResult,
   type AnswerOutcome,
 } from 'src/modules/answers/presenters/answer-result.presenter';
+import { StudentPlansService } from 'src/modules/leveling-plans/student-plans.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
 import { CLOCK, type Clock } from 'src/shared/clock/clock';
 import { CoinLedger, lockStudentProfile } from 'src/shared/coins/coin-ledger';
 import { COINS_FIRST_TRY, COINS_SECOND_TRY } from 'src/shared/coins/coin-rules';
 import { BusinessRuleException } from 'src/shared/exceptions/business-rule.exception';
-import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
 import { isUniqueViolation } from 'src/shared/prisma/unique-violation';
 import { StreakService } from 'src/shared/study/streak.service';
 
 export const QUESTION_NOT_FOUND = 'Questão não encontrada.';
 export const QUESTION_FINISHED = 'Você já terminou esta questão.';
-const CHAPTER_NOT_FOUND = 'Capítulo não encontrado.';
 /** Índices únicos parciais de `question_attempts` (um por contexto). */
 const ATTEMPT_INDEXES = [
   'question_attempts_practice_key',
@@ -31,6 +30,7 @@ export class AnswersService {
     private readonly prisma: PrismaService,
     private readonly coins: CoinLedger,
     private readonly streaks: StreakService,
+    private readonly plans: StudentPlansService,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -39,6 +39,8 @@ export class AnswersService {
    *
    * Concorrência: a transação começa travando a linha do perfil do aluno
    * (`FOR UPDATE`, o mesmo primeiro lock de `CoinLedger` e `StreakService`).
+   * Com `plan_chapter_id`, o segundo lock é `FOR SHARE` na linha do plano
+   * (fecha a corrida com a remoção de questões do plano).
    * Respostas simultâneas do mesmo aluno se serializam aqui: a segunda só lê as
    * tentativas depois que a primeira confirmou, então o 409 normalmente sai da
    * pré-checagem e a transação nunca aborta. Como rede de segurança, se o
@@ -51,12 +53,6 @@ export class AnswersService {
    * recebe 409) ou a resposta lê a correta já trocada.
    */
   async answer(user: AuthUser, dto: AnswerDto): Promise<ApiAnswerResult> {
-    if (dto.plan_chapter_id !== undefined) {
-      // Capítulos entram na Task 8; até lá nenhum existe.
-      throw new FieldValidationException({
-        plan_chapter_id: [CHAPTER_NOT_FOUND],
-      });
-    }
     try {
       const outcome = await this.prisma.$transaction((tx) =>
         this.record(tx, user.id, dto),
@@ -88,10 +84,22 @@ export class AnswersService {
     dto: AnswerDto,
   ): Promise<AnswerOutcome> {
     await lockStudentProfile(tx, studentId);
+    // Contexto: prática livre (plan_chapter_id ausente) ou capítulo de plano.
+    const chapterId = dto.plan_chapter_id ?? null;
+    const chapterPlan =
+      chapterId === null
+        ? null
+        : await this.plans.enterChapter(tx, studentId, chapterId);
     const locked = await tx.$queryRaw<{ id: number }[]>`
       SELECT "id" FROM "questions"
       WHERE "id" = ${dto.question_id} AND "active" FOR SHARE`;
     if (locked.length === 0) {
+      throw new NotFoundException(QUESTION_NOT_FOUND);
+    }
+    if (
+      chapterId !== null &&
+      !(await this.plans.chapterHasQuestion(tx, chapterId, dto.question_id))
+    ) {
       throw new NotFoundException(QUESTION_NOT_FOUND);
     }
     const question = await tx.question.findUniqueOrThrow({
@@ -102,12 +110,11 @@ export class AnswersService {
       },
     });
 
-    // Contexto: prática livre (plan_chapter_id nulo). Capítulos: Task 8.
     const previous = await tx.questionAttempt.findMany({
       where: {
         studentId,
         questionId: dto.question_id,
-        planChapterId: null,
+        planChapterId: chapterId,
       },
       select: { isCorrect: true },
     });
@@ -144,7 +151,7 @@ export class AnswersService {
       data: {
         studentId,
         questionId: dto.question_id,
-        planChapterId: null,
+        planChapterId: chapterId,
         selectedOptionId: selected.id,
         attemptNumber,
         isCorrect,
@@ -154,6 +161,24 @@ export class AnswersService {
     });
 
     const streak = await this.streaks.register(tx, studentId, this.clock.now());
+    // Conclusão é evento de quem termina a questão: a 1ª tentativa errada nunca a reporta
+    // (uma conclusão pendente é assentada na próxima resposta final ou ao abrir o plano).
+    const finished = isCorrect || attemptNumber === 2;
+    const completion =
+      chapterId === null || chapterPlan === null
+        ? undefined
+        : !finished
+          ? {
+              chapter: { completed: false, next_chapter_id: null },
+              plan: { completed: false, bonus_awarded: 0 },
+            }
+          : await this.plans.completeAfterAnswer(
+              tx,
+              studentId,
+              chapterPlan.planId,
+              chapterId,
+            );
+    // Depois do bônus do plano, para o saldo devolvido já incluí-lo.
     const { coinsBalance } = await tx.studentProfile.findUniqueOrThrow({
       where: { userId: studentId },
       select: { coinsBalance: true },
@@ -166,6 +191,7 @@ export class AnswersService {
       correctLetter: correct.letter,
       explanation: question.explanation,
       streak,
+      ...completion,
     };
   }
 }

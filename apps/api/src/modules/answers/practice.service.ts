@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
+  ApiChapterNext,
   ApiPracticeNext,
   ApiPracticeSubject,
   SubjectColorKey,
@@ -11,6 +12,7 @@ import {
   presentStudentQuestion,
   STUDENT_QUESTION_SELECT,
 } from 'src/modules/answers/presenters/student-question.presenter';
+import { StudentPlansService } from 'src/modules/leveling-plans/student-plans.service';
 import { QuestionImageService } from 'src/modules/questions/question-image.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
@@ -34,6 +36,7 @@ export class PracticeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly images: QuestionImageService,
+    private readonly plans: StudentPlansService,
   ) {}
 
   /**
@@ -142,6 +145,59 @@ export class PracticeService {
       question: presentStudentQuestion(
         row,
         this.images.urlFor(row.imagePath),
+        attemptsLeft,
+      ),
+      remaining,
+    };
+  }
+  /**
+   * Próxima questão ativa do capítulo (pela posição) que o aluno ainda não
+   * terminou NESTE capítulo; a prática livre não conta (contextos separados).
+   */
+  async chapterNext(
+    user: AuthUser,
+    planId: number,
+    chapterId: number,
+  ): Promise<ApiChapterNext> {
+    await this.plans.openChapter(user.id, planId, chapterId);
+    const where: Prisma.ChapterQuestionWhereInput = {
+      planChapterId: chapterId,
+      question: {
+        active: true,
+        attempts: {
+          none: {
+            studentId: user.id,
+            planChapterId: chapterId,
+            OR: [{ isCorrect: true }, { attemptNumber: MAX_ATTEMPTS }],
+          },
+        },
+      },
+    };
+    const [row, remaining] = await Promise.all([
+      this.prisma.chapterQuestion.findFirst({
+        where,
+        orderBy: [{ position: 'asc' }, { questionId: 'asc' }],
+        select: { question: { select: STUDENT_QUESTION_SELECT } },
+      }),
+      this.prisma.chapterQuestion.count({ where }),
+    ]);
+    if (!row) {
+      // Nada restante: assenta conclusões pendentes (questão desativada depois).
+      await this.plans.settle(user.id, planId);
+      return { question: null, remaining: 0 };
+    }
+    const used = await this.prisma.questionAttempt.count({
+      where: {
+        studentId: user.id,
+        questionId: row.question.id,
+        planChapterId: chapterId,
+      },
+    });
+    const attemptsLeft = Math.max(1, MAX_ATTEMPTS - used) as 1 | 2;
+    return {
+      question: presentStudentQuestion(
+        row.question,
+        this.images.urlFor(row.question.imagePath),
         attemptsLeft,
       ),
       remaining,

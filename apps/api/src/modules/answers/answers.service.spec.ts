@@ -2,13 +2,13 @@ import { NotFoundException } from '@nestjs/common';
 import { Prisma } from 'src/generated/prisma/client';
 import { AnswersService } from 'src/modules/answers/answers.service';
 import { AnswerDto } from 'src/modules/answers/dto/answer.dto';
+import type { StudentPlansService } from 'src/modules/leveling-plans/student-plans.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
 import type { Clock } from 'src/shared/clock/clock';
 import { CoinLedger } from 'src/shared/coins/coin-ledger';
 import { Role } from 'src/shared/enums/role.enum';
 import { BusinessRuleException } from 'src/shared/exceptions/business-rule.exception';
-import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
 import { StreakService } from 'src/shared/study/streak.service';
 
 const student: AuthUser = {
@@ -52,11 +52,19 @@ describe('AnswersService', () => {
   );
   const credit = jest.fn();
   const register = jest.fn();
+  const enterChapter = jest.fn();
+  const chapterHasQuestion = jest.fn();
+  const completeAfterAnswer = jest.fn();
   const clock: Clock = { now: () => new Date('2026-11-10T15:00:00Z') };
   const service = new AnswersService(
     { $transaction: transaction } as unknown as PrismaService,
     { credit } as unknown as CoinLedger,
     { register } as unknown as StreakService,
+    {
+      enterChapter,
+      chapterHasQuestion,
+      completeAfterAnswer,
+    } as unknown as StudentPlansService,
     clock,
   );
 
@@ -149,11 +157,59 @@ describe('AnswersService', () => {
     );
   });
 
-  it('plan_chapter_id responde 422 antes de abrir a transação', async () => {
+  it('com capítulo: trava o plano depois do perfil, grava a tentativa no capítulo e devolve chapter/plan', async () => {
+    enterChapter.mockResolvedValue({ planId: 4 });
+    chapterHasQuestion.mockResolvedValue(true);
+    const completion = {
+      chapter: { completed: true, next_chapter_id: null },
+      plan: { completed: true, bonus_awarded: 50 },
+    };
+    completeAfterAnswer.mockResolvedValue(completion);
+    const result = await service.answer(student, dto({ plan_chapter_id: 3 }));
+    expect(enterChapter).toHaveBeenCalledWith(tx, 7, 3);
+    // O perfil é travado (primeiro $queryRaw) antes de entrar no capítulo.
+    expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      enterChapter.mock.invocationCallOrder[0],
+    );
+    expect(chapterHasQuestion).toHaveBeenCalledWith(tx, 3, 10);
+    expect(completeAfterAnswer).toHaveBeenCalledWith(tx, 7, 4, 3);
+    expect(tx.questionAttempt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ planChapterId: 3 }) as unknown,
+      }),
+    );
+    expect(result).toMatchObject(completion);
+  });
+
+  it('com capítulo: erro na 1ª tentativa não assenta nem reporta conclusão', async () => {
+    enterChapter.mockResolvedValue({ planId: 4 });
+    chapterHasQuestion.mockResolvedValue(true);
+    const result = await service.answer(
+      student,
+      dto({ plan_chapter_id: 3, selected_letter: 'B' }),
+    );
+    expect(completeAfterAnswer).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      chapter: { completed: false, next_chapter_id: null },
+      plan: { completed: false, bonus_awarded: 0 },
+    });
+  });
+
+  it('com capítulo: questão fora do capítulo responde 404 sem gravar', async () => {
+    enterChapter.mockResolvedValue({ planId: 4 });
+    chapterHasQuestion.mockResolvedValue(false);
     await expect(
       service.answer(student, dto({ plan_chapter_id: 3 })),
-    ).rejects.toBeInstanceOf(FieldValidationException);
-    expect(transaction).not.toHaveBeenCalled();
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.questionAttempt.create).not.toHaveBeenCalled();
+  });
+
+  it('na prática livre não toca nos planos e não devolve chapter/plan', async () => {
+    const result = await service.answer(student, dto());
+    expect(enterChapter).not.toHaveBeenCalled();
+    expect(completeAfterAnswer).not.toHaveBeenCalled();
+    expect(result).not.toHaveProperty('chapter');
+    expect(result).not.toHaveProperty('plan');
   });
 
   it('corrida que escapa da pré-checagem (P2002 do índice parcial) vira 409; outros erros passam', async () => {

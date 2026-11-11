@@ -11,7 +11,7 @@ export default function StoreScreen() {
         <AppText variant="heading" size={40}>
           Loja
         </AppText>
-        <EmptyState title="Em breve" description="Aqui você vai trocar moedas por recompensas." />
+        <EmptyState title="Em breve." description="Aqui você vai trocar moedas por recompensas." />
       </View>
     </PaperBackground>
   );
