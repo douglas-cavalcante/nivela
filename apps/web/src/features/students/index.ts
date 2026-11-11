@@ -7,3 +7,4 @@ export const StudentList = lazy(() =>
 export const StudentDetail = lazy(() =>
   import('src/features/students/pages/StudentDetail').then((m) => ({ default: m.StudentDetail })),
 );
+export { listStudentsAction } from 'src/features/students/api/students.action';

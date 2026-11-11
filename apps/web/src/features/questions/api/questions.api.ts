@@ -11,6 +11,7 @@ import api from 'src/lib/axios';
 
 export interface ListQuestionsParams {
   page?: number;
+  per_page?: number;
   search?: string;
   subject_id?: number;
   category_id?: number;

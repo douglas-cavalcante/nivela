@@ -4,6 +4,7 @@ import api from 'src/lib/axios';
 
 export interface ListStudentsParams {
   page?: number;
+  per_page?: number;
   search?: string;
   classroom_id?: number;
 }

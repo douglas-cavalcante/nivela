@@ -7,3 +7,5 @@ export const QuestionList = lazy(() =>
 export const QuestionForm = lazy(() =>
   import('src/features/questions/pages/QuestionForm').then((m) => ({ default: m.QuestionForm })),
 );
+export { listQuestionsAction } from 'src/features/questions/api/questions.action';
+export { DifficultyChip } from 'src/features/questions/components/DifficultyChip';
