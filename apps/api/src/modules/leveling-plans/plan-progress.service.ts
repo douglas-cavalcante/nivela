@@ -5,6 +5,11 @@ import type {
   ApiStudentPlanProgress,
 } from '@nivela/api-contract';
 import { Prisma } from 'src/generated/prisma/client';
+import {
+  PlanCompletionService,
+  stateOf,
+  type StudentPlanState,
+} from 'src/modules/leveling-plans/plan-completion.service';
 import { PLAN_NOT_FOUND } from 'src/modules/leveling-plans/plans.service';
 import {
   presentProgressRow,
@@ -26,12 +31,17 @@ interface AttemptTotals {
 
 @Injectable()
 export class PlanProgressService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly completion: PlanCompletionService,
+  ) {}
 
   /**
    * Progresso dos alunos atribuídos ao plano, diretamente ou pela turma (cada
    * aluno aparece uma vez), por nome. Respondidas e acertos contam questões
-   * distintas do plano; concluídos vêm de `chapter_completions`.
+   * distintas do plano; capítulos e conclusão vêm do mesmo resolvedor do
+   * aluno (Ruling 11), que assenta antes a conclusão derivada ainda não
+   * gravada (para `completed_at` existir).
    */
   async progress(
     planId: number,
@@ -83,49 +93,35 @@ export class PlanProgressService {
     const studentIds = students.map((student) => student.id);
     const chapterIds = plan.chapters.map((chapter) => chapter.id);
 
-    const [completed, totals, planCompletions] = await Promise.all([
-      this.prisma.chapterCompletion.groupBy({
-        by: ['studentId'],
-        where: {
-          studentId: { in: studentIds },
-          planChapterId: { in: chapterIds },
-        },
-        _count: { _all: true },
-      }),
+    const states = await this.completion.loadSettled(
+      studentIds,
+      [planId],
+      'plan',
+    );
+    const totals =
       chapterIds.length === 0
-        ? Promise.resolve<AttemptTotals[]>([])
-        : this.prisma.$queryRaw<AttemptTotals[]>`
+        ? []
+        : await this.prisma.$queryRaw<AttemptTotals[]>`
             SELECT student_id,
                    count(DISTINCT question_id)::int AS answered,
                    (count(DISTINCT question_id) FILTER (WHERE is_correct))::int AS correct
             FROM question_attempts
             WHERE plan_chapter_id IN (${Prisma.join(chapterIds)})
               AND student_id IN (${Prisma.join(studentIds)})
-            GROUP BY student_id`,
-      this.prisma.planCompletion.findMany({
-        where: { levelingPlanId: planId, studentId: { in: studentIds } },
-        select: { studentId: true, completedAt: true },
-      }),
-    ]);
-
-    const completedByStudent = new Map(
-      completed.map((row) => [row.studentId, row._count._all]),
-    );
+            GROUP BY student_id`;
     const totalsByStudent = new Map(totals.map((row) => [row.student_id, row]));
-    const finishedAt = new Map(
-      planCompletions.map((row) => [row.studentId, row.completedAt]),
-    );
     return {
-      data: students.map((student) =>
-        presentProgressRow({
+      data: students.map((student) => {
+        const state = stateOf(states, student.id, planId);
+        return presentProgressRow({
           student,
-          completedChapters: completedByStudent.get(student.id) ?? 0,
-          totalChapters: chapterIds.length,
+          completedChapters: countCompleted(state),
+          totalChapters: state.chapters.length,
           answered: totalsByStudent.get(student.id)?.answered ?? 0,
           correct: totalsByStudent.get(student.id)?.correct ?? 0,
-          completedAt: finishedAt.get(student.id) ?? null,
-        }),
-      ),
+          completedAt: state.completedAt,
+        });
+      }),
     };
   }
 
@@ -158,7 +154,6 @@ export class PlanProgressService {
         id: true,
         title: true,
         subject: { select: { id: true, name: true, color: true } },
-        chapters: { select: { id: true } },
         assignments: { where: reachesStudent, select: { dueDate: true } },
       },
       orderBy: [{ title: 'asc' }, { id: 'asc' }],
@@ -166,38 +161,29 @@ export class PlanProgressService {
     if (plans.length === 0) {
       return { data: [] };
     }
-    const [chapterRows, planRows] = await Promise.all([
-      this.prisma.chapterCompletion.findMany({
-        where: {
-          studentId,
-          planChapter: { levelingPlanId: { in: plans.map((p) => p.id) } },
-        },
-        select: { planChapterId: true },
-      }),
-      this.prisma.planCompletion.findMany({
-        where: { studentId, levelingPlanId: { in: plans.map((p) => p.id) } },
-        select: { levelingPlanId: true, completedAt: true },
-      }),
-    ]);
-    const completedChapters = new Set(chapterRows.map((r) => r.planChapterId));
-    const finishedAt = new Map(
-      planRows.map((r) => [r.levelingPlanId, r.completedAt]),
+    const states = await this.completion.loadSettled(
+      [studentId],
+      plans.map((plan) => plan.id),
+      'plan',
     );
     return {
-      data: plans.map((plan) =>
-        presentStudentPlan({
+      data: plans.map((plan) => {
+        const state = stateOf(states, studentId, plan.id);
+        return presentStudentPlan({
           plan,
-          completedChapters: plan.chapters.filter((c) =>
-            completedChapters.has(c.id),
-          ).length,
-          totalChapters: plan.chapters.length,
-          completedAt: finishedAt.get(plan.id) ?? null,
+          completedChapters: countCompleted(state),
+          totalChapters: state.chapters.length,
+          completedAt: state.completedAt,
           // O prazo mais próximo entre as atribuições que alcançam o aluno.
           dueDate: earliest(plan.assignments.map((a) => a.dueDate)),
-        }),
-      ),
+        });
+      }),
     };
   }
+}
+
+function countCompleted(state: StudentPlanState): number {
+  return state.chapters.filter((chapter) => chapter.completed).length;
 }
 
 function earliest(dates: Array<Date | null>): Date | null {
