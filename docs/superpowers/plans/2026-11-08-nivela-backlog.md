@@ -24,19 +24,19 @@ Ainda abertos (o Plano 2 não tocou):
 
 Fazer no início do Plano 3, antes das telas de estudo:
 
-- ~~**Autocomplete com busca no servidor**~~ (resolvido no Plano 3: `AsyncAutocomplete`) no kit da web (componente em `src/components`), substituindo os dois selects que carregam `per_page: 100` (professores ativos no `ClassroomFormDialog` e turmas no filtro da `StudentList`) — hoje eles cortam em 100 itens sem aviso.
-- ~~**Mobile:**~~ (resolvido no Plano 3: `expectParams` e `useRemote`) o fake de HTTP dos testes passa a casar também os `params` (filtros), e um hook `useRemote` (equivalente ao `useRemoteList` da web: cancelamento, resposta atrasada descartada, reload) para as telas do aluno.
-- ~~**`ApiStudentQuestion` separado**~~ (resolvido no Plano 3) + presenter próprio **sem `correct_letter` nem `explanation`** (RN05: o aluno só vê a correção depois de responder), com e2e afirmando que esses campos não vêm na resposta.
-- ~~**Respostas por `selected_letter`**~~ (resolvido no Plano 3) (A–E) no corpo da requisição; a API resolve a alternativa por `(question_id, letter)` — as alternativas já são atualizadas no lugar, então o `selected_option_id` gravado continua válido.
-- ~~**Política de editar questão com tentativas:**~~ (resolvido no Plano 3, 409) bloquear a troca de `correct_letter` com **409** quando a questão já tem respostas (texto, enunciado e explicação continuam editáveis).
-- ~~**FK composta**~~ (resolvido no Plano 3) `questions(category_id, subject_id) → categories(id, subject_id)` (com `UNIQUE (id, subject_id)` em `categories`), para o banco garantir que a categoria pertence à disciplina (hoje só o service garante).
-- (continua para o Plano 4) **`CHECK (coins_balance >= 0)`** em `student_profiles`.
+- ~~Autocomplete com busca no servidor no kit da web, substituindo os dois selects que carregavam `per_page: 100` (professores ativos no `ClassroomFormDialog` e turmas no filtro da `StudentList`)~~ — resolvido no Plano 3 (`AsyncAutocomplete` em `src/components`; os dois selects usam busca no servidor).
+- ~~Mobile: fake de HTTP que casa `params` e hook `useRemote` para as telas do aluno~~ — resolvido no Plano 3 (`expectParams` e `useRemote`).
+- ~~`ApiStudentQuestion` separado, com presenter sem `correct_letter` nem `explanation` (RN05) e e2e afirmando isso~~ — resolvido no Plano 3.
+- ~~Respostas por `selected_letter` (A–E), resolvidas por `(question_id, letter)`~~ — resolvido no Plano 3.
+- ~~Política de editar questão com tentativas: 409 ao trocar `correct_letter`~~ — resolvido no Plano 3.
+- ~~FK composta `questions(category_id, subject_id) → categories(id, subject_id)`~~ — resolvido no Plano 3.
+- ~~`CHECK (coins_balance >= 0)` em `student_profiles`~~ — resolvido no Plano 3 (migration `20261110210000_answers`, constraint `student_profiles_coins_balance_check`).
 
 - ~~Títulos de EmptyState sem ponto final~~ — resolvido no Plano 3 (Início e Estudar substituídos; a Loja já usa "Em breve.").
 
 ## Plano 3 — Estudo
 
-- Tela "Sem conexão" do app: o botão "Sair" foi adicionado no Plano 3; o texto por tipo de erro (403/404/429) segue aberto.
+- ~~Tela "Sem conexão" do app: texto por tipo de erro e botão "Sair"~~ — resolvido no Plano 3 (`OfflineScreen`: sem resposta, 5xx e outros erros têm texto próprio, com "Sair"). Opcional: textos distintos para 403/404/429, hoje no texto genérico.
 - ~~"Hoje" para a sequência (RN09) em `America/Fortaleza`~~ — resolvido no Plano 3 (`studyDay`).
 - (continua aberto) `KeyboardAvoidingView` com `padding` no Android edge-to-edge: conferir num aparelho.
 - (continua aberto) `PenCard`: `margin` via `style` desalinha a sombra.
@@ -72,10 +72,10 @@ Prioridade para quem passar perto:
 Decisões do Plano 3 já refletidas na documentação: conclusão de capítulo derivada com assentamento ao abrir o plano, resposta em capítulo concluído aceita, `chapter.completed`/`plan.completed` como evento, ordem de travas perfil → plano → questão, únicos de posição `DEFERRABLE` declarados com `map`.
 
 - **API (planos):** a lista `/me/plans` mostra `completed` derivado sem assentar o bônus (assentar na lista quando derivado e não gravado); plano com todas as questões desativadas paga o bônus sem nenhuma resposta (exigir ao menos uma?); o progresso da equipe conta só conclusões gravadas; o assentamento não re-checa a visibilidade dentro da transação e abre uma transação de escrita a cada abertura do plano; prazo sem teste de borda da meia-noite; tradução de FK/posição no `ChaptersService` sem teste; cast em `presentAssignment`; corrida remoção × resposta sem e2e (fechada por lock, verificada por leitura).
-- **API (respostas e moedas):** e2e concorrente não prova o bloqueio; `MAX_ID` repetido em 7 lugares e `OPTION_LETTERS` em 2 (mover para `src/shared/validation`); `remaining`/`attempts_left` lidos fora da transação (cosmético); `refund` sem garantia "uma vez".
+- **API (respostas e moedas):** o e2e concorrente da resposta não prova o bloqueio (o da virada da meia-noite foi tornado determinístico nas Tasks 5 e 7: barreira + espera em `pg_stat_activity`, filtro por `datname` e release em `finally`); `MAX_ID` repetido em 7 lugares e `OPTION_LETTERS` em 2 (mover para `src/shared/validation`); `remaining`/`attempts_left` lidos fora da transação (cosmético); `refund` sem garantia "uma vez".
 - **API (cadastros):** ramo `questions_category_id_fkey` morto no `translate` (e teste); checagem de questões em `SubjectsService.remove` inalcançável sem teste; e2e "mover categoria" usa `rejects.toBeDefined`.
 - **Web:** `QuestionPicker` filtra "já no capítulo" depois dos 20 da página, sem "carregar mais"; `aria-controls` de abas não renderizadas; botões de questão sem o nome do capítulo; `useEffect` de erro morto no editor; data mínima do prazo pelo dia local do navegador; `failedId` nunca limpo; faltam testes (409 ao remover questão, paginação da lista); `AsyncAutocomplete`: valor selecionado fora das `options` (possível aviso do MUI), texto da busca mantido após selecionar, teste sem fake timers para o debounce de 300 ms, `StudentList` engole erro não-404 ao resolver a turma, `setSelected`+`setFilter` separados, indentação no `ClassroomList.test`, `selected` local no `ClassroomFormDialog`.
-- **Mobile:** ramos animados sem teste (o dublê sempre reduz movimento); imagem da questão sem texto alternativo (o contrato não tem); falha no reload ao voltar zera `StatsBar`/`StudyHome` em vez de manter os valores antigos; 2 testes falharam uma vez sob carga junto com o e2e (passam isolados); `PageTurn` não visto em aparelho; `signOut` limpa o token só depois do `POST /auth/logout`; `joined` local sobrescreve a cópia do servidor; sem teste de retry atualizando `offlineStatus`; o `catch` do `expectParams` descarta o diff do Jest.
+- **Mobile:** `questionsLabel` ainda duplicado no cabeçalho do card da disciplina (cosmético); ramos animados sem teste (o dublê sempre reduz movimento); imagem da questão sem texto alternativo (o contrato não tem); falha no reload ao voltar zera `StatsBar`/`StudyHome` em vez de manter os valores antigos; 2 testes falharam uma vez sob carga junto com o e2e (passam isolados); `PageTurn` não visto em aparelho; `signOut` limpa o token só depois do `POST /auth/logout`; `joined` local sobrescreve a cópia do servidor; sem teste de retry atualizando `offlineStatus`; o `catch` do `expectParams` descarta o diff do Jest.
 - **Histórico:** o commit `59de96c` tem erro de lint (corrigido no seguinte); typo na mensagem do commit `1ee3443`.
 
 ## Pequenos (quando passar perto)
