@@ -144,11 +144,14 @@ export class AssignmentsService {
     user: AuthUser,
   ): Promise<void> {
     await this.assertVisible(planId, user);
+    // RN15: o mesmo filtro da lista; o professor não remove (nem descobre) a
+    // atribuição que o administrador fez fora das turmas dele.
     const { count } = await this.prisma.planAssignment.deleteMany({
       where: {
         id: assignmentId,
         levelingPlanId: planId,
         levelingPlan: planScope(user),
+        ...reachableTargets(user),
       },
     });
     if (count === 0) {
