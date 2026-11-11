@@ -7,6 +7,7 @@ import { EmptyState } from 'src/components/EmptyState';
 import { ResourceState } from 'src/components/ResourceState';
 import { PageHeader } from 'src/components/PageHeader';
 import { StatusChip } from 'src/components/StatusChip';
+import { StudentPlans } from 'src/features/leveling-plans';
 import { getStudentAction } from 'src/features/students/api/students.action';
 import { useRemoteList } from 'src/hooks/useRemoteList';
 import { useNivelaColors } from 'src/lib/theme/useNivelaColors';
@@ -93,7 +94,9 @@ function StudentView({ student }: { student: ApiStudent }) {
         </Card>
 
         <EmptyState title="Desempenho do aluno — disponível em breve." />
-        <EmptyState title="Planos de estudo — disponível em breve." />
+        <Card title="Planos de estudo">
+          <StudentPlans studentId={student.id} />
+        </Card>
         <EmptyState title="Extrato de moedas — disponível em breve." />
       </Box>
     </>
@@ -125,7 +128,7 @@ function StudentLoader({ id }: { id: number }) {
   return <StudentView student={rows[0]} />;
 }
 
-/** Ficha do aluno: dados, turmas, moedas e sequência; desempenho, planos e extrato chegam nos próximos planos. */
+/** Ficha do aluno: dados, turmas, moedas e sequência; planos de estudo; desempenho e extrato chegam nos próximos planos. */
 export function StudentDetail() {
   const { id } = useParams();
   if (!validId(id)) return <ResourceState kind="not-found" message="Aluno não encontrado." backTo={BACK} />;
