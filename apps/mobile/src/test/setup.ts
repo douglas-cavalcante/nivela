@@ -1,5 +1,11 @@
 // Infra comum dos testes: SecureStore em memória e API apontando para um host falso.
+import { configure } from '@testing-library/react-native';
+
 process.env.EXPO_PUBLIC_API_URL = 'http://api.test/api/v1';
+
+// `findBy*`/`waitFor` esperam até 3 s (o padrão de 1 s estoura sob carga, por
+// exemplo com o e2e da API rodando junto ou no CI).
+configure({ asyncUtilTimeout: 3000 });
 
 const mockStore = new Map<string, string>();
 
