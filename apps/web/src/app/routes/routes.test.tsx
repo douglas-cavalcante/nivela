@@ -96,4 +96,21 @@ describe('AppRoutes', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Nova questão' }));
     expect(await screen.findByRole('heading', { name: 'Nova questão' })).toBeInTheDocument();
   });
+
+  it('professor abre a lista de planos em /planos', async () => {
+    server.use(
+      http.get(`${API_URL}/subjects`, () => HttpResponse.json({ data: [] })),
+      http.get(`${API_URL}/plans`, () =>
+        HttpResponse.json({ data: [], meta: { page: 1, per_page: 15, total: 0, last_page: 1 } }),
+      ),
+    );
+    renderWithProviders(
+      <NotifyProvider>
+        <AppRoutes />
+      </NotifyProvider>,
+      { user: teacher, route: '/planos' },
+    );
+    expect(await screen.findByRole('heading', { name: 'Planos' })).toBeInTheDocument();
+    expect(await screen.findByText('Nenhum plano ainda.')).toBeInTheDocument();
+  });
 });
