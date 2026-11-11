@@ -36,6 +36,8 @@ export function StudentList() {
   );
   // turma do filtro como objeto (o autocomplete mostra o nome); vinda da URL, é resolvida por GET /classrooms/:id
   const [selected, setSelected] = useState<ApiClassroomSummary | null>(null);
+  // id da turma que não deu para resolver (falha que não é 404): o campo avisa em vez de engolir o erro
+  const [failedId, setFailedId] = useState('');
 
   const current = selected && String(selected.id) === classroomId ? selected : null;
   const needsFetch = Boolean(classroomId) && !current;
@@ -49,6 +51,7 @@ export function StudentList() {
         if (controller.signal.aborted) return;
         // turma que não existe (ou fora do escopo): tira o filtro da URL
         if (parseApiError(error).status === 404) setFilter('classroom_id', '');
+        else setFailedId(classroomId);
       },
     );
     return () => controller.abort();
@@ -109,6 +112,7 @@ export function StudentList() {
             }
             getOptionLabel={(classroom) => classroom.name}
             getOptionKey={(classroom) => classroom.id}
+            error={failedId === classroomId && !current ? 'Não foi possível carregar a turma.' : undefined}
           />
         </Box>
       </Box>

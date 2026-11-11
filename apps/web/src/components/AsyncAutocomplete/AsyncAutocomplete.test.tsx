@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { AsyncAutocomplete } from 'src/components/AsyncAutocomplete';
@@ -21,11 +21,13 @@ function deferred<T>() {
 function Harness({
   load,
   onChange,
+  initial = null,
 }: {
   load: (search: string, signal: AbortSignal) => Promise<Item[]>;
   onChange?: (value: Item | null) => void;
+  initial?: Item | null;
 }) {
-  const [value, setValue] = useState<Item | null>(null);
+  const [value, setValue] = useState<Item | null>(initial);
   return (
     <AsyncAutocomplete<Item>
       label="Professor"
@@ -106,5 +108,65 @@ describe('AsyncAutocomplete', () => {
 
     expect(onChange).toHaveBeenCalledWith({ id: 3, name: 'Carla' });
     expect(screen.getByRole('combobox', { name: 'Professor' })).toHaveValue('Carla');
+  });
+
+  it('aguarda 300 ms sem digitação antes de buscar (relógio falso)', () => {
+    vi.useFakeTimers();
+    try {
+      const load = vi.fn().mockResolvedValue([]);
+      render(<Harness load={load} />);
+
+      const input = screen.getByRole('combobox', { name: 'Professor' });
+      act(() => input.focus());
+      fireEvent.change(input, { target: { value: 'an' } });
+      const searchedAn = () => load.mock.calls.filter(([text]) => text === 'an').length;
+      act(() => vi.advanceTimersByTime(250));
+      expect(searchedAn()).toBe(0);
+      act(() => vi.advanceTimersByTime(100));
+      expect(searchedAn()).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('inclui o valor selecionado nas opções quando a busca não o traz, sem aviso do MUI', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      render(<Harness initial={{ id: 1, name: 'Ana' }} load={() => Promise.resolve([{ id: 2, name: 'Bela' }])} />);
+
+      await userEvent.click(screen.getByRole('combobox', { name: 'Professor' }));
+
+      expect(await screen.findByRole('option', { name: 'Bela' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Ana' })).toBeInTheDocument();
+      expect(warn).not.toHaveBeenCalled();
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      error.mockRestore();
+    }
+  });
+
+  it('depois de escolher, reabrir lista tudo de novo (a busca é zerada)', async () => {
+    const load = vi.fn((search: string) =>
+      Promise.resolve(
+        [
+          { id: 1, name: 'Ana' },
+          { id: 2, name: 'Bela' },
+        ].filter((item) => item.name.toLowerCase().includes(search.toLowerCase())),
+      ),
+    );
+    render(<Harness load={load} />);
+
+    const input = screen.getByRole('combobox', { name: 'Professor' });
+    await userEvent.type(input, 'be');
+    await userEvent.click(await screen.findByRole('option', { name: 'Bela' }));
+    expect(input).toHaveValue('Bela');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir' }));
+
+    await waitFor(() => expect(load).toHaveBeenLastCalledWith('', expect.any(AbortSignal)));
+    expect(await screen.findByRole('option', { name: 'Ana' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Bela' })).toBeInTheDocument();
   });
 });
