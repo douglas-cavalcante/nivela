@@ -289,6 +289,9 @@ model PlanChapter {
   completions  ChapterCompletion[]
   attempts     QuestionAttempt[]
 
+  // DEFERRABLE INITIALLY DEFERRED só no SQL da migration; aqui existe apenas para o
+  // Prisma reconhecer o índice (sem isto o drift acusaria a restrição).
+  @@unique([levelingPlanId, position], map: "plan_chapters_position_key")
   @@index([levelingPlanId])
   @@map("plan_chapters")
 }
@@ -304,6 +307,7 @@ model ChapterQuestion {
   question    Question    @relation(fields: [questionId], references: [id], onDelete: Restrict)
 
   @@id([planChapterId, questionId])
+  @@unique([planChapterId, position], map: "chapter_question_position_key")
   @@index([questionId])
   @@map("chapter_question")
 }
