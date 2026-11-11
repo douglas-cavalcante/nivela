@@ -1,7 +1,8 @@
 import { screen, userEvent } from '@testing-library/react-native';
 import { renderApp } from 'src/test/render';
 import { student } from 'src/test/users';
-import { noDuePlan, planSummary, stats } from 'src/features/plans/__tests__/fixtures';
+import { donePlan, noDuePlan, planSummary } from 'src/features/plans/__tests__/fixtures';
+import { stats } from 'src/test/studyFixtures';
 
 const statsRoute = () => ({ status: 200, data: stats });
 
@@ -22,6 +23,19 @@ describe('Início: meus planos', () => {
     expect(screen.getByText('0 de 2 capítulos.')).toBeTruthy();
     expect(screen.getAllByText(/^Até /)).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Praticar agora' })).toBeTruthy();
+  });
+
+  it('plano concluído mostra o selo "Concluído."', async () => {
+    await renderApp({
+      user: student,
+      routes: {
+        'GET /me/stats': statsRoute,
+        'GET /me/plans': () => ({ status: 200, data: { data: [donePlan] } }),
+      },
+    });
+
+    expect(await screen.findByText('Geometria básica')).toBeTruthy();
+    expect(screen.getByText('✓ Concluído.')).toBeTruthy();
   });
 
   it('sem planos mostra a mensagem de vazio', async () => {

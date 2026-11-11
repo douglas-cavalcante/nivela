@@ -12,7 +12,7 @@ import {
   question,
   secondMiss,
   stats,
-} from 'src/features/study/__tests__/fixtures';
+} from 'src/test/studyFixtures';
 
 type RequestConfig = Parameters<FakeHandler>[1];
 

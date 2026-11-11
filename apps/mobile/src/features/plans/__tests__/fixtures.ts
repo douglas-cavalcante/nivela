@@ -1,52 +1,5 @@
-import type {
-  ApiAnswerResult,
-  ApiChapterNext,
-  ApiMyPlan,
-  ApiMyPlanSummary,
-  ApiStudentQuestion,
-  ApiStudentStats,
-} from '@nivela/api-contract';
-
-export const question: ApiStudentQuestion = {
-  id: 5,
-  statement: 'Quanto é dois mais dois?',
-  image_url: null,
-  difficulty: 'easy',
-  subject: { id: 1, name: 'Matemática', color: 'teal' },
-  category: { id: 10, name: 'Álgebra' },
-  options: [
-    { letter: 'A', text: 'Três' },
-    { letter: 'B', text: 'Quatro' },
-    { letter: 'C', text: 'Cinco' },
-    { letter: 'D', text: 'Seis' },
-    { letter: 'E', text: 'Sete' },
-  ],
-  attempts_left: 2,
-};
-
-export const stats: ApiStudentStats = { coins_balance: 120, current_streak: 3, best_streak: 5 };
-
-export const correctResult: ApiAnswerResult = {
-  is_correct: true,
-  attempt_number: 1,
-  finished: true,
-  coins_awarded: 10,
-  coins_balance: 130,
-  correct_letter: 'B',
-  explanation: 'Dois mais dois são quatro.',
-  streak: { current: 4, best: 5, bonus_awarded: 0 },
-};
-
-export const firstMiss: ApiAnswerResult = {
-  ...correctResult,
-  is_correct: false,
-  finished: false,
-  coins_awarded: 0,
-  coins_balance: 120,
-  correct_letter: null,
-  explanation: null,
-  streak: { current: 3, best: 5, bonus_awarded: 0 },
-};
+import type { ApiChapterNext, ApiMyPlan, ApiMyPlanSummary } from '@nivela/api-contract';
+import { question } from 'src/test/studyFixtures';
 
 export const planSummary: ApiMyPlanSummary = {
   id: 7,
@@ -67,6 +20,15 @@ export const noDuePlan: ApiMyPlanSummary = {
   due_date: null,
 };
 
+export const donePlan: ApiMyPlanSummary = {
+  ...planSummary,
+  id: 9,
+  title: 'Geometria básica',
+  progress: { completed_chapters: 4, total_chapters: 4, percent: 100 },
+  due_date: null,
+  completed: true,
+};
+
 export const plan: ApiMyPlan = {
   ...planSummary,
   description: null,
@@ -77,7 +39,5 @@ export const plan: ApiMyPlan = {
     { id: 23, title: 'Somando frações', position: 3, state: 'locked', answered: 0, total: 3 },
   ],
 };
-
-export const nextOf = (q: ApiStudentQuestion | null, remaining = 3): ApiChapterNext => ({ question: q, remaining });
 
 export const chapterNext = (remaining = 4): ApiChapterNext => ({ question, remaining });

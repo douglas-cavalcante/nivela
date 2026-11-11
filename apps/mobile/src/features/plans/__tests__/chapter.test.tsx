@@ -2,15 +2,8 @@ import { screen, userEvent } from '@testing-library/react-native';
 import { renderApp } from 'src/test/render';
 import type { FakeHandler } from 'src/test/render';
 import { student } from 'src/test/users';
-import {
-  chapterNext,
-  correctResult,
-  firstMiss,
-  nextOf,
-  plan,
-  question,
-  stats,
-} from 'src/features/plans/__tests__/fixtures';
+import { chapterNext, plan } from 'src/features/plans/__tests__/fixtures';
+import { correctResult, firstMiss, nextOf, question, stats } from 'src/test/studyFixtures';
 
 const statsRoute = () => ({ status: 200, data: stats });
 const planRoute = () => ({ status: 200, data: plan });
@@ -127,6 +120,88 @@ describe('estudando um capítulo', () => {
     await user.press(screen.getByRole('button', { name: 'Próximo capítulo' }));
     expect(await screen.findByText('Quanto é dois mais dois?')).toBeTruthy();
     expect(getPathname()).toBe('/plans/7/chapters/23');
+    expect(screen.queryByText('Capítulo concluído!')).toBeNull();
+  });
+
+  it('capítulo já concluído (sem nova conclusão) segue com "Próxima", sem celebrar', async () => {
+    const user = userEvent.setup();
+    await open({
+      'POST /answers': () => ({
+        status: 200,
+        data: {
+          ...correctResult,
+          chapter: { completed: false, next_chapter_id: 23 },
+          plan: { completed: false, bonus_awarded: 0 },
+        },
+      }),
+    });
+
+    await answerB(user);
+
+    expect(await screen.findByText('Isso aí!')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Próxima' })).toBeTruthy();
+    expect(screen.queryByText('Capítulo concluído!')).toBeNull();
+    expect(screen.queryByText('Plano concluído!')).toBeNull();
+  });
+
+  it('não celebra enquanto a questão não terminou (1ª tentativa errada)', async () => {
+    const user = userEvent.setup();
+    await open({
+      'POST /answers': () => ({
+        status: 200,
+        data: {
+          ...firstMiss,
+          chapter: { completed: true, next_chapter_id: 23 },
+          plan: { completed: true, bonus_awarded: 50 },
+        },
+      }),
+    });
+
+    await user.press(await screen.findByRole('radio', { name: 'Alternativa A: Três' }));
+    await user.press(screen.getByRole('button', { name: 'Responder' }));
+
+    expect(await screen.findByRole('button', { name: 'Tentar de novo' })).toBeTruthy();
+    expect(screen.queryByText('Capítulo concluído!')).toBeNull();
+    expect(screen.queryByText('Plano concluído!')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Próximo capítulo' })).toBeNull();
+  });
+
+  it('ao voltar ao plano depois de concluir o capítulo, o próximo aparece como disponível', async () => {
+    const unlocked = {
+      ...plan,
+      chapters: plan.chapters.map((chapter) =>
+        chapter.id === 22
+          ? { ...chapter, state: 'completed' as const, answered: 5 }
+          : chapter.id === 23
+            ? { ...chapter, state: 'available' as const }
+            : chapter,
+      ),
+    };
+    const plans = [plan, unlocked];
+    const user = userEvent.setup();
+    await renderApp({
+      user: student,
+      initialUrl: '/plans/7',
+      routes: {
+        'GET /me/stats': statsRoute,
+        'GET /me/plans/7': () => ({ status: 200, data: plans.shift() ?? unlocked }),
+        'GET /me/plans/7/chapters/22/next': () => ({ status: 200, data: chapterNext() }),
+        'POST /answers': () => ({
+          status: 200,
+          data: {
+            ...correctResult,
+            chapter: { completed: true, next_chapter_id: null },
+            plan: { completed: false, bonus_awarded: 0 },
+          },
+        }),
+      },
+    });
+
+    await user.press(await screen.findByRole('button', { name: /Capítulo 2/ }));
+    await answerB(user);
+    await user.press(await screen.findByRole('button', { name: 'Voltar ao plano' }));
+
+    expect(await screen.findByRole('button', { name: /Capítulo 3: Somando frações\. Disponível\./ })).toBeTruthy();
   });
 
   it('capítulo concluído sem próximo capítulo volta ao plano', async () => {

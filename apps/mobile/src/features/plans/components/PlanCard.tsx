@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from 'src/components/AppText';
 import { PenCard } from 'src/components/PenCard';
 import { chaptersLabel, formatDueDay } from 'src/features/plans/format';
+import { DoneChip } from 'src/features/plans/components/DoneChip';
 import { ProgressBar } from 'src/features/plans/components/ProgressBar';
 import { useTheme } from 'src/lib/theme/useTheme';
 
@@ -37,6 +38,7 @@ export function PlanCard({ plan, onPress }: PlanCardProps) {
         <AppText variant="muted" importantForAccessibility="no">
           {plan.subject.name}
         </AppText>
+        {plan.completed ? <DoneChip /> : null}
         <ProgressBar
           percent={plan.progress.percent}
           color={palette.foreground}

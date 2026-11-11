@@ -33,11 +33,16 @@ export function ChapterPage({ chapter, number, onPress }: ChapterPageProps) {
       accessibilityState={{ disabled: locked }}
       disabled={locked}
       onPress={onPress}
-      style={[styles.target, { opacity: locked ? 0.75 : 1 }]}
+      style={styles.target}
     >
       <PenCard style={[styles.page, { backgroundColor: locked ? colors.background : colors.surface }]}>
         <View style={[styles.margin, { borderColor: colors.secondary }]}>
-          <AppText variant="heading" size={56} style={styles.number} importantForAccessibility="no">
+          <AppText
+            variant="heading"
+            size={56}
+            style={[styles.number, { opacity: locked ? 0.4 : 1 }]}
+            importantForAccessibility="no"
+          >
             {String(number)}
           </AppText>
         </View>
@@ -47,7 +52,9 @@ export function ChapterPage({ chapter, number, onPress }: ChapterPageProps) {
           </AppText>
           {locked ? (
             <View style={styles.lockRow}>
-              <AppText importantForAccessibility="no">🔒</AppText>
+              <AppText importantForAccessibility="no" style={styles.lockIcon}>
+                🔒
+              </AppText>
               <AppText variant="muted" importantForAccessibility="no" style={styles.flex}>
                 Conclua o capítulo anterior.
               </AppText>
@@ -75,4 +82,5 @@ const styles = StyleSheet.create({
   body: { flex: 1, gap: spacing(1) },
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: spacing(2) },
   flex: { flex: 1 },
+  lockIcon: { opacity: 0.6 },
 });

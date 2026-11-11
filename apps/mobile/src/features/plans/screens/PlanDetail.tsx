@@ -6,6 +6,7 @@ import { Button } from 'src/components/Button';
 import { PaperBackground } from 'src/components/PaperBackground';
 import { getMyPlanAction } from 'src/features/plans/api/plans.action';
 import { ChapterPage } from 'src/features/plans/components/ChapterPage';
+import { DoneChip } from 'src/features/plans/components/DoneChip';
 import { ProgressBar } from 'src/features/plans/components/ProgressBar';
 import { chaptersLabel, formatDueDay, toId } from 'src/features/plans/format';
 import { useReloadOnFocus } from 'src/hooks/useReloadOnFocus';
@@ -53,7 +54,12 @@ export function PlanDetail() {
         ) : (
           <>
             <View style={[styles.marker, { backgroundColor: palette.background }]}>
-              <AppText variant="heading" size={40} style={{ color: palette.foreground }}>
+              <AppText
+                variant="heading"
+                size={40}
+                accessibilityRole="header"
+                style={{ color: palette.foreground }}
+              >
                 {data.title}
               </AppText>
             </View>
@@ -62,10 +68,11 @@ export function PlanDetail() {
               {data.due_date ? ` · Até ${formatDueDay(data.due_date)}.` : ''}
             </AppText>
             {data.description ? <AppText>{data.description}</AppText> : null}
+            {data.completed ? <DoneChip /> : null}
             <ProgressBar
               percent={data.progress.percent}
               color={palette.foreground}
-              label={`${chaptersLabel(data.progress.completed_chapters, data.progress.total_chapters)}.`}
+              label="Progresso do plano."
             />
             <AppText variant="bold">{`${chaptersLabel(data.progress.completed_chapters, data.progress.total_chapters)}.`}</AppText>
             {data.chapters.map((chapter, index) => (

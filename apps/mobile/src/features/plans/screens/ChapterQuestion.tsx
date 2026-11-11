@@ -4,7 +4,7 @@ import { radius, spacing, subjectColors } from '@nivela/design-tokens';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import type { ComponentRef } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { AppText } from 'src/components/AppText';
 import { Button } from 'src/components/Button';
 import { EmptyState } from 'src/components/EmptyState';
@@ -78,9 +78,15 @@ export function ChapterQuestion() {
     }
   };
 
-  const planDone = result?.plan?.completed === true;
+  // `completed` é evento ("concluído por esta resposta"): só celebra ao terminar a questão.
+  const planDone = result?.finished === true && result.plan?.completed === true;
   const nextChapterId = result?.chapter?.next_chapter_id ?? null;
-  const chapterDone = result?.chapter?.completed === true;
+  const chapterDone = result?.finished === true && result.chapter?.completed === true;
+
+  useEffect(() => {
+    if (planDone) void AccessibilityInfo.announceForAccessibility('Plano concluído!');
+    else if (chapterDone) void AccessibilityInfo.announceForAccessibility('Capítulo concluído!');
+  }, [planDone, chapterDone]);
 
   const handleNext = () => {
     setNotice(null);

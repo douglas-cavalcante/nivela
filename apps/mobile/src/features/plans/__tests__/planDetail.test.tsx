@@ -2,7 +2,8 @@ import { screen, userEvent } from '@testing-library/react-native';
 import { renderApp } from 'src/test/render';
 import type { FakeHandler } from 'src/test/render';
 import { student } from 'src/test/users';
-import { plan, planSummary, stats } from 'src/features/plans/__tests__/fixtures';
+import { plan, planSummary } from 'src/features/plans/__tests__/fixtures';
+import { stats } from 'src/test/studyFixtures';
 
 const statsRoute = () => ({ status: 200, data: stats });
 const planRoute = () => ({ status: 200, data: plan });
@@ -35,6 +36,20 @@ describe('tela do plano', () => {
     await user.press(await screen.findByRole('button', { name: /Capítulo 3/ }));
 
     expect(getPathname()).toBe('/plans/7');
+  });
+
+  it('plano concluído mostra o selo "Concluído."', async () => {
+    await open({
+      'GET /me/plans/7': () => ({ status: 200, data: { ...plan, completed: true } }),
+    });
+
+    expect(await screen.findByText('✓ Concluído.')).toBeTruthy();
+  });
+
+  it('o título do plano é um cabeçalho', async () => {
+    await open();
+
+    expect(await screen.findByRole('header', { name: 'Frações do zero' })).toBeTruthy();
   });
 
   it('plano inexistente mostra a mensagem da API', async () => {
