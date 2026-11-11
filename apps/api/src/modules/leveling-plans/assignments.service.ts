@@ -6,6 +6,8 @@ import { presentAssignment } from 'src/modules/leveling-plans/presenters/plan.pr
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
 import { CLOCK, type Clock } from 'src/shared/clock/clock';
+import type { Prisma } from 'src/generated/prisma/client';
+import { Role } from 'src/shared/enums/role.enum';
 import { BusinessRuleException } from 'src/shared/exceptions/business-rule.exception';
 import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
 import { isUniqueViolation } from 'src/shared/prisma/unique-violation';
@@ -34,6 +36,22 @@ const ASSIGNMENT_SELECT = {
   student: { select: { id: true, name: true } },
 } as const;
 
+/**
+ * RN15: uma atribuição feita pelo administrador a uma turma ou aluno de outro
+ * professor não aparece para o dono do plano. O administrador vê todas.
+ */
+function reachableTargets(user: AuthUser): Prisma.PlanAssignmentWhereInput {
+  if (user.role === Role.Admin) {
+    return {};
+  }
+  return {
+    OR: [
+      { classroomId: { not: null }, classroom: classroomScope(user) },
+      { studentId: { not: null }, student: studentScope(user) },
+    ],
+  };
+}
+
 @Injectable()
 export class AssignmentsService {
   constructor(
@@ -47,7 +65,11 @@ export class AssignmentsService {
   ): Promise<ApiList<ApiPlanAssignment>> {
     await this.assertVisible(planId, user);
     const rows = await this.prisma.planAssignment.findMany({
-      where: { levelingPlanId: planId, levelingPlan: planScope(user) },
+      where: {
+        levelingPlanId: planId,
+        levelingPlan: planScope(user),
+        ...reachableTargets(user),
+      },
       select: ASSIGNMENT_SELECT,
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });

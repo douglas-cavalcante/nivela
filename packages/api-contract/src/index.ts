@@ -30,11 +30,15 @@ export type {
   ApiStudentStats,
 } from './study';
 export type {
+  ApiChapterNext,
+  ApiMyPlan,
+  ApiMyPlanSummary,
   ApiPlan,
   ApiPlanAssignment,
   ApiPlanChapter,
   ApiPlanProgressRow,
   ApiPlanSummary,
   ApiStudentPlanProgress,
+  ChapterState,
   PlanStatus,
 } from './plans';

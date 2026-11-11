@@ -12,8 +12,8 @@ import {
 } from 'src/modules/leveling-plans/presenters/plan.presenter';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
-import { Role } from 'src/shared/enums/role.enum';
 import { planScope } from 'src/shared/scopes/plan-scope';
+import { assignmentReaches } from 'src/shared/scopes/student-plan-scope';
 import { studentScope } from 'src/shared/scopes/student-scope';
 
 const STUDENT_NOT_FOUND = 'Aluno não encontrado.';
@@ -62,10 +62,16 @@ export class PlanProgressService {
     // chega pela turma e também direto).
     const students = await this.prisma.user.findMany({
       where: {
-        role: Role.Student,
-        OR: [
-          { id: { in: directIds } },
-          { enrollments: { some: { classroomId: { in: classroomIds } } } },
+        // RN15: só alunos do escopo de quem pede (o administrador pode ter
+        // atribuído o plano a alunos de outros professores).
+        AND: [
+          studentScope(user),
+          {
+            OR: [
+              { id: { in: directIds } },
+              { enrollments: { some: { classroomId: { in: classroomIds } } } },
+            ],
+          },
         ],
       },
       select: { id: true, name: true },
@@ -139,9 +145,7 @@ export class PlanProgressService {
     if (!student) {
       throw new NotFoundException(STUDENT_NOT_FOUND);
     }
-    const reachesStudent: Prisma.PlanAssignmentWhereInput = {
-      OR: [{ studentId }, { classroom: { students: { some: { studentId } } } }],
-    };
+    const reachesStudent = assignmentReaches(studentId);
     const plans = await this.prisma.levelingPlan.findMany({
       where: {
         AND: [

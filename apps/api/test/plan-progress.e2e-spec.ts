@@ -344,4 +344,50 @@ describe('Progresso nos planos (e2e)', () => {
         .expect(403);
     });
   });
+  describe('escopo do professor (RN15)', () => {
+    it('aluno e turma que o administrador atribuiu fora das turmas de A não aparecem para A', async () => {
+      const { planId } = await publishedPlan(teacherA.token);
+      const mine = await createClassroom(prisma, { teacherId: teacherA.id });
+      const visible = await enroll(mine.id, 'Visível');
+      const foreignClassroom = await createClassroom(prisma, {
+        teacherId: teacherB.id,
+      });
+      const foreign = await enroll(foreignClassroom.id, 'De outro professor');
+      const loose = await createUser(prisma, { name: 'Sem turma' });
+      await assign(teacherA.token, planId, { student_id: visible.id });
+      await assign(admin.token, planId, { student_id: foreign.id });
+      await assign(admin.token, planId, { student_id: loose.id });
+      await assign(admin.token, planId, { classroom_id: foreignClassroom.id });
+
+      const asTeacher = await http()
+        .get(`/api/v1/plans/${planId}/progress`)
+        .set(as(teacherA.token))
+        .expect(200);
+      expect(
+        (asTeacher.body.data as ApiPlanProgressRow[]).map(
+          (r) => r.student.name,
+        ),
+      ).toEqual(['Visível']);
+      const assignments = await http()
+        .get(`/api/v1/plans/${planId}/assignments`)
+        .set(as(teacherA.token))
+        .expect(200);
+      expect(assignments.body.data).toHaveLength(1);
+      expect(assignments.body.data[0].target).toMatchObject({
+        type: 'student',
+        id: visible.id,
+      });
+
+      const asAdmin = await http()
+        .get(`/api/v1/plans/${planId}/progress`)
+        .set(as(admin.token))
+        .expect(200);
+      expect(asAdmin.body.data).toHaveLength(3);
+      const adminAssignments = await http()
+        .get(`/api/v1/plans/${planId}/assignments`)
+        .set(as(admin.token))
+        .expect(200);
+      expect(adminAssignments.body.data).toHaveLength(4);
+    });
+  });
 });
