@@ -69,12 +69,19 @@ export class AnswersService {
   async stats(user: AuthUser): Promise<ApiStudentStats> {
     const profile = await this.prisma.studentProfile.findUniqueOrThrow({
       where: { userId: user.id },
-      select: { coinsBalance: true, currentStreak: true, bestStreak: true },
+      select: {
+        coinsBalance: true,
+        currentStreak: true,
+        bestStreak: true,
+        lastStudyDate: true,
+      },
     });
+    // Ruling 10: sequência efetiva (0 se o aluno pulou um dia).
+    const streak = this.streaks.effective(profile, this.clock.now());
     return {
       coins_balance: profile.coinsBalance,
-      current_streak: profile.currentStreak,
-      best_streak: profile.bestStreak,
+      current_streak: streak.current,
+      best_streak: streak.best,
     };
   }
 

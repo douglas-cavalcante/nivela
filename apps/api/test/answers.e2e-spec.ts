@@ -223,6 +223,36 @@ describe('Respostas (e2e)', () => {
     );
   });
 
+  it('Ruling 10: último estudo há 3 dias → /me/stats mostra sequência 0 e a melhor intacta', async () => {
+    await prisma.studentProfile.update({
+      where: { userId: studentId },
+      data: {
+        currentStreak: 5,
+        bestStreak: 8,
+        lastStudyDate: new Date('2026-11-07T00:00:00Z'), // relógio: 10/11
+      },
+    });
+    const { body } = await request(server())
+      .get('/api/v1/me/stats')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(body).toEqual({
+      coins_balance: 0,
+      current_streak: 0,
+      best_streak: 8,
+    });
+    // Ontem ainda vale.
+    await prisma.studentProfile.update({
+      where: { userId: studentId },
+      data: { lastStudyDate: new Date('2026-11-09T00:00:00Z') },
+    });
+    const yesterday = await request(server())
+      .get('/api/v1/me/stats')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(yesterday.body.current_streak).toBe(5);
+  });
+
   it('questão inativa ou inexistente responde 404', async () => {
     const inactive = await createQuestion(prisma, { active: false });
     for (const id of [inactive.id, 999999]) {

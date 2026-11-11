@@ -10,6 +10,7 @@ interface StudentRow {
     coinsBalance: number;
     currentStreak: number;
     bestStreak: number;
+    lastStudyDate: Date | null;
   } | null;
   /** Só as matrículas que quem consulta pode ver. */
   enrollments: Array<{ classroom: { id: number; name: string } }>;
@@ -30,10 +31,14 @@ export function presentStudentSummary(student: StudentRow): ApiStudentSummary {
   } satisfies ApiStudentSummary;
 }
 
-export function presentStudent(student: StudentRow): ApiStudent {
+/** `streak` é a sequência efetiva (Ruling 10), calculada por quem chama. */
+export function presentStudent(
+  student: StudentRow,
+  streak: { current: number; best: number },
+): ApiStudent {
   return {
     ...presentStudentSummary(student),
-    current_streak: student.studentProfile?.currentStreak ?? 0,
-    best_streak: student.studentProfile?.bestStreak ?? 0,
+    current_streak: streak.current,
+    best_streak: streak.best,
   } satisfies ApiStudent;
 }
