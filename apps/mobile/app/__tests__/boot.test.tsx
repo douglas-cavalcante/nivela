@@ -1,3 +1,4 @@
+import { userEvent } from '@testing-library/react-native';
 import { act, fireEvent, screen } from 'expo-router/testing-library';
 import { getToken } from 'src/lib/auth/tokenStorage';
 import { networkError, renderApp } from 'src/test/render';
@@ -83,5 +84,50 @@ describe('abertura do app com sessão salva', () => {
     expect(await screen.findByText('Oi! Bora nivelar?')).toBeTruthy();
     expect(screen.queryByText('Sem conexão com o servidor.')).toBeNull();
     expect(await getToken()).toBeNull();
+  });
+
+  describe('"Alterar servidor" na tela de falha', () => {
+    const user = userEvent.setup();
+    const openSheet = () => user.press(screen.getByRole('button', { name: 'Alterar servidor' }));
+    const typeAndSave = async (address: string) => {
+      await user.type(screen.getByLabelText('Endereço do servidor'), address);
+      await user.press(screen.getByRole('button', { name: 'Testar e salvar' }));
+    };
+    it('endereço novo alcançável: encerra a sessão e leva às boas-vindas', async () => {
+      await renderApp({
+        user: student,
+        routes: { 'GET /auth/me': networkError, 'GET /health': () => ({ status: 200 }) },
+      });
+      expect(await screen.findByText('Sem conexão com o servidor.')).toBeTruthy();
+
+      await openSheet();
+      await typeAndSave('192.168.0.50:8000');
+
+      expect(await screen.findByText('Oi! Bora nivelar?')).toBeTruthy();
+      expect(screen.queryByText('Sem conexão com o servidor.')).toBeNull();
+      expect(await getToken()).toBeNull();
+    });
+
+    it('mesmo endereço: mantém a sessão e refaz a checagem', async () => {
+      let calls = 0;
+      await renderApp({
+        user: student,
+        routes: {
+          'GET /auth/me': (body, config) => {
+            calls += 1;
+            return calls === 1 ? networkError(body, config) : { status: 200, data: { user: student } };
+          },
+          'GET /health': () => ({ status: 200 }),
+        },
+      });
+      expect(await screen.findByText('Sem conexão com o servidor.')).toBeTruthy();
+
+      await openSheet();
+      await typeAndSave('api.test');
+
+      expect(await screen.findByText('Início')).toBeTruthy();
+      expect(calls).toBe(2);
+      expect(await getToken()).toBe('token-de-teste');
+    });
   });
 });

@@ -33,8 +33,17 @@ export const emptyPlan: ApiMyPlanSummary = {
   ...planSummary,
   id: 10,
   title: 'Revisão de álgebra',
-  progress: { completed_chapters: 2, total_chapters: 2, percent: 100, available_questions: 0 },
+  progress: { completed_chapters: 1, total_chapters: 2, percent: 50, available_questions: 0 },
   due_date: null,
+  completed: false,
+};
+
+/** Plano concluído cujas questões foram desativadas depois. */
+export const doneEmptyPlan: ApiMyPlanSummary = {
+  ...emptyPlan,
+  id: 11,
+  title: 'Revisão de geometria',
+  progress: { completed_chapters: 2, total_chapters: 2, percent: 100, available_questions: 0 },
   completed: true,
 };
 

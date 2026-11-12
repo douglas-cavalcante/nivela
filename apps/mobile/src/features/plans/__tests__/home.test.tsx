@@ -1,7 +1,7 @@
 import { screen, userEvent } from '@testing-library/react-native';
 import { renderApp } from 'src/test/render';
 import { student } from 'src/test/users';
-import { donePlan, emptyPlan, noDuePlan, planSummary } from 'src/features/plans/__tests__/fixtures';
+import { donePlan, doneEmptyPlan, emptyPlan, noDuePlan, planSummary } from 'src/features/plans/__tests__/fixtures';
 import { stats } from 'src/test/studyFixtures';
 
 const statsRoute = () => ({ status: 200, data: stats });
@@ -49,9 +49,24 @@ describe('Início: meus planos', () => {
 
     expect(await screen.findByText('Revisão de álgebra')).toBeTruthy();
     expect(screen.getByText('Sem questões disponíveis.')).toBeTruthy();
-    expect(screen.queryByText('2 de 2 capítulos.')).toBeNull();
+    expect(screen.queryByText('1 de 2 capítulos.')).toBeNull();
     expect(screen.queryByText('✓ Concluído.')).toBeNull();
-    expect(screen.queryByLabelText('100% concluído.')).toBeNull();
+    expect(screen.queryByLabelText('50% concluído.')).toBeNull();
+  });
+
+  it('plano concluído com questões desativadas depois continua "Plano concluído"', async () => {
+    await renderApp({
+      user: student,
+      routes: {
+        'GET /me/stats': statsRoute,
+        'GET /me/plans': () => ({ status: 200, data: { data: [doneEmptyPlan] } }),
+      },
+    });
+
+    expect(await screen.findByText('Revisão de geometria')).toBeTruthy();
+    expect(screen.getByText('✓ Concluído.')).toBeTruthy();
+    expect(screen.queryByText('Sem questões disponíveis.')).toBeNull();
+    expect(screen.getByRole('button', { name: /Plano concluído\./ })).toBeTruthy();
   });
 
   it('sem planos mostra a mensagem de vazio', async () => {

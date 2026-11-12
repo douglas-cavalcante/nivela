@@ -59,7 +59,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 401 em qualquer requisição autenticada: o interceptor já limpou o token.
   useEffect(() => {
-    setUnauthorizedHandler(() => setUser(null));
+    // Também limpa a tela de falha: a sessão terminou (401 ou troca de servidor), não há o que refazer.
+    setUnauthorizedHandler(() => {
+      setUser(null);
+      setOffline(false);
+      setOfflineStatus(null);
+    });
     return () => setUnauthorizedHandler(null);
   }, []);
 
@@ -111,13 +116,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOffline(false);
     setOfflineStatus(null);
     setRetrying(false);
+    const started = await getToken();
     try {
       await api.post('/auth/logout');
     } catch {
       // mesmo sem resposta da API, a sessão local termina
     } finally {
-      await clearToken();
-      setUser(null);
+      // O logout pode levar até 15 s; se, nesse tempo, outra sessão começou (outro token),
+      // ela não é apagada.
+      if ((await getToken()) === started) {
+        await clearToken();
+        setUser(null);
+      }
     }
   }, []);
 

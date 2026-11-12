@@ -1,5 +1,5 @@
 import { radius, spacing } from '@nivela/design-tokens';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from 'src/components/AppText';
 import { Button } from 'src/components/Button';
@@ -10,6 +10,8 @@ import { useTheme } from 'src/lib/theme/useTheme';
 interface ServerUrlSheetProps {
   visible: boolean;
   onClose: () => void;
+  /** Chamado depois que o endereço foi salvo (ou o padrão restaurado) com sucesso. */
+  onSaved?: () => void;
 }
 
 type Feedback = { kind: 'error' | 'success'; text: string } | null;
@@ -21,30 +23,46 @@ const MESSAGES = {
 } as const;
 
 /** Folha para trocar o endereço da API: testa a conexão antes de salvar. */
-export function ServerUrlSheet({ visible, onClose }: ServerUrlSheetProps) {
+export function ServerUrlSheet({ visible, ...props }: ServerUrlSheetProps) {
+  // Montada só enquanto aberta: cada abertura começa sem a mensagem nem o texto da vez anterior.
+  return visible ? <SheetBody {...props} /> : null;
+}
+
+function SheetBody({ onClose, onSaved }: Omit<ServerUrlSheetProps, 'visible'>) {
   const { colors } = useTheme();
   const { url, change, reset } = useServerUrl();
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
 
-  if (!visible) return null;
+  // Trava síncrona: `busy` só muda na próxima renderização e o Enter pode chegar duas vezes antes.
+  const working = useRef(false);
 
   const save = async () => {
+    if (working.current) return;
+    working.current = true;
     setBusy(true);
     setFeedback(null);
     const result = await change(input);
+    working.current = false;
     setBusy(false);
     setFeedback({ kind: result === 'ok' ? 'success' : 'error', text: MESSAGES[result] });
-    if (result === 'ok') setInput('');
+    if (result === 'ok') {
+      setInput('');
+      onSaved?.();
+    }
   };
 
   const resetToDefault = async () => {
+    if (working.current) return;
+    working.current = true;
     setBusy(true);
     await reset();
+    working.current = false;
     setBusy(false);
     setInput('');
     setFeedback({ kind: 'success', text: MESSAGES.ok });
+    onSaved?.();
   };
 
   return (
