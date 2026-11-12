@@ -96,6 +96,29 @@ Com API, web e o app rodando, e o fluxo do aluno acima já feito (um aluno com m
 5. No painel, entregue esse resgate: no app ele passa a "Entregue".
 6. No **Início** do painel, veja os cards (alunos ativos, taxa de acerto, resgates pendentes), o gráfico de atividade do dia e a lista de alunos que precisam de ajuda. Ela só se preenche depois de um aluno ter 5 questões terminadas nos últimos 30 dias com acerto abaixo de 50% (por exemplo, errando de propósito no app). Na ficha da turma e na do aluno, veja o desempenho por categoria; na do aluno, também o extrato de moedas.
 
+## Dados de demonstração
+
+Para gravar o vídeo ou tirar capturas de tela com o sistema "vivo", há um seed de demonstração: 2 professores, 2 turmas, Matemática e Português, 24 questões originais (9º ano para o Ensino Médio), 2 planos publicados, 5 prêmios ativos e 8 alunos com 14 dias de histórico (tentativas, moedas, sequências, um plano concluído e resgates pendentes, entregues e recusados).
+
+```bash
+npm run db:seed -w apps/api        # o administrador precisa existir antes
+npm run db:seed:demo -w apps/api   # usa o DATABASE_URL do apps/api/.env
+```
+
+O seed só **acrescenta** dados, numa transação (ou grava tudo, ou nada), e nunca altera o administrador. Se `ana.lima@nivela.test` já existe, ele avisa "Os dados de demonstração já estão no banco." e não grava nada. O histórico é relativo ao dia da execução: rode o seed pouco antes de gravar o vídeo. Para repetir com datas novas, aponte o `DATABASE_URL` para um banco limpo.
+
+Se o banco já tem disciplinas ou categorias com os mesmos nomes (sem diferenciar maiúsculas), como "Matemática", o seed as **reaproveita** e cria só as que faltam. Se algum código de turma (`NIV-9ANO`, `NIV-1SER`) ou e-mail de demonstração já existe, ele recusa antes de gravar e diz quais são. A turma "1ª série B" pertence ao professor Bruno e o plano de Matemática à Ana, então o progresso da 1ª série B nesse plano só aparece na conta de administrador (RN15): para mostrá-lo no vídeo, entre como administrador.
+
+A senha de todas as contas de demonstração é `nivela123`.
+
+| Perfil | E-mail | Observação |
+| --- | --- | --- |
+| Professora | `ana.lima@nivela.test` | turma "9º ano A" (código `NIV-9ANO`) |
+| Professor | `bruno.rocha@nivela.test` | turma "1ª série B" (código `NIV-1SER`) |
+| Aluna | `aluno1@nivela.test` | Marina Souza, 9º ano A: sequência de 14 dias e plano de Matemática concluído |
+| Alunos | `aluno2@nivela.test` a `aluno4@nivela.test` | 9º ano A (o `aluno4` aparece em "Precisam de ajuda") |
+| Alunos | `aluno5@nivela.test` a `aluno8@nivela.test` | 1ª série B (o `aluno5` tem os três estados de resgate) |
+
 ## Testes e outros comandos
 
 - `npm run lint`, `npm run typecheck`, `npm test` e `npm run build`: rodam em todos os workspaces.
