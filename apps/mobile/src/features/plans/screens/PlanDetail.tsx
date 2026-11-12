@@ -68,21 +68,27 @@ export function PlanDetail() {
               {data.due_date ? ` · Até ${formatDueDay(data.due_date)}.` : ''}
             </AppText>
             {data.description ? <AppText>{data.description}</AppText> : null}
-            {data.completed ? <DoneChip /> : null}
-            <ProgressBar
-              percent={data.progress.percent}
-              color={palette.foreground}
-              label="Progresso do plano."
-            />
-            <AppText variant="bold">{`${chaptersLabel(data.progress.completed_chapters, data.progress.total_chapters)}.`}</AppText>
-            {data.chapters.map((chapter, index) => (
-              <ChapterPage
-                key={chapter.id}
-                chapter={chapter}
-                number={index + 1}
-                onPress={() => router.push(`/plans/${data.id}/chapters/${chapter.id}`)}
-              />
-            ))}
+            {data.chapters.length > 0 && data.chapters.every((chapter) => chapter.total === 0) ? (
+              <AppText accessibilityRole="alert">Este plano está sem questões disponíveis no momento.</AppText>
+            ) : (
+              <>
+                {data.completed ? <DoneChip /> : null}
+                <ProgressBar
+                  percent={data.progress.percent}
+                  color={palette.foreground}
+                  label="Progresso do plano."
+                />
+                <AppText variant="bold">{`${chaptersLabel(data.progress.completed_chapters, data.progress.total_chapters)}.`}</AppText>
+                {data.chapters.map((chapter, index) => (
+                  <ChapterPage
+                    key={chapter.id}
+                    chapter={chapter}
+                    number={index + 1}
+                    onPress={() => router.push(`/plans/${data.id}/chapters/${chapter.id}`)}
+                  />
+                ))}
+              </>
+            )}
           </>
         )}
       </ScrollView>

@@ -59,7 +59,8 @@ export class StreakService {
     now: Date,
   ): Promise<StreakResult> {
     // Trava o perfil: duas transações do mesmo aluno (ex.: na virada do dia)
-    // se serializam e a segunda lê o estado já gravado pela primeira.
+    // se serializam e a segunda lê o estado já gravado pela primeira. O perfil
+    // existe: quem chama já o travou (`lockStudentProfile`) antes.
     const [row] = await tx.$queryRaw<
       {
         current_streak: number;
@@ -70,9 +71,6 @@ export class StreakService {
       SELECT "current_streak", "best_streak", "last_study_date"
       FROM "student_profiles"
       WHERE "user_id" = ${studentId} FOR UPDATE`;
-    if (!row) {
-      throw new Error(`Perfil de aluno ${studentId} não encontrado.`);
-    }
     const profile: StoredStreak = {
       currentStreak: row.current_streak,
       bestStreak: row.best_streak,

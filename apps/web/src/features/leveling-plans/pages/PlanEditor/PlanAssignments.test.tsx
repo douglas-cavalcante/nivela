@@ -266,6 +266,29 @@ describe('PlanEditor: progresso', () => {
     expect(within(biaRow).getByText('Concluído em 12/11/2026.')).toBeInTheDocument();
   });
 
+  it('plano sem questões ativas mostra o aviso no lugar da tabela', async () => {
+    baseHandlers(
+      makePlan({
+        chapters: [
+          { id: 11, title: 'Conceito de fração', position: 1, questions: [{ id: 101, statement_excerpt: 'Enunciado 101', difficulty: 'easy', active: false }] },
+          { id: 12, title: 'Vazio', position: 2, questions: [] },
+        ],
+      }),
+    );
+    server.use(
+      http.get(`${API_URL}/plans/5/progress`, () =>
+        HttpResponse.json({
+          data: [{ student: { id: 21, name: 'Lucas Lima' }, completed_chapters: 2, total_chapters: 2, answered: 0, correct: 0, completed_at: '2026-11-12T15:00:00.000Z' }],
+        }),
+      ),
+    );
+    renderPage();
+    await openTab('Progresso');
+
+    expect(await screen.findByText('Este plano está sem questões disponíveis no momento.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Lucas Lima' })).not.toBeInTheDocument();
+  });
+
   it('sem alunos com progresso mostra o estado vazio', async () => {
     baseHandlers();
     server.use(http.get(`${API_URL}/plans/5/progress`, () => HttpResponse.json({ data: [] })));
