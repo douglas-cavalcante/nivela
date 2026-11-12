@@ -6,8 +6,10 @@ import {
   Post,
   Put,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AnyAuthenticated } from 'src/common/decorators/any-authenticated.decorator';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { Public } from 'src/common/decorators/public.decorator';
@@ -17,6 +19,12 @@ import { LoginDto } from 'src/modules/auth/dto/login.dto';
 import { RegisterStudentDto } from 'src/modules/auth/dto/register-student.dto';
 import { TokenService } from 'src/modules/auth/token.service';
 import type { AuthenticatedRequest, AuthUser } from 'src/shared/auth/auth-user';
+import { LoginThrottlerGuard } from 'src/shared/security/login-throttler.guard';
+import {
+  loginLimit,
+  registerLimit,
+  throttleTtlMs,
+} from 'src/shared/security/throttle-config';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -27,6 +35,8 @@ export class AuthController {
   ) {}
 
   @Public()
+  @UseGuards(LoginThrottlerGuard)
+  @Throttle({ default: { limit: loginLimit, ttl: throttleTtlMs } })
   @Post('login')
   @HttpCode(200)
   login(@Body() dto: LoginDto): Promise<AuthResult> {
@@ -34,6 +44,8 @@ export class AuthController {
   }
 
   @Public()
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: registerLimit, ttl: throttleTtlMs } })
   @Post('register-student')
   registerStudent(@Body() dto: RegisterStudentDto): Promise<AuthResult> {
     return this.auth.registerStudent(dto);
