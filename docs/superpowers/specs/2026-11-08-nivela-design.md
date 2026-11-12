@@ -160,14 +160,14 @@ Exporta em TypeScript: paleta (claro/escuro), tipografia, raios, espaçamentos, 
 
 | Menu | Funcionalidades | Perfis |
 |---|---|---|
-| Início | cards (alunos ativos, questões, taxa de acerto, alunos com acerto < 50%), questões recentes, resgates pendentes | teacher, admin |
+| Início | cards (alunos ativos, questões, taxa de acerto, alunos com acerto < 50%), atividade dos últimos 14 dias (questões terminadas por dia de estudo), alunos que precisam de ajuda, questões recentes, resgates pendentes; os números usam os últimos 30 dias | teacher, admin |
 | Questões | listagem com filtros (disciplina, categoria, dificuldade, busca) e paginação; formulário (enunciado, imagem, 5 alternativas com 1 correta, explicação, dificuldade); ativar/desativar | teacher, admin |
 | Disciplinas | listagem e formulário (nome, cor, ícone) | teacher, admin |
 | Categorias | listagem por disciplina e formulário | teacher, admin |
-| Turmas | criar/editar; código de entrada (copiar, regenerar); alunos da turma; cadastro manual de aluno; desempenho por categoria | teacher (próprias), admin |
+| Turmas | criar/editar; código de entrada (copiar, regenerar); alunos da turma; cadastro manual de aluno; desempenho por categoria (todo o histórico) | teacher (próprias), admin |
 | Alunos | listagem; ficha (desempenho por categoria, planos e progresso, extrato de moedas) | teacher (alunos das suas turmas), admin |
 | Planos | criar plano (título, descrição, disciplina, bônus); capítulos ordenáveis; selecionar questões do banco; publicar; atribuir a turma ou aluno com prazo opcional; acompanhar progresso | teacher (próprios), admin |
-| Loja de prêmios | cadastro de prêmios (nome, descrição, foto, preço, estoque, ativo); fila de resgates com entregar / recusar (motivo obrigatório) | teacher, admin |
+| Loja de prêmios | cadastro de prêmios (nome, descrição, foto, preço, estoque, ativo); fila de resgates com entregar / recusar (motivo obrigatório; pendentes do mais antigo ao mais novo); o prêmio não é excluído, só desativado | teacher, admin |
 | Professores | cadastrar, editar, desativar | admin |
 | Perfil | trocar senha, alternar tema claro/escuro, sair | todos |
 
@@ -212,7 +212,7 @@ Exporta em TypeScript: paleta (claro/escuro), tipografia, raios, espaçamentos, 
 | `rewards` | id, created_by, name, description, image_path?, price, stock, active, timestamps |
 | `reward_redemptions` | id, reward_id, student_id, price_paid, status (`pending`/`delivered`/`rejected`), handled_by?, handled_at?, rejection_reason?, timestamps |
 
-Moedas "uma vez" (acerto por questão, bônus do plano, bônus de sequência por dia) são garantidas por índices únicos parciais em `coin_transactions(student_id, source_id)` por `reason`. Índices em todas as FKs e em `questions(subject_id, category_id, active)`, `question_attempts(student_id, question_id)`, `reward_redemptions(status)`.
+Moedas "uma vez" (acerto por questão, bônus do plano, bônus de sequência por dia, estorno por resgate) são garantidas por índices únicos parciais em `coin_transactions(student_id, source_id)` por `reason`. Índices em todas as FKs e em `questions(subject_id, category_id, active)`, `question_attempts(student_id, question_id)`, `reward_redemptions(status)`.
 
 ---
 
@@ -230,8 +230,8 @@ Moedas "uma vez" (acerto por questão, bônus do plano, bônus de sequência por
 | RN08 | Plano só pode ser atribuído depois de publicado; plano publicado com progresso de alunos não pode ter capítulos/questões removidos. |
 | RN09 | Sequência: responder ≥ 1 questão num dia (fuso America/Fortaleza) mantém/incrementa o streak; pular um dia zera. A cada 7 dias consecutivos, +20 moedas. |
 | RN10 | Toda movimentação de moedas gera linha em `coin_transactions` e atualiza `coins_balance` na mesma transação do banco. Saldo nunca fica negativo. |
-| RN11 | Resgate: exige prêmio ativo, estoque > 0 e saldo ≥ preço. Débito, baixa de estoque e criação do pedido `pending` ocorrem numa única transação com `SELECT … FOR UPDATE`. |
-| RN12 | Resgate `pending` pode virar `delivered` ou `rejected` (motivo obrigatório). `rejected` devolve as moedas (`refund`) e o estoque. Estados finais não mudam. |
+| RN11 | Resgate: exige prêmio ativo, estoque > 0 e saldo ≥ preço (409 "Prêmio esgotado." / "Saldo insuficiente."). Débito, baixa de estoque e criação do pedido `pending` ocorrem numa única transação com `SELECT … FOR UPDATE`. |
+| RN12 | Resgate `pending` pode virar `delivered` ou `rejected` (motivo obrigatório). `rejected` devolve as moedas (`refund`, uma única vez por resgate, garantido por índice único) e o estoque. Estados finais não mudam (409). Prêmios não são excluídos, só desativados. |
 | RN13 | Código de turma: formato `NIV-XXXX` (letras/números sem caracteres ambíguos), único; o professor pode regenerá-lo; turmas inativas não aceitam novos alunos. |
 | RN14 | E-mail único no sistema. Usuário inativo não faz login. Senha mínima de 8 caracteres. |
 | RN15 | Professor só vê/gerencia as próprias turmas, os alunos delas e os próprios planos; admin vê tudo. |

@@ -17,7 +17,7 @@ Integração contínua: [workflow de CI](.github/workflows/ci.yml) (lint, tipos,
 | `packages/api-contract` | Tipos de resposta da API e `parseApiError`, compartilhados |
 | `docs/` | Documentação e especificação |
 
-> Em construção: as funcionalidades chegam ao longo do [plano de implementação](docs/superpowers/plans/). Hoje já funcionam o login (web e mobile), o cadastro do aluno com código de turma, o perfil com troca de senha e, no painel web, os cadastros de professores, disciplinas, categorias, questões (com imagem), turmas e alunos; no app, o aluno vê as turmas, entra em outra pelo código, pratica por disciplina, segue planos de nivelamento por capítulos e ganha moedas e sequência de estudo. Planos (criação, atribuição e progresso) já existem no painel; a loja de prêmios e os relatórios ainda estão por vir.
+> Em construção: as funcionalidades chegam ao longo do [plano de implementação](docs/superpowers/plans/). Hoje já funcionam o login (web e mobile), o cadastro do aluno com código de turma, o perfil com troca de senha e, no painel web, os cadastros de professores, disciplinas, categorias, questões (com imagem), turmas e alunos; no app, o aluno vê as turmas, entra em outra pelo código, pratica por disciplina, segue planos de nivelamento por capítulos e ganha moedas e sequência de estudo. Planos (criação, atribuição e progresso) já existem no painel; a loja de prêmios e os relatórios já funcionam: o aluno resgata prêmios com as moedas e acompanha o extrato, e o professor cadastra prêmios (com foto), trata a fila de resgates (entregar ou recusar com estorno) e vê no Início os indicadores de acerto, a atividade por dia e os alunos que precisam de ajuda, além do desempenho por categoria nas fichas da turma e do aluno.
 
 ## Pré-requisitos
 
@@ -84,6 +84,17 @@ Com API, web e (opcionalmente) o app rodando e o administrador do seed:
 6. No **Início**, abra o plano: o capítulo 1 está disponível e o 2 trancado. Responda uma questão errando duas vezes (a correção e a explicação aparecem só no fim), acerte as outras (10 moedas na 1ª tentativa, 5 na 2ª) e conclua o capítulo 1; o 2 é liberado. Concluindo o 2, o plano termina e o bônus entra no saldo.
 7. Em **Estudar**, pratique por disciplina; moedas e sequência (conta o dia em `America/Fortaleza`) aparecem na barra do topo.
 8. No painel, abra o plano e veja o **Progresso** da turma.
+
+## Testando a loja e os relatórios
+
+Com API, web e o app rodando, e o fluxo do aluno acima já feito (um aluno com moedas):
+
+1. No painel, em **Loja**, aba **Prêmios**, crie um prêmio com preço que o aluno consiga pagar e estoque 2 (a foto é opcional).
+2. No app, abra a aba **Loja** e resgate o prêmio, confirmando. O saldo cai, o estoque baixa e o resgate aparece em **Meus resgates** como pendente.
+3. No painel, em **Loja**, aba **Resgates**, recuse o resgate informando o motivo. No app, o extrato de moedas (Perfil) mostra o estorno, o saldo volta e o estoque do prêmio também.
+4. No app, resgate o prêmio de novo.
+5. No painel, entregue esse resgate: no app ele passa a "Entregue".
+6. No **Início** do painel, veja os cards (alunos ativos, taxa de acerto, resgates pendentes), o gráfico de atividade do dia e a lista de alunos que precisam de ajuda (pelo menos 5 questões terminadas nos últimos 30 dias e acerto abaixo de 50%). Na ficha da turma e na do aluno, veja o desempenho por categoria; na do aluno, também o extrato de moedas.
 
 ## Testes e outros comandos
 

@@ -44,7 +44,8 @@ Na API e na web a pasta é `kebab-case` (`modules/leveling-plans`, `features/lev
 | `health` | `GET /health` | — | — |
 | `answers` | prática livre (`GET /practice/subjects`, `GET /practice/next`), próxima questão do capítulo (`GET /me/plans/:id/chapters/:chapterId/next`), respostas com tentativas, moedas e sequência (`POST /answers`), `GET /me/stats` | — (o professor vê o desempenho no Plano 4) | `study` (`features/study`): Estudar (prática por disciplina), tela de questão e feedback, barra de moedas/sequência |
 | `leveling-plans` | CRUD de planos, capítulos ordenáveis, questões do capítulo, publicar, atribuições a turma/aluno com prazo, progresso; `GET /me/plans`, `GET /me/plans/:id`, `GET /students/:id/plans` | `leveling-plans`: lista e editor de planos (capítulos, seletor de questões, atribuições, progresso) | `plans` (`features/plans`): Meus planos no Início, tela do plano com capítulos (cadeado/progresso) e estudo do capítulo |
-| `rewards`, `dashboard` | planejadas (Plano 4) | planejadas | planejadas |
+| `rewards` | catálogo de prêmios da escola (CRUD sem exclusão: só ativar/desativar, imagem), vitrine e resgate do aluno (`/store/*`), fila de resgates com entregar e recusar com estorno (`/redemptions`) | `rewards`: página Loja (abas Prêmios e Resgates, formulário com imagem, diálogo de recusa) | `store` (`features/store`): aba Loja (vitrine, resgate com confirmação) e "Meus resgates" |
+| `dashboard` | indicadores do Início (`/dashboard/summary`, `activity`, `needing-help`, `recent-questions`), desempenho da turma e do aluno (`/classrooms/:id/performance`, `/students/:id/performance`) e extrato de moedas (`/me/coins`, `/students/:id/coins`) | `dashboard`: Início (cards, atividade, "precisam de ajuda", questões recentes), gráfico de desempenho por categoria e extrato nas fichas | `coins` (`features/coins`): saldo e extrato de moedas no Perfil |
 
 ---
 
@@ -60,7 +61,7 @@ src/
 │       ├── <feature>.service.spec.ts  # unitário com Prisma mockado
 │       └── <feature>.module.ts        # `exports` define o que outras features podem usar
 ├── common/                        # filters, pipes, guards (AuthGuard, RolesGuard), decorators (@Public, @Roles, @AnyAuthenticated, @CurrentUser), validators (sem regra de negócio)
-├── shared/                        # enums, exceções, contrato de autenticação (auth/auth-user.ts), relógio injetável (clock/: `CLOCK` + `ClockModule`), moedas (coins/: `CoinLedger` e `coin-rules.ts`), dia de estudo e sequência (study/: `studyDay`, `StreakService`, `StudyModule`), escopos de leitura (scopes/), paginação (pagination/), helpers do Prisma (prisma/, ex.: `isUniqueViolation`) e regras usadas por mais de uma feature
+├── shared/                        # enums, exceções, contrato de autenticação (auth/auth-user.ts), relógio injetável (clock/: `CLOCK` + `ClockModule`), moedas (coins/: `CoinLedger` e `coin-rules.ts`), dia de estudo e sequência (study/: `studyDay`, `StreakService`, `StudyModule`), escopos de leitura (scopes/), arquivos enviados (files/: `ImageStorageService` e validação por assinatura dos bytes, usados pelas imagens de questões e de prêmios), paginação (pagination/), helpers do Prisma (prisma/, ex.: `isUniqueViolation`) e regras usadas por mais de uma feature
 ├── prisma/                        # PrismaModule (global) e PrismaService (adapter-pg)
 ├── generated/prisma/              # client do Prisma (gerado, ignorado pelo git)
 ├── app.factory.ts                 # configureApp(): prefixo, validação, filtro, CORS, Swagger
@@ -72,7 +73,9 @@ test/helpers/                      # createTestApp(), resetDatabase(), factories
 scripts/test-db-migrate.js           # aplica as migrations no banco nivela_test antes do e2e
 ```
 
-**Como `answers` e `leveling-plans` se dividem:** `answers` registra a resposta (`AnswersService`) e serve a prática livre; `leveling-plans` cuida do plano, dos capítulos, das atribuições, do progresso e do estado dos capítulos do aluno (`StudentPlansService`, exportado). A resposta com `plan_chapter_id` chama o `StudentPlansService` (a dependência vai só de `answers` para `leveling-plans`, pelo service exportado). `CoinLedger` e `StreakService` ficam em `shared/` porque `answers` os usa hoje e a loja (Plano 4) os usará amanhã.
+**Como `answers` e `leveling-plans` se dividem:** `answers` registra a resposta (`AnswersService`) e serve a prática livre; `leveling-plans` cuida do plano, dos capítulos, das atribuições, do progresso e do estado dos capítulos do aluno (`StudentPlansService`, exportado). A resposta com `plan_chapter_id` chama o `StudentPlansService` (a dependência vai só de `answers` para `leveling-plans`, pelo service exportado). `CoinLedger` e `StreakService` ficam em `shared/` porque `answers` e a loja (`rewards`) os usam.
+
+**Como `rewards` e `dashboard` se dividem:** `rewards` cuida do catálogo, do resgate e da fila (`RewardsService`, `RedemptionsService`); o débito e o estorno passam pelo `CoinLedger`. `dashboard` só lê: indicadores, desempenho e extrato, sempre dentro do escopo de quem pede (`studentScope`). O fragmento SQL do dia de estudo (`studyDaySql`) fica em `shared/study/`.
 
 **Escopos de leitura (`src/shared/scopes/`):** `classroomScope(user)`, `studentScope(user)`, `planScope(user)` (planos do professor; admin vê todos) e `studentPlanScope(studentId)` (o plano visível a um aluno: publicado e atribuído a ele ou a uma turma em que está matriculado; único filtro das rotas do aluno que leem plano, capítulo ou questão de capítulo). Consultas partem sempre de um escopo.
 
@@ -92,7 +95,7 @@ scripts/test-db-migrate.js           # aplica as migrations no banco nivela_test
 src/
 ├── app/          # App.tsx, rotas, layouts (AppLayout com sidebar "fichário", AuthLayout)
 ├── features/     # Um diretório por feature
-├── components/   # UI genérica, sem regra de negócio, uma pasta por componente (DataTable, FormDialog, ConfirmDialog, SearchField, AsyncAutocomplete (busca no servidor, substitui selects que cortavam em 100 itens), StatusChip, PasswordField, ErrorBoundary, EmptyState, ResourceState, Mascot, PageHeader)
+├── components/   # UI genérica, sem regra de negócio, uma pasta por componente (DataTable, FormDialog, ConfirmDialog, SearchField, AsyncAutocomplete (busca no servidor, substitui selects que cortavam em 100 itens), StatusChip, PasswordField, ErrorBoundary, EmptyState, ResourceState, Mascot, PageHeader, ImageUpload (envio e prévia de imagem, usado por questões e prêmios))
 ├── lib/          # Adaptadores: axios (interceptor de token e 401), AuthContext, notify (avisos rápidos), theme (MUI a partir dos design tokens)
 ├── hooks/        # Hooks genéricos de lista: useListQuery (filtros na URL), usePaginatedList, useRemoteList
 ├── utils/        # Funções puras
