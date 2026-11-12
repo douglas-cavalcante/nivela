@@ -106,6 +106,9 @@ function PlanView({ plan, onPlan }: PlanViewProps) {
   }
 
   const draft = plan.status === 'draft';
+  // Sem nenhuma questão ativa nos capítulos, o progresso (100%, 0/0) enganaria.
+  const noQuestions =
+    plan.chapters.length > 0 && plan.chapters.every((chapter) => chapter.questions.every((question) => !question.active));
 
   return (
     <>
@@ -219,7 +222,15 @@ function PlanView({ plan, onPlan }: PlanViewProps) {
           </Box>
         ) : null}
         {tab === 'assignments' ? <AssignmentsPanel planId={plan.id} published={!draft} /> : null}
-        {tab === 'progress' ? <ProgressTable planId={plan.id} /> : null}
+        {tab === 'progress' ? (
+          noQuestions ? (
+            <Typography role="status" color="text.secondary">
+              Este plano está sem questões disponíveis no momento.
+            </Typography>
+          ) : (
+            <ProgressTable planId={plan.id} />
+          )
+        ) : null}
       </Box>
 
       {editing ? (
