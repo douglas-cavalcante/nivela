@@ -9,7 +9,9 @@
     "android": "expo start --android",
     "lint": "eslint app src",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "build:apk": "node scripts/build-apk.mjs",
+    "icons": "tsx scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/caveat": "^0.4.2",
@@ -19,6 +21,7 @@
     "@nivela/design-tokens": "^0.1.0",
     "axios": "^1.21.0",
     "expo": "~58.0.23",
+    "expo-build-properties": "~58.0.12",
     "expo-constants": "~58.0.15",
     "expo-font": "~58.0.11",
     "expo-linking": "~58.0.16",
@@ -38,14 +41,17 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@resvg/resvg-js": "^2.6.2",
     "@testing-library/react-native": "^14.1.0",
     "@types/jest": "^30.0.0",
+    "@types/node": "^22.20.5",
     "@types/react": "^19.3.0",
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",
     "jest": "^30.5.2",
     "jest-expo": "^58.0.14",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.72.1"
   }

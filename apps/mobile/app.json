@@ -3,13 +3,30 @@
     "name": "Nivela",
     "slug": "nivela",
     "scheme": "nivela",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "android": { "package": "br.nivela.app" },
+    "icon": "./assets/icon.png",
+    "android": {
+      "package": "br.nivela.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFDF6"
+      }
+    },
     "ios": { "bundleIdentifier": "br.nivela.app" },
-    "plugins": ["expo-router", "expo-secure-store", "expo-font", "expo-splash-screen"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        { "image": "./assets/splash-icon.png", "imageWidth": 200, "backgroundColor": "#FFFDF6" }
+      ],
+      ["expo-build-properties", { "android": { "usesCleartextTraffic": true } }]
+    ],
     "experiments": { "typedRoutes": true }
   }
 }

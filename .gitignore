@@ -32,3 +32,7 @@ npm-debug.log*
 
 # Cache do tsc -b
 *.tsbuildinfo
+
+# Build Android local (gerado pelo expo prebuild)
+apps/mobile/android/
+dist/*.apk
