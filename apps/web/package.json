@@ -1,6 +1,7 @@
 {
   "name": "@nivela/web",
   "private": true,
+  "license": "MIT",
   "version": "0.0.1",
   "type": "module",
   "description": "Painel web do Nivela para professores e administradores.",

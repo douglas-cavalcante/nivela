@@ -134,3 +134,7 @@ A senha de todas as contas de demonstração é `nivela123`.
 - [Estrutura de pastas](docs/estruturaDePastas.md)
 - [Fluxo de trabalho (git e commits)](docs/workflow.md)
 - [Especificação de design](docs/superpowers/specs/2026-11-08-nivela-design.md)
+
+## Licença
+
+Distribuído sob a licença MIT. Veja o arquivo [LICENSE](LICENSE).
