@@ -21,18 +21,20 @@ import { Controller, useForm, useWatch } from 'react-hook-form';
 import type { FieldPath } from 'react-hook-form';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ConfirmDialog } from 'src/components/ConfirmDialog';
+import { ImageUpload } from 'src/components/ImageUpload';
 import { ResourceState } from 'src/components/ResourceState';
 import { PageHeader } from 'src/components/PageHeader';
 import { StatusChip } from 'src/components/StatusChip';
 import { listCategoriesAction } from 'src/features/categories';
 import {
   createQuestionAction,
+  deleteQuestionImageAction,
   getQuestionAction,
   setQuestionStatusAction,
   updateQuestionAction,
+  uploadQuestionImageAction,
 } from 'src/features/questions/api/questions.action';
 import { difficultyLabels } from 'src/features/questions/components/DifficultyChip';
-import { ImageUpload } from 'src/features/questions/components/ImageUpload';
 import { OptionsEditor } from 'src/features/questions/components/OptionsEditor';
 import {
   DIFFICULTIES,
@@ -50,6 +52,12 @@ import { useNivelaColors } from 'src/lib/theme/useNivelaColors';
 const EXPLANATION_HELPER = 'Explique a resolução — o aluno vê depois de responder.';
 const READ_ONLY_MESSAGE =
   'Você está vendo esta questão em modo leitura. Só o autor ou um administrador pode editar esta questão.';
+
+const IMAGE_TEXTS = {
+  savePrompt: 'Salve a questão para adicionar uma imagem.',
+  altText: 'Imagem da questão',
+  removedNotice: 'A questão ficará sem imagem. Você pode enviar outra depois.',
+};
 
 function toDefaults(question?: ApiQuestion): QuestionFormValues {
   return {
@@ -342,7 +350,10 @@ function QuestionEditor({ question }: QuestionEditorProps) {
         />
 
         <ImageUpload
-          questionId={current?.id}
+          ownerId={current?.id}
+          upload={(file) => uploadQuestionImageAction(current?.id ?? 0, file)}
+          remove={() => deleteQuestionImageAction(current?.id ?? 0)}
+          texts={IMAGE_TEXTS}
           imageUrl={imageUrl}
           canEdit={!readOnly}
           onChange={setImageUrl}

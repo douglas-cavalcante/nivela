@@ -7,17 +7,19 @@ import { penShadow } from '@nivela/design-tokens';
 import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { ConfirmDialog } from 'src/components/ConfirmDialog';
-import {
-  deleteQuestionImageAction,
-  uploadQuestionImageAction,
-} from 'src/features/questions/api/questions.action';
-import { validateImageFile } from 'src/features/questions/schemas/question.schema';
+import { validateImageFile } from 'src/components/ImageUpload/validateImageFile';
 import { useNivelaColors } from 'src/lib/theme/useNivelaColors';
 import { useNotify } from 'src/lib/notify/useNotify';
 
 interface ImageUploadProps {
-  /** Sem id a questão ainda não existe: a imagem só pode ser enviada depois de salvar. */
-  questionId?: number;
+  /** Sem id o dono da imagem ainda não existe: a imagem só pode ser enviada depois de salvar. */
+  ownerId?: number;
+  /** Envia o arquivo e devolve o `image_url` gravado. */
+  upload: (file: File) => Promise<string>;
+  /** Apaga a imagem gravada. */
+  remove: () => Promise<void>;
+  /** Textos que citam o dono da imagem ("a questão", "o prêmio"). */
+  texts: { savePrompt: string; altText: string; removedNotice: string };
   /** `image_url` da API: caminho relativo à raiz (`/uploads/...`), resolvido na origem de VITE_API_URL. */
   imageUrl: string | null;
   /** Falso no modo leitura: mostra a imagem, sem botões. */
@@ -25,8 +27,8 @@ interface ImageUploadProps {
   onChange: (imageUrl: string | null) => void;
 }
 
-/** Imagem opcional da questão: prévia, trocar e remover (com confirmação). */
-export function ImageUpload({ questionId, imageUrl, canEdit, onChange }: ImageUploadProps) {
+/** Imagem opcional (questão, prêmio): prévia, trocar e remover (com confirmação). */
+export function ImageUpload({ ownerId, upload, remove, texts, imageUrl, canEdit, onChange }: ImageUploadProps) {
   const colors = useNivelaColors();
   const notify = useNotify();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,11 +38,11 @@ export function ImageUpload({ questionId, imageUrl, canEdit, onChange }: ImageUp
   const [removing, setRemoving] = useState(false);
 
   async function send(file: File) {
-    if (questionId === undefined) return;
+    if (ownerId === undefined) return;
     setBusy(true);
     setError(null);
     try {
-      const url = await uploadQuestionImageAction(questionId, file);
+      const url = await upload(file);
       notify.success(imageUrl ? 'Imagem trocada.' : 'Imagem enviada.');
       onChange(url);
     } catch (err) {
@@ -67,10 +69,10 @@ export function ImageUpload({ questionId, imageUrl, canEdit, onChange }: ImageUp
   }
 
   async function confirmRemove() {
-    if (questionId === undefined) return;
+    if (ownerId === undefined) return;
     setBusy(true);
     try {
-      await deleteQuestionImageAction(questionId);
+      await remove();
       notify.success('Imagem removida.');
       setError(null);
       onChange(null);
@@ -102,13 +104,13 @@ export function ImageUpload({ questionId, imageUrl, canEdit, onChange }: ImageUp
           borderRadius: 2,
         }}
       >
-        {questionId === undefined ? (
-          <Typography color="text.secondary">Salve a questão para adicionar uma imagem.</Typography>
+        {ownerId === undefined ? (
+          <Typography color="text.secondary">{texts.savePrompt}</Typography>
         ) : imageUrl ? (
           <Box
             component="img"
             src={resolveAssetUrl(import.meta.env.VITE_API_URL, imageUrl) ?? undefined}
-            alt="Imagem da questão"
+            alt={texts.altText}
             sx={{
               display: 'block',
               maxWidth: '100%',
@@ -122,7 +124,7 @@ export function ImageUpload({ questionId, imageUrl, canEdit, onChange }: ImageUp
           <Typography color="text.secondary">Nenhuma imagem.</Typography>
         )}
 
-        {questionId !== undefined && canEdit ? (
+        {ownerId !== undefined && canEdit ? (
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <Button
               variant={imageUrl ? 'outlined' : 'contained'}
@@ -171,7 +173,7 @@ export function ImageUpload({ questionId, imageUrl, canEdit, onChange }: ImageUp
       <ConfirmDialog
         open={removing}
         title="Remover a imagem?"
-        description="A questão ficará sem imagem. Você pode enviar outra depois."
+        description={texts.removedNotice}
         confirmLabel="Remover"
         tone="danger"
         loading={busy}
