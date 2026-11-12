@@ -1,88 +1,34 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve, sep } from 'node:path';
-import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
+import { Injectable } from '@nestjs/common';
+import type { ImageKind } from 'src/shared/files/image-signature';
 import {
-  type ImageKind,
-  isAllowedImage,
-} from 'src/shared/files/image-signature';
-import { UPLOADS_PREFIX, uploadsDir } from 'src/shared/files/uploads-config';
+  HARD_UPLOAD_LIMIT_BYTES,
+  ImageStorageService,
+  MAX_IMAGE_BYTES,
+  type UploadedImage,
+} from 'src/shared/files/image-storage.service';
 
-/** Limite de negócio da imagem de uma questão. */
-export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
-/** Limite duro do multer: acima disso a requisição já é recusada (413). */
-export const HARD_UPLOAD_LIMIT_BYTES = 5 * 1024 * 1024;
+export { HARD_UPLOAD_LIMIT_BYTES, MAX_IMAGE_BYTES, type UploadedImage };
 
-const MISSING = 'Envie uma imagem.';
-const WRONG_TYPE = 'Envie uma imagem JPG, PNG ou WEBP.';
-const TOO_BIG = 'A imagem deve ter no máximo 2 MB.';
-
-/** O que a rota de upload precisa do arquivo (multer em memória). */
-export interface UploadedImage {
-  buffer: Buffer;
-}
-
-/** Grava e apaga as imagens das questões em `UPLOADS_DIR/questions`. */
+/** Imagens das questões: o armazenamento compartilhado na pasta `questions/`. */
 @Injectable()
 export class QuestionImageService {
-  private readonly logger = new Logger(QuestionImageService.name);
+  constructor(private readonly storage: ImageStorageService) {}
 
   /** Valida o arquivo (assinatura dos bytes e tamanho) sem tocar o disco. */
   validate(file: UploadedImage | undefined): ImageKind {
-    if (!file?.buffer?.length) {
-      throw new FieldValidationException({ image: [MISSING] });
-    }
-    const kind = isAllowedImage(file.buffer);
-    if (!kind) {
-      throw new FieldValidationException({ image: [WRONG_TYPE] });
-    }
-    if (file.buffer.length > MAX_IMAGE_BYTES) {
-      throw new FieldValidationException({ image: [TOO_BIG] });
-    }
-    return kind;
+    return this.storage.validate(file);
   }
 
   /** Grava a imagem e devolve o caminho relativo a `UPLOADS_DIR`. */
-  async save(
-    questionId: number,
-    buffer: Buffer,
-    kind: ImageKind,
-  ): Promise<string> {
-    const relative = `questions/${questionId}-${randomUUID()}.${kind}`;
-    const target = join(uploadsDir(), relative);
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, buffer);
-    return relative;
+  save(questionId: number, buffer: Buffer): Promise<string> {
+    return this.storage.save('questions', buffer, String(questionId));
   }
 
-  /** Apaga o arquivo (não falha se ele já não existir). */
-  async remove(imagePath: string | null): Promise<void> {
-    if (!imagePath) {
-      return;
-    }
-    const root = uploadsDir();
-    const target = resolve(root, imagePath);
-    // Nunca apaga fora da pasta de uploads, mesmo com um caminho adulterado no banco.
-    if (!target.startsWith(root + sep)) {
-      return;
-    }
-    try {
-      await rm(target, { force: true });
-    } catch (error) {
-      // O banco já aponta para outro lugar: um arquivo órfão não deve virar 500.
-      this.logger.warn(
-        `Não foi possível apagar ${imagePath}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
+  remove(imagePath: string | null): Promise<void> {
+    return this.storage.remove(imagePath);
   }
 
-  /**
-   * Caminho da imagem relativo à raiz do servidor (`/uploads/questions/...`),
-   * ou null se a questão não tem. Cada cliente resolve com o endereço da API
-   * que usa (`resolveAssetUrl` do contrato).
-   */
   urlFor(imagePath: string | null): string | null {
-    return imagePath ? `${UPLOADS_PREFIX}/${imagePath}` : null;
+    return this.storage.urlFor(imagePath);
   }
 }

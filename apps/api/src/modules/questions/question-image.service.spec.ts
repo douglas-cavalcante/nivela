@@ -14,6 +14,7 @@ import {
   QuestionImageService,
 } from 'src/modules/questions/question-image.service';
 import { FieldValidationException } from 'src/shared/exceptions/field-validation.exception';
+import { ImageStorageService } from 'src/shared/files/image-storage.service';
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2]);
 
@@ -42,7 +43,7 @@ describe('QuestionImageService', () => {
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'nivela-img-'));
     process.env.UPLOADS_DIR = dir;
-    service = new QuestionImageService();
+    service = new QuestionImageService(new ImageStorageService());
   });
 
   afterEach(async () => {
@@ -87,7 +88,7 @@ describe('QuestionImageService', () => {
   });
 
   it('grava em questions/<id>-<uuid>.<ext> e remove o arquivo', async () => {
-    const relative = await service.save(7, PNG, 'png');
+    const relative = await service.save(7, PNG);
     expect(relative).toMatch(/^questions\/7-[0-9a-f-]{36}\.png$/);
     expect(await readFile(join(dir, relative))).toEqual(PNG);
 
