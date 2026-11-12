@@ -257,15 +257,15 @@ export const DEMO_QUESTIONS: readonly DemoQuestion[] = [
     statement:
       'Assinale a alternativa em que todas as palavras estão escritas corretamente.',
     options: [
-      'beneficiente, privilégio, mexerica',
-      'beneficente, previlégio, mexerica',
-      'beneficente, privilégio, mixerica',
-      'benefisente, privilégio, mexerica',
-      'beneficente, privilégio, mexerica',
+      'beneficiente, privilégio, exceção',
+      'beneficente, previlégio, exceção',
+      'beneficente, privilégio, excessão',
+      'benefisente, privilégio, exceção',
+      'beneficente, privilégio, exceção',
     ],
     correct: 4,
     explanation:
-      'A grafia correta é "beneficente" (e não "beneficiente" nem "benefisente"), "privilégio" (e não "previlégio") e "mexerica" (e não "mixerica").',
+      'A grafia correta é "beneficente" (e não "beneficiente" nem "benefisente"), "privilégio" (e não "previlégio") e "exceção" (e não "excessão").',
   },
   {
     subject: 'Português',
@@ -282,7 +282,7 @@ export const DEMO_QUESTIONS: readonly DemoQuestion[] = [
     ],
     correct: 1,
     explanation:
-      'Em perguntas diretas usa-se "por que", separado. "Porque" (junto) introduz uma explicação, como em "faltou porque estava doente". No fim da frase escreve-se "por quê" e, como substantivo, "porquê", com acento.',
+      'Em perguntas diretas ("Por que você não veio?") e indiretas ("Não sei por que ele faltou") usa-se "por que", separado; por isso a primeira alternativa, uma pergunta indireta, está errada. "Porque" (junto) introduz uma explicação, como em "faltou porque estava doente". No fim da frase escreve-se "por quê" e, como substantivo, "porquê", com acento.',
   },
   // Português — Concordância
   {
@@ -311,12 +311,12 @@ export const DEMO_QUESTIONS: readonly DemoQuestion[] = [
       'Haviam muitos alunos na sala.',
       'Devem haver erros no texto.',
       'Houve muitos problemas na prova.',
-      'Haviam dúvidas sobre o resultado.',
+      'Hão muitas pessoas esperando na fila.',
       'Existe vários caminhos para a escola.',
     ],
     correct: 2,
     explanation:
-      'No sentido de "existir" ou "ocorrer", "haver" é impessoal e fica no singular: "Houve muitos problemas". As outras frases erram ao flexionar "haver" ou ao usar "existe" com sujeito plural.',
+      'No sentido de "existir" ou "ocorrer", "haver" é impessoal e fica no singular: "Houve muitos problemas". Em "Haviam muitos alunos" e "Hão muitas pessoas" o verbo foi para o plural (o certo é "Havia" e "Há"). Em "Devem haver erros", quem está mal flexionado é o auxiliar "dever", que acompanha o impessoal: "Deve haver erros". E "Existe vários caminhos" erra porque "existir" concorda com o sujeito ("Existem").',
   },
   {
     subject: 'Português',
@@ -333,7 +333,7 @@ export const DEMO_QUESTIONS: readonly DemoQuestion[] = [
     ],
     correct: 2,
     explanation:
-      '"Meio", com sentido de "um pouco", é advérbio e não varia, enquanto "cansadas" é adjetivo e concorda com "elas". "Bastante" advérbio também não varia, e "mesmo" concorda com o sujeito ("ela mesma").',
+      '"Meio", com sentido de "um pouco", é advérbio e não varia, enquanto "cansadas" é adjetivo e concorda com "elas". Por isso "meio nervoso" está errado: o adjetivo deve concordar com "os alunos" ("meio nervosos"). "Bastante" advérbio também não varia, e "mesmo" concorda com o sujeito ("ela mesma").',
   },
   {
     subject: 'Português',

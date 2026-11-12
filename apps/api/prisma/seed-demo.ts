@@ -108,12 +108,58 @@ export async function seedDemo(
     return { created: false, message: ALREADY_SEEDED };
   }
 
+  await assertNoConflicts(prisma);
+
   const password = await hash(DEMO_PASSWORD, 10);
   await prisma.$transaction((tx) => new Writer(tx, now, password).run(), {
     timeout: 120_000,
     maxWait: 10_000,
   });
   return { created: true, message: CREATED };
+}
+
+function listed(items: string[]): string {
+  return items.length < 2
+    ? items.join('')
+    : `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
+}
+
+/** Recusa, antes de gravar, se um código de turma ou e-mail de demonstração já está em uso. */
+async function assertNoConflicts(prisma: PrismaClient): Promise<void> {
+  const codes = (
+    await prisma.classroom.findMany({
+      where: { joinCode: { in: DEMO_CLASSROOMS.map((c) => c.joinCode) } },
+      select: { joinCode: true },
+      orderBy: { joinCode: 'asc' },
+    })
+  ).map((row) => row.joinCode);
+  const emails = (
+    await prisma.user.findMany({
+      where: {
+        email: {
+          in: [...DEMO_TEACHERS, ...DEMO_STUDENTS].map((u) => u.email),
+        },
+      },
+      select: { email: true },
+      orderBy: { email: 'asc' },
+    })
+  ).map((row) => row.email);
+  const found: string[] = [];
+  if (codes.length > 0) {
+    found.push(
+      `${codes.length === 1 ? 'o código de turma' : 'os códigos de turma'} ${listed(codes)}`,
+    );
+  }
+  if (emails.length > 0) {
+    found.push(
+      `${emails.length === 1 ? 'o e-mail' : 'os e-mails'} ${listed(emails)}`,
+    );
+  }
+  if (found.length > 0) {
+    throw new Error(
+      `Não dá para criar os dados de demonstração: já existem no banco ${found.join(' e ')}.`,
+    );
+  }
 }
 
 function isoDay(number: number): string {
@@ -132,6 +178,7 @@ class Writer {
   private readonly coined = new Map<number, Set<number>>();
   /** Questões terminadas em capítulos, por aluno ("capítulo:questão"). */
   private readonly finished = new Map<number, Set<string>>();
+  private readonly subjectIds = new Map<string, number>();
   private readonly doneChapters = new Map<number, Set<number>>();
 
   constructor(
@@ -227,23 +274,37 @@ class Writer {
     bruno: number,
   ): Promise<QuestionRef[]> {
     const { tx } = this;
-    const subjectIds = new Map<string, number>();
+    const subjectIds = this.subjectIds;
     const categoryIds = new Map<string, number>();
+    // Reaproveita disciplinas e categorias que já existem (mesmo nome, sem
+    // diferenciar maiúsculas); cria só as que faltam.
     for (const [index, subject] of DEMO_SUBJECTS.entries()) {
-      const created = await tx.subject.create({
-        data: {
-          name: subject.name,
-          color: subject.color,
-          icon: subject.icon,
-          createdAt: this.at(16, 500 + index),
-        },
+      const existing = await tx.subject.findFirst({
+        where: { name: { equals: subject.name, mode: 'insensitive' } },
+        select: { id: true },
       });
-      subjectIds.set(subject.name, created.id);
+      const subjectId =
+        existing?.id ??
+        (
+          await tx.subject.create({
+            data: {
+              name: subject.name,
+              color: subject.color,
+              icon: subject.icon,
+              createdAt: this.at(16, 500 + index),
+            },
+          })
+        ).id;
+      subjectIds.set(subject.name, subjectId);
       for (const name of DEMO_CATEGORIES[subject.name]) {
-        const category = await tx.category.create({
-          data: { subjectId: created.id, name },
+        const found = await tx.category.findFirst({
+          where: { subjectId, name: { equals: name, mode: 'insensitive' } },
+          select: { id: true },
         });
-        categoryIds.set(`${subject.name}/${name}`, category.id);
+        const categoryId =
+          found?.id ??
+          (await tx.category.create({ data: { subjectId, name } })).id;
+        categoryIds.set(`${subject.name}/${name}`, categoryId);
       }
     }
 
@@ -297,19 +358,16 @@ class Writer {
     classrooms: Map<string, { id: number }>,
   ): Promise<Map<string, PlanRef>> {
     const { tx } = this;
-    const subjects = await tx.subject.findMany({
-      select: { id: true, name: true },
-    });
     const plans = new Map<string, PlanRef>();
     for (const [planIndex, plan] of DEMO_PLANS.entries()) {
-      const subject = subjects.find((item) => item.name === plan.subject);
-      if (!subject) {
+      const subjectId = this.subjectIds.get(plan.subject);
+      if (subjectId === undefined) {
         throw new Error(`Disciplina ${plan.subject} não encontrada.`);
       }
       const created = await tx.levelingPlan.create({
         data: {
           teacherId: ana,
-          subjectId: subject.id,
+          subjectId,
           title: plan.title,
           description: plan.description,
           completionBonus: plan.completionBonus,

@@ -495,10 +495,82 @@ describe('Seed de demonstração (e2e)', () => {
     });
   });
 
-  describe('atomicidade', () => {
-    it('um conflito no meio da gravação desfaz tudo', async () => {
+  describe('banco com dados existentes', () => {
+    it('reaproveita disciplina e categoria de mesmo nome, sem duplicar', async () => {
       await addAdmin();
-      // Código de turma já ocupado: a criação da turma falha depois dos professores.
+      const subject = await prisma.subject.create({
+        data: { name: 'matemática', color: 'sky', icon: 'flask' },
+      });
+      const category = await prisma.category.create({
+        data: { subjectId: subject.id, name: 'FRAÇÕES' },
+      });
+
+      const result = await seedDemo(prisma, { now: TEST_NOW });
+      expect(result.created).toBe(true);
+
+      const subjects = await prisma.subject.findMany({
+        orderBy: { id: 'asc' },
+      });
+      expect(subjects.map((s) => s.name)).toEqual(['matemática', 'Português']);
+      // A disciplina existente não é alterada.
+      expect(subjects[0]).toEqual(subject);
+      const math = await prisma.category.findMany({
+        where: { subjectId: subject.id },
+      });
+      expect(math).toHaveLength(3);
+      expect(math.filter((c) => c.id === category.id)).toHaveLength(1);
+      expect(await prisma.category.count()).toBe(6);
+      expect(await prisma.question.count()).toBe(24);
+      expect(
+        await prisma.question.count({ where: { subjectId: subject.id } }),
+      ).toBe(12);
+      expect(
+        await prisma.question.count({ where: { categoryId: category.id } }),
+      ).toBe(4);
+
+      for (const profile of await prisma.studentProfile.findMany()) {
+        const { _sum } = await prisma.coinTransaction.aggregate({
+          where: { studentId: profile.userId },
+          _sum: { amount: true },
+        });
+        expect(profile.coinsBalance).toBe(_sum.amount ?? 0);
+        expect(profile.coinsBalance).toBeGreaterThanOrEqual(0);
+      }
+      const rejected = await prisma.rewardRedemption.findMany({
+        where: { status: 'rejected' },
+      });
+      expect(rejected.length).toBeGreaterThanOrEqual(1);
+      for (const redemption of rejected) {
+        expect(
+          await prisma.coinTransaction.count({
+            where: { reason: 'refund', sourceId: redemption.id },
+          }),
+        ).toBe(1);
+      }
+      expect(await prisma.reward.count({ where: { stock: { lt: 0 } } })).toBe(
+        0,
+      );
+    });
+
+    it('recusa, sem gravar nada, quando um código de turma já existe', async () => {
+      await addAdmin();
+      const teacher = await createUser(prisma, { role: Role.Teacher });
+      await prisma.classroom.create({
+        data: {
+          teacherId: teacher.id,
+          name: 'Turma antiga',
+          joinCode: 'NIV-1SER',
+        },
+      });
+      const before = await snapshot();
+      await expect(seedDemo(prisma, { now: TEST_NOW })).rejects.toThrow(
+        'Não dá para criar os dados de demonstração: já existem no banco o código de turma NIV-1SER.',
+      );
+      expect(await snapshot()).toEqual(before);
+    });
+
+    it('recusa, sem gravar nada, nomeando o código e o e-mail em conflito', async () => {
+      await addAdmin();
       const teacher = await createUser(prisma, { role: Role.Teacher });
       await prisma.classroom.create({
         data: {
@@ -507,8 +579,11 @@ describe('Seed de demonstração (e2e)', () => {
           joinCode: 'NIV-9ANO',
         },
       });
+      await createUser(prisma, { email: 'aluno3@nivela.test' });
       const before = await snapshot();
-      await expect(seedDemo(prisma, { now: TEST_NOW })).rejects.toThrow();
+      await expect(seedDemo(prisma, { now: TEST_NOW })).rejects.toThrow(
+        'Não dá para criar os dados de demonstração: já existem no banco o código de turma NIV-9ANO e o e-mail aluno3@nivela.test.',
+      );
       expect(await snapshot()).toEqual(before);
       expect(
         await prisma.user.findUnique({

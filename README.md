@@ -107,6 +107,8 @@ npm run db:seed:demo -w apps/api   # usa o DATABASE_URL do apps/api/.env
 
 O seed só **acrescenta** dados, numa transação (ou grava tudo, ou nada), e nunca altera o administrador. Se `ana.lima@nivela.test` já existe, ele avisa "Os dados de demonstração já estão no banco." e não grava nada. O histórico é relativo ao dia da execução: rode o seed pouco antes de gravar o vídeo. Para repetir com datas novas, aponte o `DATABASE_URL` para um banco limpo.
 
+Se o banco já tem disciplinas ou categorias com os mesmos nomes (sem diferenciar maiúsculas), como "Matemática", o seed as **reaproveita** e cria só as que faltam. Se algum código de turma (`NIV-9ANO`, `NIV-1SER`) ou e-mail de demonstração já existe, ele recusa antes de gravar e diz quais são. A turma "1ª série B" pertence ao professor Bruno e o plano de Matemática à Ana, então o progresso da 1ª série B nesse plano só aparece na conta de administrador (RN15): para mostrá-lo no vídeo, entre como administrador.
+
 A senha de todas as contas de demonstração é `nivela123`.
 
 | Perfil | E-mail | Observação |
