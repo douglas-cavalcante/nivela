@@ -12,10 +12,7 @@ import type {
 } from '@nivela/api-contract';
 import { Prisma } from 'src/generated/prisma/client';
 import { ListRewardsQuery } from 'src/modules/rewards/dto/list-rewards.query';
-import {
-  RewardDto,
-  UpdateRewardDto,
-} from 'src/modules/rewards/dto/reward.dto';
+import { RewardDto, UpdateRewardDto } from 'src/modules/rewards/dto/reward.dto';
 import {
   presentReward,
   presentStoreReward,

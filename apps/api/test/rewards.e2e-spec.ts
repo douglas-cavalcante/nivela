@@ -3,11 +3,7 @@ import request from 'supertest';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Role } from 'src/shared/enums/role.enum';
 import { createTestApp } from './helpers/create-test-app';
-import {
-  createClassroom,
-  createReward,
-  createUser,
-} from './helpers/factories';
+import { createClassroom, createReward, createUser } from './helpers/factories';
 import { sessionFor, tokenFor } from './helpers/login';
 import { resetDatabase } from './helpers/reset-database';
 import { createUploadsDir, removeUploadsDir } from './helpers/uploads';

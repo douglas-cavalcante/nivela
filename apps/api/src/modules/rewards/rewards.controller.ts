@@ -24,10 +24,7 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { ParseIdPipe } from 'src/common/pipes/parse-id.pipe';
 import { ListRewardsQuery } from 'src/modules/rewards/dto/list-rewards.query';
 import { RewardStatusDto } from 'src/modules/rewards/dto/reward-status.dto';
-import {
-  RewardDto,
-  UpdateRewardDto,
-} from 'src/modules/rewards/dto/reward.dto';
+import { RewardDto, UpdateRewardDto } from 'src/modules/rewards/dto/reward.dto';
 import { RewardsService } from 'src/modules/rewards/rewards.service';
 import type { AuthUser } from 'src/shared/auth/auth-user';
 import { Role } from 'src/shared/enums/role.enum';
