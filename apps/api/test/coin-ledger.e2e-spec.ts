@@ -103,6 +103,51 @@ describe('CoinLedger (e2e)', () => {
     expect(await rowsOf(student.id)).toBe(1);
   });
 
+  const refund = (studentId: number, sourceId: number, amount = 30) => ({
+    studentId,
+    amount,
+    reason: 'refund' as const,
+    sourceType: 'redemption',
+    sourceId,
+  });
+
+  it('estorno repetido do mesmo resgate credita uma vez só', async () => {
+    const student = await createUser(prisma);
+    const first = await prisma.$transaction((tx) =>
+      ledger.credit(tx, refund(student.id, 5)),
+    );
+    const again = await prisma.$transaction((tx) =>
+      ledger.credit(tx, refund(student.id, 5)),
+    );
+    expect(first).toEqual({ applied: true, balance: 30 });
+    expect(again).toEqual({ applied: false, balance: 30 });
+    expect(await rowsOf(student.id)).toBe(1);
+  });
+
+  it('dois estornos simultâneos do mesmo resgate: uma linha e saldo +preço uma vez', async () => {
+    const student = await createUser(prisma);
+    const results = await Promise.all([
+      prisma.$transaction((tx) => ledger.credit(tx, refund(student.id, 5))),
+      prisma.$transaction((tx) => ledger.credit(tx, refund(student.id, 5))),
+    ]);
+    expect(results.filter((r) => r.applied)).toHaveLength(1);
+    expect(await balanceOf(student.id)).toBe(30);
+    expect(
+      await prisma.coinTransaction.count({
+        where: { studentId: student.id, reason: 'refund' },
+      }),
+    ).toBe(1);
+  });
+
+  it('resgates diferentes estornam cada um a sua vez', async () => {
+    const student = await createUser(prisma);
+    await prisma.$transaction(async (tx) => {
+      await ledger.credit(tx, refund(student.id, 5));
+      await ledger.credit(tx, refund(student.id, 6, 20));
+    });
+    expect(await balanceOf(student.id)).toBe(50);
+  });
+
   it('a mesma origem vale uma vez por aluno e por motivo', async () => {
     const [a, b] = [await createUser(prisma), await createUser(prisma)];
     await prisma.$transaction(async (tx) => {
@@ -201,6 +246,7 @@ describe('CoinLedger (e2e)', () => {
       ['correct_answer', 'coin_once_per_question'],
       ['plan_completed', 'coin_once_per_plan'],
       ['streak_bonus', 'coin_once_per_streak_day'],
+      ['refund', 'coin_once_per_refund'],
     ] as const;
     for (const [reason, index] of cases) {
       await prisma.coinTransaction.create({ data: { ...base, reason } });

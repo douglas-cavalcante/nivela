@@ -3,7 +3,7 @@ import { Prisma } from 'src/generated/prisma/client';
 import type { CoinReason } from 'src/generated/prisma/client';
 import { BusinessRuleException } from 'src/shared/exceptions/business-rule.exception';
 
-/** Motivos de crédito (`refund` ainda não tem garantia de "uma vez": Plano 4). */
+/** Motivos de crédito. */
 export type CreditReason = Exclude<CoinReason, 'redemption'>;
 /** Único motivo de débito. */
 export type DebitReason = Extract<CoinReason, 'redemption'>;
@@ -36,6 +36,7 @@ const ONCE_PER_SOURCE: ReadonlySet<CoinReason> = new Set([
   'correct_answer',
   'plan_completed',
   'streak_bonus',
+  'refund',
 ]);
 
 function assertPositiveInteger(amount: number): void {

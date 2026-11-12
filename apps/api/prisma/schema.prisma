@@ -39,6 +39,9 @@ model User {
   classrooms         Classroom[]
   enrollments        ClassroomStudent[]
   questions          Question[]
+  rewards            Reward[]
+  redemptions        RewardRedemption[]  @relation("RedemptionStudent")
+  handledRedemptions RewardRedemption[]  @relation("RedemptionHandler")
   attempts           QuestionAttempt[]
   coinTransactions   CoinTransaction[]
   levelingPlans      LevelingPlan[]
@@ -357,4 +360,56 @@ model PlanCompletion {
   @@id([studentId, levelingPlanId])
   @@index([levelingPlanId])
   @@map("plan_completions")
+}
+
+enum RedemptionStatus {
+  pending
+  delivered
+  rejected
+
+  @@map("redemption_status")
+}
+
+// CHECKs criados à mão na migration rewards: price entre 1 e 100000,
+// stock >= 0 e rejection_reason obrigatório quando status = 'rejected'.
+model Reward {
+  id          Int      @id @default(autoincrement())
+  createdBy   Int      @map("created_by")
+  name        String   @db.VarChar(80)
+  description String?  @db.VarChar(500)
+  imagePath   String?  @map("image_path") @db.VarChar(255)
+  price       Int
+  stock       Int
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  creator     User               @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  redemptions RewardRedemption[]
+
+  @@index([createdBy])
+  @@map("rewards")
+}
+
+model RewardRedemption {
+  id              Int              @id @default(autoincrement())
+  rewardId        Int              @map("reward_id")
+  studentId       Int              @map("student_id")
+  pricePaid       Int              @map("price_paid")
+  status          RedemptionStatus @default(pending)
+  handledBy       Int?             @map("handled_by")
+  handledAt       DateTime?        @map("handled_at") @db.Timestamptz(3)
+  rejectionReason String?          @map("rejection_reason") @db.VarChar(300)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  reward  Reward @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+  student User   @relation("RedemptionStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  handler User?  @relation("RedemptionHandler", fields: [handledBy], references: [id], onDelete: Restrict)
+
+  @@index([studentId, createdAt])
+  @@index([status])
+  @@index([rewardId])
+  @@index([handledBy])
+  @@map("reward_redemptions")
 }
