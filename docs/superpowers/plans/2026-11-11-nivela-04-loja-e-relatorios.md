@@ -201,7 +201,7 @@
 
 **Interfaces:**
 - Início: saudação; 4 `StatCard` (Alunos ativos, Questões ativas, Taxa de acerto "—" quando `null`, Precisam de ajuda — com link para a lista); `ActivityChart` (Recharts, barras de respondidas e acertos por dia nos últimos 14 dias, cores dos tokens, eixo com dd/mm, tooltip em pt-BR, `aria-label` com resumo textual); listas "Precisam de ajuda" (link para `/alunos/:id`), "Questões recentes" (link para `/questoes/:id`) e "Resgates pendentes: N." com link para `/loja?tab=resgates`.
-- `CategoryPerformanceChart`: barras horizontais por categoria com a cor da disciplina e "x% (c de f)."; vazio "Ainda não há respostas terminadas.".
+- `CategoryPerformanceChart`: barras horizontais por categoria com a cor da disciplina e "x% (c de f)."; vazio "Ainda não há questões terminadas.".
 - `CoinStatement`: lista paginada (+N/−N com cor de sucesso/perigo do tema, descrição, data).
 
 - [ ] **Step 1: Testes que falham** — Início pede as 4 rotas e mostra os números; taxa `null` mostra "—"; links certos; turma e aluno mostram o gráfico com os dados do fake; extrato paginado; estados de erro com `ResourceState`.

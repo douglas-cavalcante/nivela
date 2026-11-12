@@ -67,7 +67,7 @@ describe('CategoryPerformanceChart', () => {
     server.use(http.get(`${API_URL}/students/21/performance`, () => HttpResponse.json({ data: [] })));
     renderWithProviders(<CategoryPerformanceChart scope="student" id={21} />, { user: teacher });
 
-    expect(await screen.findByText('Ainda não há respostas terminadas.')).toBeInTheDocument();
+    expect(await screen.findByText('Ainda não há questões terminadas.')).toBeInTheDocument();
   });
 
   it('falha mostra o erro e "Tentar de novo" recarrega', async () => {
