@@ -212,7 +212,7 @@ describe('Resgates concorrentes (e2e)', () => {
       });
     });
 
-    it('editar o estoque (PUT) concorre com um resgate sem perder a baixa', async () => {
+    it('editar o prêmio (PUT com estoque absoluto) concorre com um resgate: as escritas se serializam, mas o PUT grava o valor do formulário', async () => {
       const reward = await createReward(prisma, { price: 20, stock: 3 });
       const { token } = await student(100);
       const admin = await sessionFor(app, Role.Admin);
@@ -231,7 +231,8 @@ describe('Resgates concorrentes (e2e)', () => {
       const after = await prisma.reward.findUniqueOrThrow({
         where: { id: reward.id },
       });
-      // PUT depois do resgate: 10 (absoluto); resgate depois do PUT: 9.
+      // PUT depois do resgate: 10 (o absoluto do formulário sobrescreve a
+      // baixa); resgate depois do PUT: 9. Sem `stock` no PUT, a baixa fica.
       expect([9, 10]).toContain(after.stock);
       expect(await prisma.rewardRedemption.count()).toBe(1);
     });

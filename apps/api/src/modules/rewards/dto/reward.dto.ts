@@ -1,3 +1,4 @@
+import { OmitType } from '@nestjs/swagger';
 import {
   IsInt,
   IsOptional,
@@ -15,7 +16,7 @@ export const MAX_STOCK = 100_000;
 const PRICE_MESSAGE = 'O preço deve ser um número inteiro de 1 a 100000.';
 const STOCK_MESSAGE = 'O estoque deve ser um número inteiro de 0 a 100000.';
 
-/** Corpo de `POST /rewards` e `PUT /rewards/:id`. */
+/** Corpo de `POST /rewards`. */
 export class RewardDto {
   @Trim()
   @IsString({ message: 'Informe o nome do prêmio.' })
@@ -41,4 +42,16 @@ export class RewardDto {
   @Min(0, { message: STOCK_MESSAGE })
   @Max(MAX_STOCK, { message: STOCK_MESSAGE })
   stock: number;
+}
+
+/**
+ * Corpo de `PUT /rewards/:id`: `stock` é opcional e, ausente, o estoque não
+ * muda (editar só o nome não desfaz uma baixa feita por resgate).
+ */
+export class UpdateRewardDto extends OmitType(RewardDto, ['stock'] as const) {
+  @IsOptional()
+  @IsInt({ message: STOCK_MESSAGE })
+  @Min(0, { message: STOCK_MESSAGE })
+  @Max(MAX_STOCK, { message: STOCK_MESSAGE })
+  stock?: number;
 }

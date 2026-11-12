@@ -252,6 +252,52 @@ describe('Prêmios (e2e)', () => {
       });
     });
 
+    it('PUT sem estoque não altera o estoque; com estoque, substitui', async () => {
+      const { user, token } = await sessionFor(app, Role.Teacher);
+      const reward = await createReward(prisma, {
+        createdBy: user.id,
+        stock: 7,
+      });
+      const { stock: _omitted, ...withoutStock } = body({ name: 'Só o nome' });
+      void _omitted;
+      const res = await http()
+        .put(`/api/v1/rewards/${reward.id}`)
+        .set(as(token))
+        .send(withoutStock)
+        .expect(200);
+      expect(res.body).toMatchObject({ name: 'Só o nome', stock: 7 });
+      expect(
+        (await prisma.reward.findUniqueOrThrow({ where: { id: reward.id } }))
+          .stock,
+      ).toBe(7);
+
+      await http()
+        .put(`/api/v1/rewards/${reward.id}`)
+        .set(as(token))
+        .send(body({ stock: 2 }))
+        .expect(200);
+      expect(
+        (await prisma.reward.findUniqueOrThrow({ where: { id: reward.id } }))
+          .stock,
+      ).toBe(2);
+      await http()
+        .put(`/api/v1/rewards/${reward.id}`)
+        .set(as(token))
+        .send(body({ stock: -1 }))
+        .expect(422);
+    });
+
+    it('POST continua exigindo o estoque', async () => {
+      const token = await tokenFor(app, Role.Teacher);
+      const { stock: _omitted, ...withoutStock } = body();
+      void _omitted;
+      await http()
+        .post('/api/v1/rewards')
+        .set(as(token))
+        .send(withoutStock)
+        .expect(422);
+    });
+
     it('outro professor → 403 e nada muda; administrador → 200', async () => {
       const author = await createUser(prisma, { role: Role.Teacher });
       const reward = await createReward(prisma, {

@@ -12,7 +12,10 @@ import type {
 } from '@nivela/api-contract';
 import { Prisma } from 'src/generated/prisma/client';
 import { ListRewardsQuery } from 'src/modules/rewards/dto/list-rewards.query';
-import { RewardDto } from 'src/modules/rewards/dto/reward.dto';
+import {
+  RewardDto,
+  UpdateRewardDto,
+} from 'src/modules/rewards/dto/reward.dto';
 import {
   presentReward,
   presentStoreReward,
@@ -96,12 +99,18 @@ export class RewardsService {
     return this.present(await this.load(reward.id, user), user);
   }
 
-  async update(id: number, dto: RewardDto, user: AuthUser): Promise<ApiReward> {
+  async update(
+    id: number,
+    dto: UpdateRewardDto,
+    user: AuthUser,
+  ): Promise<ApiReward> {
     this.assertCanEdit(await this.load(id, user), user);
-    // O estoque é gravado como valor absoluto; o `FOR UPDATE` na linha do
-    // prêmio serializa esta edição com resgate e recusa (que alteram o
-    // estoque com o prêmio travado), então nenhuma baixa ou devolução se perde.
-    // Aqui não há moedas: o prêmio é o único lock da transação.
+    // O `FOR UPDATE` na linha do prêmio serializa esta edição com resgate e
+    // recusa (que alteram o estoque com o prêmio travado), mas não impede que
+    // um estoque absoluto vindo de um formulário antigo desfaça uma baixa
+    // feita nesse intervalo. Por isso `stock` é opcional: quem edita só os
+    // outros campos não envia o estoque e ele não muda. Aqui não há moedas: o
+    // prêmio é o único lock da transação.
     await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`
         SELECT "id" FROM "rewards" WHERE "id" = ${id} FOR UPDATE`;
@@ -111,7 +120,7 @@ export class RewardsService {
           name: dto.name,
           description: dto.description ?? null,
           price: dto.price,
-          stock: dto.stock,
+          ...(dto.stock === undefined ? {} : { stock: dto.stock }),
         },
         select: { id: true },
       });

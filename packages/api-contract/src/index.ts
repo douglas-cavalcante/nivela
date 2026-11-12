@@ -51,6 +51,7 @@ export type {
   RedemptionStatus,
   RejectRedemptionPayload,
   RewardPayload,
+  UpdateRewardPayload,
 } from './rewards';
 export type {
   ApiActivityDay,
