@@ -1,5 +1,5 @@
 /** Estado de um resgate. */
-export type RedemptionStatus = "pending" | "delivered" | "rejected";
+export type RedemptionStatus = 'pending' | 'delivered' | 'rejected';
 
 /** Prêmio como aparece para a equipe (professor e administrador). */
 export interface ApiReward {
@@ -46,7 +46,7 @@ export interface RewardPayload {
  * Corpo de `PUT /rewards/:id`: `stock` ausente significa "não muda" (editar só
  * o nome não desfaz uma baixa de estoque feita por um resgate).
  */
-export type UpdateRewardPayload = Omit<RewardPayload, "stock"> & { stock?: number };
+export type UpdateRewardPayload = Omit<RewardPayload, 'stock'> & { stock?: number };
 
 /** Resgate como o aluno vê (só os dele). */
 export interface ApiMyRedemption {
