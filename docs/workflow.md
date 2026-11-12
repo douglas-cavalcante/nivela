@@ -7,6 +7,8 @@
 - `feature/<nome>` — uma branch por feature, criada a partir de `develop` atualizado e integrada de volta com `git merge --no-ff`; depois a branch é apagada (`git branch -d`).
 - `release/1.0.0` — sai de `develop`, é integrada em `main` com tag `v1.0.0` e volta para `develop`.
 
+**Versões:** cada versão segue `release/x.y.z` → `main` (`git merge --no-ff release/x.y.z`) + tag assinada `vx.y.z` (`git tag -s`) → de volta para `develop` (`--no-ff`). A branch da release traz só o aumento de versão nos `package.json`, o `CHANGELOG.md` e correções finais.
+
 Passo a passo de uma feature:
 
 ```bash

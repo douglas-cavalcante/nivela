@@ -128,7 +128,7 @@ Regras do Plano 4, todas na API (os apps só apresentam).
 
 ### Servidor configurável no app
 
-O endereço da API no app não é fixo: `src/lib/server-url/` guarda o endereço salvo no aparelho (`expo-secure-store`) e, sem ele, usa o padrão embutido no build (`EXPO_PUBLIC_API_URL`). A pessoa o troca em "Servidor · Alterar" (Boas-vindas, Entrar e tela de falha de conexão), pela `ServerUrlSheet`.
+O endereço da API no app não é fixo: `src/lib/server-url/` guarda o endereço salvo no aparelho (`expo-secure-store`) e, sem ele, usa o padrão embutido no build (`EXPO_PUBLIC_API_URL`). A pessoa o troca na linha "Servidor · Alterar" (Boas-vindas e Entrar) ou no botão "Alterar servidor" (tela de falha de conexão), pela `ServerUrlSheet`.
 
 - **Normalização e teste:** `normalizeServerUrl` completa `http://` e `/api/v1` e tira a `/` final; antes de salvar, o app chama `GET <endereço>/health`, que responde sem token (o endereço novo ainda não é de confiança, então a requisição de teste nunca leva o Bearer). Endereço inválido ou sem resposta não muda o endereço atual.
 - **Trocar encerra a sessão:** ao salvar um endereço diferente do atual (ou voltar ao padrão, se ele for diferente), o token é apagado só no aparelho, sem chamar o logout do servidor antigo, e o `AuthContext` é avisado (inclusive para sair da tela de falha de conexão); o token de um servidor nunca vai para outro. Salvar o mesmo endereço mantém a sessão.
@@ -157,7 +157,7 @@ A chave do login é **IP + e-mail normalizado**, para que uma turma inteira atr�
 - **Portas:** API em **8000** (escuta em `0.0.0.0`); PostgreSQL em 5433 no host do Docker; painel web em 5173 no desenvolvimento (ou o servidor estático que servir o `build`). O Firewall do Windows precisa permitir a **entrada na porta 8000** para o celular alcançar a API.
 - **Variáveis da API:** `DATABASE_URL`, `PORT`, `TZ` (o dia de estudo usa `America/Fortaleza`), `ADMIN_NAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` (seed), `UPLOADS_DIR`, `CORS_ORIGINS` (opcional) e `THROTTLE_LOGIN_LIMIT`/`THROTTLE_REGISTER_LIMIT`/`THROTTLE_TTL_SECONDS`. Web: `VITE_API_URL`. Mobile: `EXPO_PUBLIC_API_URL` (endereço padrão).
 - **Rede:** celular e computador da API no mesmo Wi-Fi (ou em redes que se alcancem); o IP da máquina pode mudar entre redes, e o app o troca em "Servidor · Alterar".
-- **Segurança:** a demonstração usa HTTP sem criptografia; **em produção, sirva a API por HTTPS** (com proxy reverso, ligue o `trust proxy`, senão o limite de tentativas enxerga um só IP), troque as senhas de demonstração e a do administrador, mantenha `UPLOADS_DIR` em volume persistente e lembre que o limite de tentativas em memória pressupõe uma instância só.
+- **Segurança:** a demonstração usa HTTP sem criptografia; **em produção, sirva a API por HTTPS** (atrás de um proxy reverso é preciso ligar o `trust proxy` no `main.ts`, uma mudança de código que o projeto não faz porque assume implantação sem proxy; sem isso o limite de tentativas enxerga um só IP), troque as senhas de demonstração e a do administrador, mantenha `UPLOADS_DIR` em volume persistente e lembre que o limite de tentativas em memória pressupõe uma instância só.
 
 ## Como subir o ambiente
 

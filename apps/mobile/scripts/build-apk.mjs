@@ -2,7 +2,10 @@
 import { spawnSync } from 'node:child_process';
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+
+const { lerVariavelDoEnv } = createRequire(import.meta.url)('./env-file.cjs');
 
 const mobile = join(dirname(fileURLToPath(import.meta.url)), '..');
 const repo = join(mobile, '..', '..');
@@ -46,7 +49,9 @@ function escolherSdk() {
   const sdk = candidatos.find(
     (caminho) => caminho && existsSync(join(caminho, 'platforms')),
   );
-  return sdk ?? falhar(`Android SDK não encontrado. Instale-o em ${SDK_PADRAO} ou defina ANDROID_HOME.`);
+  return sdk ?? falhar(
+    `Android SDK não encontrado. Instale-o em ${SDK_PADRAO} (ou no local do Android Studio, %LOCALAPPDATA%\\Android\\Sdk) ou defina ANDROID_HOME.`,
+  );
 }
 
 /** Endereço padrão da API: o do ambiente ou, sem ele, o de `apps/mobile/.env`. */
@@ -55,8 +60,7 @@ function lerEnderecoDaApi() {
   if (doAmbiente) return doAmbiente;
   const arquivo = join(mobile, '.env');
   if (existsSync(arquivo)) {
-    const linha = readFileSync(arquivo, 'utf8').match(/^\s*EXPO_PUBLIC_API_URL\s*=\s*(.*?)\s*$/m);
-    const valor = linha?.[1].replace(/^(["'])(.*)\1$/, '$2').trim();
+    const valor = lerVariavelDoEnv(readFileSync(arquivo, 'utf8'), 'EXPO_PUBLIC_API_URL');
     if (valor) return valor;
   }
   return falhar(

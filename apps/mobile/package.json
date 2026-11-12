@@ -2,7 +2,7 @@
   "name": "@nivela/mobile",
   "private": true,
   "license": "MIT",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "App Expo do Nivela para alunos.",
   "main": "expo-router/entry",
   "scripts": {
@@ -19,7 +19,7 @@
     "@expo-google-fonts/nunito": "^0.4.2",
     "@hookform/resolvers": "^7.0.3",
     "@nivela/api-contract": "*",
-    "@nivela/design-tokens": "^0.1.0",
+    "@nivela/design-tokens": "^1.0.0",
     "axios": "^1.21.0",
     "expo": "~58.0.23",
     "expo-build-properties": "~58.0.12",
