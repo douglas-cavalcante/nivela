@@ -94,7 +94,7 @@ Com API, web e o app rodando, e o fluxo do aluno acima já feito (um aluno com m
 3. No painel, em **Loja**, aba **Resgates**, recuse o resgate informando o motivo. No app, o extrato de moedas (Perfil) mostra o estorno, o saldo volta e o estoque do prêmio também.
 4. No app, resgate o prêmio de novo.
 5. No painel, entregue esse resgate: no app ele passa a "Entregue".
-6. No **Início** do painel, veja os cards (alunos ativos, taxa de acerto, resgates pendentes), o gráfico de atividade do dia e a lista de alunos que precisam de ajuda (pelo menos 5 questões terminadas nos últimos 30 dias e acerto abaixo de 50%). Na ficha da turma e na do aluno, veja o desempenho por categoria; na do aluno, também o extrato de moedas.
+6. No **Início** do painel, veja os cards (alunos ativos, taxa de acerto, resgates pendentes), o gráfico de atividade do dia e a lista de alunos que precisam de ajuda. Ela só se preenche depois de um aluno ter 5 questões terminadas nos últimos 30 dias com acerto abaixo de 50% (por exemplo, errando de propósito no app). Na ficha da turma e na do aluno, veja o desempenho por categoria; na do aluno, também o extrato de moedas.
 
 ## Testes e outros comandos
 
