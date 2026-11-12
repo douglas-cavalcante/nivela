@@ -244,6 +244,46 @@ describe('Indicadores do início (e2e)', () => {
   });
 
   describe('GET /dashboard/needing-help', () => {
+    it('usa a taxa arredondada exibida: 49,5% vira 50 e não entra; 49,25% vira 49 e entra', async () => {
+      const admin = await sessionFor(app, Role.Admin);
+      const classroom = await createClassroom(prisma);
+      const rounds50 = await enroll(classroom.id); // 50 de 101 = 49,5% -> 50
+      const rounds49 = await enroll(classroom.id); // 33 de 67 = 49,25% -> 49
+      await finishQuestions(rounds50.user.id, 101, 50);
+      await finishQuestions(rounds49.user.id, 67, 33);
+
+      const { body } = await get('/dashboard/needing-help', admin.token).expect(
+        200,
+      );
+      expect(body.data).toEqual([
+        {
+          student: { id: rounds49.user.id, name: rounds49.user.name },
+          accuracy: 49,
+          finished: 67,
+        },
+      ]);
+      const summary = await get('/dashboard/summary', admin.token).expect(200);
+      expect(summary.body.students_needing_help).toBe(1);
+    });
+
+    it('ignora aluno inativo, na lista e no resumo', async () => {
+      const admin = await sessionFor(app, Role.Admin);
+      const classroom = await createClassroom(prisma);
+      const active = await enroll(classroom.id);
+      const inactive = await enroll(classroom.id, false);
+      await finishQuestions(active.user.id, 5, 1);
+      await finishQuestions(inactive.user.id, 5, 0);
+
+      const { body } = await get('/dashboard/needing-help', admin.token).expect(
+        200,
+      );
+      expect(
+        body.data.map((r: { student: { id: number } }) => r.student.id),
+      ).toEqual([active.user.id]);
+      const summary = await get('/dashboard/summary', admin.token).expect(200);
+      expect(summary.body.students_needing_help).toBe(1);
+    });
+
     it('exige 5 questões terminadas e acerto abaixo de 50%, do menor acerto ao maior', async () => {
       const admin = await sessionFor(app, Role.Admin);
       const classroom = await createClassroom(prisma);
@@ -318,12 +358,60 @@ describe('Indicadores do início (e2e)', () => {
         answered: 0,
         correct: 0,
       });
-      // Uma certa de 1ª e uma errada duas vezes: 3 respostas, 1 certa.
+      // Duas questões terminadas (uma certa, uma errada duas vezes): 2 e 1.
       expect(body.data[4]).toEqual({
         day: '2026-11-08',
-        answered: 3,
+        answered: 2,
         correct: 1,
       });
+    });
+
+    it('conta questões terminadas no dia em que terminaram, não tentativas', async () => {
+      const admin = await sessionFor(app, Role.Admin);
+      const classroom = await createClassroom(prisma);
+      const pupil = await enroll(classroom.id);
+      const student = pupil.user.id;
+      // Erra no dia 07 e acerta na 2ª tentativa no dia 08: 1 respondida e 1 certa no dia 08.
+      const second = await createQuestion(prisma);
+      await createAttempt(prisma, {
+        studentId: student,
+        questionId: second.id,
+        attemptNumber: 1,
+        correct: false,
+        at: '2026-11-07T15:00:00Z',
+      });
+      await createAttempt(prisma, {
+        studentId: student,
+        questionId: second.id,
+        attemptNumber: 2,
+        correct: true,
+        at: '2026-11-08T15:00:00Z',
+      });
+      // Só a 1ª tentativa errada: não terminou, não conta em dia nenhum.
+      const open = await createQuestion(prisma);
+      await createAttempt(prisma, {
+        studentId: student,
+        questionId: open.id,
+        attemptNumber: 1,
+        correct: false,
+        at: '2026-11-09T15:00:00Z',
+      });
+
+      const { body } = await get(
+        '/dashboard/activity?days=7',
+        admin.token,
+      ).expect(200);
+      const byDay = Object.fromEntries(
+        body.data.map(
+          (d: { day: string; answered: number; correct: number }) => [
+            d.day,
+            [d.answered, d.correct],
+          ],
+        ),
+      );
+      expect(byDay['2026-11-07']).toEqual([0, 0]);
+      expect(byDay['2026-11-08']).toEqual([1, 1]);
+      expect(byDay['2026-11-09']).toEqual([0, 0]);
     });
 
     it('separa 23h50 e 00h10 de Fortaleza em dias diferentes', async () => {

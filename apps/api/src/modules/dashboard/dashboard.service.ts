@@ -70,7 +70,7 @@ export class DashboardService {
     };
   }
 
-  /** Um item por dia de estudo (inclusive zeros), do mais antigo ao mais novo. */
+  /** Questões terminadas por dia de estudo (inclusive zeros), do mais antigo ao mais novo. */
   async activity(
     user: AuthUser,
     days: number,
@@ -78,16 +78,16 @@ export class DashboardService {
     const ids = await scopedStudentIds(this.prisma, user);
     const to = studyDay(this.clock.now());
     const from = shiftDay(to, -(days - 1));
-    const day = studyDaySql('qa.created_at');
+    const day = studyDaySql('c.finished_at');
     const rows = await this.prisma.$queryRaw<
       { day: string; answered: number; correct: number }[]
     >(Prisma.sql`
+      WITH ${contextsCte(ids)}
       SELECT to_char(${day}, 'YYYY-MM-DD') AS day,
              count(*)::int AS answered,
-             (count(*) FILTER (WHERE qa.is_correct))::int AS correct
-      FROM question_attempts qa
-      WHERE qa.student_id = ANY(${ids}::int[])
-        AND ${day} >= ${from}::date AND ${day} <= ${to}::date
+             (count(*) FILTER (WHERE c.correct))::int AS correct
+      FROM contexts c
+      WHERE ${finishedWithin(from, to)}
       GROUP BY 1`);
     const byDay = new Map(rows.map((row) => [row.day, row]));
     const data: ApiActivityDay[] = [];
@@ -129,7 +129,7 @@ export class DashboardService {
     return { data: await this.questions.recent(RECENT_QUESTIONS) };
   }
 
-  /** Alunos com acerto abaixo do limiar na janela, do menor acerto para o maior. */
+  /** Alunos ativos com taxa arredondada (a exibida) abaixo do limiar na janela, do menor acerto ao maior. */
   private needingHelpRows(
     ids: number[],
     from: string,
@@ -141,11 +141,12 @@ export class DashboardService {
              count(*)::int AS finished,
              (count(*) FILTER (WHERE c.correct))::int AS correct
       FROM contexts c
+      JOIN users u ON u.id = c.student_id AND u.active
       WHERE ${finishedWithin(from, to)}
       GROUP BY c.student_id
       HAVING count(*) >= ${HELP_MIN_FINISHED}
-        AND (count(*) FILTER (WHERE c.correct)) * 100
-            < count(*) * ${HELP_ACCURACY_BELOW}
+        AND ROUND((count(*) FILTER (WHERE c.correct)) * 100.0 / count(*))
+            < ${HELP_ACCURACY_BELOW}
       ORDER BY (count(*) FILTER (WHERE c.correct))::float / count(*) ASC,
                count(*) DESC, c.student_id ASC`);
   }

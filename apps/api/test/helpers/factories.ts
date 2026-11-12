@@ -58,7 +58,8 @@ export async function createClassroom(
       name: overrides.name ?? `Turma ${sequence}`,
       schoolYear: '9º ano',
       joinCode:
-        overrides.joinCode ?? `NIV-T${String(sequence).padStart(3, '0')}`,
+        overrides.joinCode ??
+        `N${sequence.toString(36).toUpperCase().padStart(7, '0')}`,
       active: overrides.active ?? true,
     },
   });
