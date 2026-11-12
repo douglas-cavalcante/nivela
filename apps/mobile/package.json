@@ -1,6 +1,7 @@
 {
   "name": "@nivela/mobile",
   "private": true,
+  "license": "MIT",
   "version": "0.0.1",
   "description": "App Expo do Nivela para alunos.",
   "main": "expo-router/entry",

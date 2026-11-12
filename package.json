@@ -1,6 +1,7 @@
 {
   "name": "nivela",
   "private": true,
+  "license": "MIT",
   "description": "Plataforma open source de apoio ao nivelamento estudantil (API NestJS, painel web React e app mobile Expo).",
   "workspaces": [
     "apps/*",
@@ -21,6 +22,7 @@
     "node": ">=22"
   },
   "devDependencies": {
+    "playwright": "^1.65.0",
     "typescript": "~6.0.2"
   },
   "overrides": {

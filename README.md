@@ -119,6 +119,54 @@ A senha de todas as contas de demonstração é `nivela123`.
 | Alunos | `aluno2@nivela.test` a `aluno4@nivela.test` | 9º ano A (o `aluno4` aparece em "Precisam de ajuda") |
 | Alunos | `aluno5@nivela.test` a `aluno8@nivela.test` | 1ª série B (o `aluno5` tem os três estados de resgate) |
 
+## Telas
+
+Capturas do painel web e do app mobile, com os dados de demonstração, em [docs/prints/](docs/prints/) (a lista de telas e o passo a passo para regenerar estão em [docs/prints/README.md](docs/prints/README.md)).
+
+## Gerar o APK
+
+O app pode ser empacotado em um APK de release, instalável em qualquer celular Android sem a Play Store. O build é local (Expo prebuild + Gradle), pelo script `apps/mobile/scripts/build-apk.mjs`:
+
+```bash
+npm run build:apk -w apps/mobile
+```
+
+O arquivo sai em `dist/nivela-1.0.0.apk` (a versão vem do `app.json`; a pasta `dist/` não vai para o git). A primeira execução leva vários minutos, porque o Gradle baixa as dependências.
+
+**Requisitos**
+
+- **JDK 17.** O script usa o `JAVA_HOME` se ele apontar para um JDK 17; senão, usa o `jbr` do Android Studio (`C:/Program Files/Android/Android Studio/jbr`). Sem nenhum dos dois, ele para com uma mensagem.
+- **Android SDK com a plataforma 35** instalada (pelo SDK Manager do Android Studio). O script procura em `ANDROID_HOME`, `ANDROID_SDK_ROOT` e `C:/Android/Sdk`.
+- Opcional: `EXPO_PUBLIC_API_URL` no ambiente define o endereço padrão da API embutido no APK; o endereço também pode ser trocado no app (veja abaixo).
+
+**Windows: caminhos longos.** O Windows limita caminhos a 260 caracteres, e o build do React Native em monorepo gera caminhos maiores que isso. O `ninja` 1.10 que vem com o CMake do Android SDK não consegue contornar o limite, então o build falha. A solução é usar um CMake 3.31 ou mais novo com um ninja 1.12 ou mais novo, instalados em uma **pasta curta fora do repositório** (aqui, `C:\Android\cmake-long`):
+
+```bash
+pip install --target 'C:\Android\cmake-long' cmake==3.31.6 ninja==1.13.0
+cp 'C:\Android\cmake-long\bin\ninja.exe' 'C:\Android\cmake-long\cmake\data\bin\'
+```
+
+O CMake de verdade fica em `C:\Android\cmake-long\cmake\data\bin\cmake.exe` (a pasta `C:\Android\cmake-long\bin` só tem um lançador que não funciona sozinho); por isso o `ninja.exe` é copiado para a mesma pasta `bin` do CMake real. Depois, aponte `CMAKE_DIR` para a pasta que contém esse `bin` e gere o APK (troque `<ip>` pelo IP da máquina na rede; `EXPO_PUBLIC_API_URL` é obrigatória no build, sem ela o app fecha ao abrir, e o endereço ainda pode ser trocado depois no app):
+
+```bash
+CMAKE_DIR='C:\Android\cmake-long\cmake\data' EXPO_PUBLIC_API_URL=http://<ip>:8000/api/v1 npm run build:apk -w apps/mobile
+```
+
+O script confere se `CMAKE_DIR\bin\cmake.exe` existe e, depois do `prebuild`, grava `cmake.dir` no `local.properties` do projeto Android para o Gradle usar esse CMake. Ele também ajusta sozinho o `JAVA_TOOL_OPTIONS` (diretório temporário sem espaço em `SystemRoot\Temp`), que evita o erro "Unable to establish loopback connection" do Gradle quando o nome do usuário do Windows tem espaço.
+
+**O que o APK contém**
+
+- ABIs **arm64-v8a** (celulares atuais) e **x86_64** (emulador). Não há versão de 32 bits (`armeabi-v7a`), então celulares Android muito antigos não são suportados.
+- Assinado com a **chave de debug**: serve para instalar e demonstrar, **não para publicar na Play Store**.
+- Libera tráfego HTTP sem TLS (`usesCleartextTraffic`), para falar com a API pelo IP da rede local.
+
+**Instalar**
+
+- Pelo computador, com o celular em modo desenvolvedor e depuração USB (ou com o emulador aberto): `adb install -r dist/nivela-1.0.0.apk`.
+- Ou copie o arquivo para o celular (cabo, nuvem ou mensageiro) e abra-o, permitindo a instalação de fontes desconhecidas quando o Android pedir.
+
+**Apontar o app para o servidor.** Na primeira abertura, nas telas de Boas-vindas ou Entrar, toque em **Servidor · Alterar** e digite o endereço da API, por exemplo `192.168.0.10:8000`. O app completa `http://` e `/api/v1`, testa a conexão antes de salvar e encerra a sessão ao trocar de servidor. Celular e computador precisam estar no mesmo Wi-Fi, com a API rodando e a porta 8000 liberada no Firewall do Windows.
+
 ## Testes e outros comandos
 
 - `npm run lint`, `npm run typecheck`, `npm test` e `npm run build`: rodam em todos os workspaces.
@@ -134,3 +182,11 @@ A senha de todas as contas de demonstração é `nivela123`.
 - [Estrutura de pastas](docs/estruturaDePastas.md)
 - [Fluxo de trabalho (git e commits)](docs/workflow.md)
 - [Especificação de design](docs/superpowers/specs/2026-11-08-nivela-design.md)
+- [Requisitos (RF, RNF e RN)](docs/requisitos.md)
+- [Diagramas UML](docs/uml/README.md): [casos de uso](docs/uml/casos-de-uso.md), [classes](docs/uml/classes.md), [serviços centrais](docs/uml/classes-servicos.md) e [DER](docs/uml/der.md)
+- [Roteiro do vídeo de apresentação](docs/defesa/roteiro-video.md)
+- [Justificativa da escolha das tecnologias](docs/defesa/justificativa-stack.md)
+
+## Licença
+
+Distribuído sob a licença MIT. Veja o arquivo [LICENSE](LICENSE).

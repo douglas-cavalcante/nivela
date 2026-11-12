@@ -27,10 +27,44 @@ describe('presentCoinTransaction', () => {
   it('descreve cada motivo em português', () => {
     const describe = (reason: CoinTransactionRow['reason'], id: number) =>
       presentCoinTransaction(row(reason, id), sources).description;
-    expect(describe('correct_answer', 1)).toBe('Acerto: Quanto é 2 + 2?.');
+    expect(describe('correct_answer', 1)).toBe('Acerto: Quanto é 2 + 2?');
     expect(describe('plan_completed', 2)).toBe('Plano concluído: Frações.');
     expect(describe('redemption', 3)).toBe('Resgate: Caderno.');
     expect(describe('refund', 3)).toBe('Estorno: Caderno.');
+  });
+
+  it('não duplica a pontuação final do enunciado', () => {
+    const withStatement = (statement: string): string =>
+      presentCoinTransaction(row('correct_answer', 1), {
+        ...sources,
+        statements: new Map([[1, statement]]),
+      }).description;
+    expect(withStatement('Qual é o dobro de 4?')).toBe(
+      'Acerto: Qual é o dobro de 4?',
+    );
+    expect(withStatement('Complete a frase.')).toBe(
+      'Acerto: Complete a frase.',
+    );
+    expect(withStatement('Cuidado!')).toBe('Acerto: Cuidado!');
+    expect(withStatement('Texto sem pontuação')).toBe(
+      'Acerto: Texto sem pontuação.',
+    );
+    // pontuação seguida de aspas ou parêntese já é final
+    expect(withStatement('Complete: "Chegou amanhã."')).toBe(
+      'Acerto: Complete: "Chegou amanhã."',
+    );
+    expect(withStatement('Ele disse: "Vamos?"')).toBe(
+      'Acerto: Ele disse: "Vamos?"',
+    );
+    expect(withStatement('Considere o caso (o primeiro.)')).toBe(
+      'Acerto: Considere o caso (o primeiro.)',
+    );
+    // aspas sem pontuação antes: acrescenta o ponto depois
+    expect(withStatement('Leia "texto"')).toBe('Acerto: Leia "texto".');
+    // enunciado longo: o recorte termina em "…" e fica sem "." extra
+    expect(withStatement(`${'a'.repeat(150)}`)).toBe(
+      `Acerto: ${'a'.repeat(140)}…`,
+    );
   });
 
   it('converte o dayNumber do bônus de sequência em dd/mm/aaaa, sem buscar entidade', () => {

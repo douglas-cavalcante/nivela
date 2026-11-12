@@ -27,25 +27,35 @@ function formatDayNumber(dayNumber: number): string {
   return `${day}/${month}/${year}`;
 }
 
+/** Fecha a frase com "." só se ela já não termina em pontuação (".", "!", "?" ou "…"), mesmo seguida de aspas ou fecha-parênteses. */
+export function withFinalStop(text: string): string {
+  const trimmed = text.trimEnd();
+  return /[.!?…]["'”’)»\]]*$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
 function describe(row: CoinTransactionRow, sources: CoinSources): string {
   switch (row.reason) {
     case 'correct_answer': {
       const statement = sources.statements.get(row.sourceId);
-      return statement ? `Acerto: ${statementExcerpt(statement)}.` : 'Acerto.';
+      return statement
+        ? withFinalStop(`Acerto: ${statementExcerpt(statement)}`)
+        : 'Acerto.';
     }
     case 'plan_completed': {
       const title = sources.planTitles.get(row.sourceId);
-      return title ? `Plano concluído: ${title}.` : 'Plano concluído.';
+      return title
+        ? withFinalStop(`Plano concluído: ${title}`)
+        : 'Plano concluído.';
     }
     case 'streak_bonus':
       return `Sequência de 7 dias (até ${formatDayNumber(row.sourceId)}).`;
     case 'redemption': {
       const name = sources.rewardNames.get(row.sourceId);
-      return name ? `Resgate: ${name}.` : 'Resgate.';
+      return name ? withFinalStop(`Resgate: ${name}`) : 'Resgate.';
     }
     case 'refund': {
       const name = sources.rewardNames.get(row.sourceId);
-      return name ? `Estorno: ${name}.` : 'Estorno.';
+      return name ? withFinalStop(`Estorno: ${name}`) : 'Estorno.';
     }
   }
 }
