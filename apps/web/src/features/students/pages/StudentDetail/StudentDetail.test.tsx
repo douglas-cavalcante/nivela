@@ -53,7 +53,21 @@ function renderPage(route = '/alunos/21') {
   );
 }
 
+const performance = [
+  {
+    category: { id: 4, name: 'Frações' },
+    subject: { id: 1, name: 'Matemática', color: 'teal' },
+    finished: 4,
+    correct: 3,
+    accuracy: 75,
+  },
+];
+
 describe('StudentDetail', () => {
+  beforeEach(() => {
+    server.use(http.get(`${API_URL}/students/21/performance`, () => HttpResponse.json({ data: performance })));
+  });
+
   it('mostra dados, turmas como links, moedas e sequência', async () => {
     server.use(http.get(`${API_URL}/students/21`, () => HttpResponse.json(lucas)));
     plansHandler();
@@ -72,12 +86,22 @@ describe('StudentDetail', () => {
     expect(within(best).getByText('9 dias')).toBeInTheDocument();
   });
 
+  it('mostra o desempenho do aluno por categoria', async () => {
+    server.use(http.get(`${API_URL}/students/21`, () => HttpResponse.json(lucas)));
+    plansHandler();
+    renderPage();
+
+    const section = await screen.findByRole('region', { name: 'Desempenho' });
+    expect(await within(section).findByText('Frações')).toBeInTheDocument();
+    expect(within(section).getByText('75% (3 de 4).')).toBeInTheDocument();
+  });
+
   it('mostra espaços reservados sem dados inventados', async () => {
     server.use(http.get(`${API_URL}/students/21`, () => HttpResponse.json({ ...lucas, classrooms: [], current_streak: 1 })));
     plansHandler();
     renderPage();
 
-    expect(await screen.findByText('Desempenho do aluno — disponível em breve.')).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Desempenho' })).toBeInTheDocument();
     expect(screen.queryByText('Planos de estudo — disponível em breve.')).toBeNull();
     expect(screen.getByText('Extrato de moedas — disponível em breve.')).toBeInTheDocument();
     expect(screen.getByText('Este aluno ainda não está em nenhuma turma.')).toBeInTheDocument();
@@ -110,7 +134,7 @@ describe('StudentDetail', () => {
 
     expect(await screen.findByRole('heading', { name: 'Não deu para carregar.' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
-    expect(await screen.findByText('Desempenho do aluno — disponível em breve.')).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Desempenho' })).toBeInTheDocument();
   });
 
   it('id inválido na URL nem chama a API', async () => {

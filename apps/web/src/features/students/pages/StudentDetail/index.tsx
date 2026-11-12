@@ -7,6 +7,7 @@ import { EmptyState } from 'src/components/EmptyState';
 import { ResourceState } from 'src/components/ResourceState';
 import { PageHeader } from 'src/components/PageHeader';
 import { StatusChip } from 'src/components/StatusChip';
+import { CategoryPerformanceChart } from 'src/features/dashboard';
 import { StudentPlans } from 'src/features/leveling-plans';
 import { getStudentAction } from 'src/features/students/api/students.action';
 import { useRemoteList } from 'src/hooks/useRemoteList';
@@ -93,7 +94,9 @@ function StudentView({ student }: { student: ApiStudent }) {
           )}
         </Card>
 
-        <EmptyState title="Desempenho do aluno — disponível em breve." />
+        <Card title="Desempenho">
+          <CategoryPerformanceChart scope="student" id={student.id} />
+        </Card>
         <Card title="Planos de estudo">
           <StudentPlans studentId={student.id} />
         </Card>

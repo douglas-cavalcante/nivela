@@ -39,7 +39,21 @@ function detailHandler(current = classroom) {
   server.use(http.get(`${API_URL}/classrooms/7`, () => HttpResponse.json(current)));
 }
 
+const performance = [
+  {
+    category: { id: 4, name: 'Frações' },
+    subject: { id: 1, name: 'Matemática', color: 'teal' },
+    finished: 4,
+    correct: 3,
+    accuracy: 75,
+  },
+];
+
 describe('ClassroomDetail', () => {
+  beforeEach(() => {
+    server.use(http.get(`${API_URL}/classrooms/7/performance`, () => HttpResponse.json({ data: performance })));
+  });
+
   it('mostra o código, o professor e os alunos matriculados', async () => {
     detailHandler();
     renderPage();
@@ -52,7 +66,27 @@ describe('ClassroomDetail', () => {
     expect(within(row).getByText('lucas@aluno.dev')).toBeInTheDocument();
     expect(within(row).getByRole('link', { name: 'Lucas Lima' })).toHaveAttribute('href', '/alunos/21');
     expect(within(screen.getByText('Bia Souza').closest('tr') as HTMLElement).getByText('Inativo')).toBeInTheDocument();
-    expect(screen.getByText('Desempenho da turma — disponível em breve.')).toBeInTheDocument();
+  });
+
+  it('mostra o desempenho da turma por categoria', async () => {
+    detailHandler();
+    renderPage();
+
+    const section = await screen.findByRole('region', { name: 'Desempenho da turma' });
+    expect(await within(section).findByText('Frações')).toBeInTheDocument();
+    expect(within(section).getByText('75% (3 de 4).')).toBeInTheDocument();
+  });
+
+  it('falha ao carregar o desempenho avisa só na seção', async () => {
+    detailHandler();
+    server.use(
+      http.get(`${API_URL}/classrooms/7/performance`, () => HttpResponse.json({ message: 'Erro interno.' }, { status: 500 })),
+    );
+    renderPage();
+
+    const section = await screen.findByRole('region', { name: 'Desempenho da turma' });
+    expect(await within(section).findByText('Erro interno.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '9º A' })).toBeInTheDocument();
   });
 
   it('copiar o código usa a área de transferência e avisa', async () => {

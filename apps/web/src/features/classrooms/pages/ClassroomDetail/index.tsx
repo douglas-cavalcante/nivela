@@ -9,7 +9,6 @@ import { Link, useParams } from 'react-router';
 import { ConfirmDialog } from 'src/components/ConfirmDialog';
 import { DataTable } from 'src/components/DataTable';
 import type { DataTableColumn } from 'src/components/DataTable';
-import { EmptyState } from 'src/components/EmptyState';
 import { ResourceState } from 'src/components/ResourceState';
 import { PageHeader } from 'src/components/PageHeader';
 import { StatusChip } from 'src/components/StatusChip';
@@ -21,6 +20,7 @@ import {
 import { AddStudentDialog } from 'src/features/classrooms/components/AddStudentDialog';
 import { ClassroomFormDialog } from 'src/features/classrooms/components/ClassroomFormDialog';
 import { JoinCodeCard } from 'src/features/classrooms/components/JoinCodeCard';
+import { CategoryPerformanceChart } from 'src/features/dashboard';
 import { useRemoteList } from 'src/hooks/useRemoteList';
 import { useAuth } from 'src/lib/auth/AuthContext';
 import { useNotify } from 'src/lib/notify/useNotify';
@@ -142,7 +142,12 @@ function ClassroomView({ classroom, reload }: ClassroomViewProps) {
           />
         </Box>
 
-        <EmptyState title="Desempenho da turma — disponível em breve." />
+        <Box component="section" aria-labelledby="performance-title">
+          <Typography id="performance-title" variant="h3" component="h2" sx={{ mb: 2 }}>
+            Desempenho da turma
+          </Typography>
+          <CategoryPerformanceChart scope="classroom" id={classroom.id} />
+        </Box>
       </Box>
 
       {editing ? (
@@ -219,7 +224,7 @@ function ClassroomLoader({ id }: { id: number }) {
   return <ClassroomView classroom={kept} reload={reload} />;
 }
 
-/** Ficha da turma: código de entrada, alunos matriculados e (em breve) desempenho. */
+/** Ficha da turma: código de entrada, alunos matriculados e desempenho por categoria. */
 export function ClassroomDetail() {
   const { id } = useParams();
   if (!validId(id)) return <ResourceState kind="not-found" message="Turma não encontrada." backTo={BACK} />;
