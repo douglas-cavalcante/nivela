@@ -41,6 +41,16 @@ describe('RewardsService', () => {
   const rewardFindMany = jest.fn();
   const rewardUpdate = jest.fn();
   const profileFindUnique = jest.fn();
+  // Ordem das chamadas dentro da transação do `update` (trava antes da gravação).
+  const txOrder: string[] = [];
+  const txQueryRaw = jest.fn((strings: TemplateStringsArray) => {
+    txOrder.push(strings.join('?').includes('FOR UPDATE') ? 'lock' : 'raw');
+    return Promise.resolve([{ id: 10 }]);
+  });
+  const txRewardUpdate = jest.fn(() => {
+    txOrder.push('update');
+    return Promise.resolve({});
+  });
   const images = {
     validate: jest.fn(),
     save: jest.fn(),
@@ -51,6 +61,9 @@ describe('RewardsService', () => {
   };
   const service = new RewardsService(
     {
+      $transaction: jest.fn((fn: (tx: unknown) => unknown) =>
+        fn({ $queryRaw: txQueryRaw, reward: { update: txRewardUpdate } }),
+      ),
       reward: {
         findUnique: rewardFindUnique,
         findMany: rewardFindMany,
@@ -63,6 +76,7 @@ describe('RewardsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    txOrder.length = 0;
   });
 
   it('findOne: 404 "Prêmio não encontrado." e can_edit por autoria ou administrador', async () => {
@@ -90,11 +104,21 @@ describe('RewardsService', () => {
 
   it('update sem descrição grava null', async () => {
     rewardFindUnique.mockResolvedValue(row());
-    rewardUpdate.mockResolvedValue({});
     await service.update(10, dto, admin);
-    expect(rewardUpdate).toHaveBeenCalledWith(
+    expect(txRewardUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: { name: 'Caderno', description: null, price: 50, stock: 3 },
+      }),
+    );
+  });
+
+  it('update: trava o prêmio (FOR UPDATE) antes de gravar o estoque absoluto, para serializar com resgate e recusa', async () => {
+    rewardFindUnique.mockResolvedValue(row());
+    await service.update(10, { ...dto, stock: 8 }, author);
+    expect(txOrder).toEqual(['lock', 'update']);
+    expect(txRewardUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ stock: 8 }) as unknown,
       }),
     );
   });

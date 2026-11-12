@@ -91,15 +91,23 @@ export class RewardsService {
 
   async update(id: number, dto: RewardDto, user: AuthUser): Promise<ApiReward> {
     this.assertCanEdit(await this.load(id), user);
-    await this.prisma.reward.update({
-      where: { id },
-      data: {
-        name: dto.name,
-        description: dto.description ?? null,
-        price: dto.price,
-        stock: dto.stock,
-      },
-      select: { id: true },
+    // O estoque é gravado como valor absoluto; o `FOR UPDATE` na linha do
+    // prêmio serializa esta edição com resgate e recusa (que alteram o
+    // estoque com o prêmio travado), então nenhuma baixa ou devolução se perde.
+    // Aqui não há moedas: o prêmio é o único lock da transação.
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT "id" FROM "rewards" WHERE "id" = ${id} FOR UPDATE`;
+      await tx.reward.update({
+        where: { id },
+        data: {
+          name: dto.name,
+          description: dto.description ?? null,
+          price: dto.price,
+          stock: dto.stock,
+        },
+        select: { id: true },
+      });
     });
     return this.present(await this.load(id), user);
   }
