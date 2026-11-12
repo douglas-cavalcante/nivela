@@ -135,16 +135,20 @@ O arquivo sai em `dist/nivela-1.0.0.apk` (a versão vem do `app.json`; a pasta `
 - **Android SDK com a plataforma 35** instalada (pelo SDK Manager do Android Studio). O script procura em `ANDROID_HOME`, `ANDROID_SDK_ROOT` e `C:/Android/Sdk`.
 - Opcional: `EXPO_PUBLIC_API_URL` no ambiente define o endereço padrão da API embutido no APK; o endereço também pode ser trocado no app (veja abaixo).
 
-**Windows: caminhos longos.** O `ninja` que vem com o CMake do Android SDK (1.10) não aceita caminhos com mais de 260 caracteres, e o build do React Native em monorepo gera caminhos assim. Para contornar, aponte a variável `CMAKE_DIR` para um CMake 3.31 ou mais novo, **com um ninja 1.12 ou mais novo na mesma pasta `bin`**, instalado em uma pasta de caminho curto, por exemplo:
+**Windows: caminhos longos.** O Windows limita caminhos a 260 caracteres, e o build do React Native em monorepo gera caminhos maiores que isso. O `ninja` 1.10 que vem com o CMake do Android SDK não consegue contornar o limite, então o build falha. A solução é usar um CMake 3.31 ou mais novo com um ninja 1.12 ou mais novo, instalados em uma **pasta curta fora do repositório** (aqui, `C:\Android\cmake-long`):
 
 ```bash
-pip install --target C:/cmk cmake ninja
-# o cmake.exe e o ninja.exe ficam em pastas "data/bin" dentro de C:/cmk; deixe os dois em C:/cmk/bin
-export CMAKE_DIR=C:/cmk
-npm run build:apk -w apps/mobile
+pip install --target 'C:\Android\cmake-long' cmake==3.31.6 ninja==1.13.0
+cp 'C:\Android\cmake-long\bin\ninja.exe' 'C:\Android\cmake-long\cmake\data\bin\'
 ```
 
-O script confere se `CMAKE_DIR/bin/cmake.exe` existe e grava `cmake.dir` no `local.properties` do projeto Android depois do `prebuild`. Ele também ajusta sozinho o `JAVA_TOOL_OPTIONS` (diretório temporário sem espaço em `SystemRoot\Temp`), que evita o erro "Unable to establish loopback connection" do Gradle quando o nome do usuário do Windows tem espaço.
+O CMake de verdade fica em `C:\Android\cmake-long\cmake\data\bin\cmake.exe` (a pasta `C:\Android\cmake-long\bin` só tem um lançador que não funciona sozinho); por isso o `ninja.exe` é copiado para a mesma pasta `bin` do CMake real. Depois, aponte `CMAKE_DIR` para a pasta que contém esse `bin` e gere o APK (troque `<ip>` pelo IP da máquina na rede, ou omita `EXPO_PUBLIC_API_URL` e informe o endereço no app):
+
+```bash
+CMAKE_DIR='C:\Android\cmake-long\cmake\data' EXPO_PUBLIC_API_URL=http://<ip>:8000/api/v1 npm run build:apk -w apps/mobile
+```
+
+O script confere se `CMAKE_DIR\bin\cmake.exe` existe e, depois do `prebuild`, grava `cmake.dir` no `local.properties` do projeto Android para o Gradle usar esse CMake. Ele também ajusta sozinho o `JAVA_TOOL_OPTIONS` (diretório temporário sem espaço em `SystemRoot\Temp`), que evita o erro "Unable to establish loopback connection" do Gradle quando o nome do usuário do Windows tem espaço.
 
 **O que o APK contém**
 
