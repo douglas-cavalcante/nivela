@@ -13,4 +13,16 @@ describe('AppText', () => {
     expect(screen.getByTestId('titulo').props.children).toBe('Oi! ');
     expect(screen.getByTestId('corpo').props.children).toBe('Texto');
   });
+
+  it('não mexe em children que não seja uma única string', async () => {
+    await render(
+      <ThemeProvider>
+        <AppText variant="heading" testID="composto">
+          {'Oi, '}
+          {'Davi!'}
+        </AppText>
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId('composto').props.children).toEqual(['Oi, ', 'Davi!']);
+  });
 });

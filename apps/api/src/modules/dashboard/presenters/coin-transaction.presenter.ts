@@ -27,10 +27,10 @@ function formatDayNumber(dayNumber: number): string {
   return `${day}/${month}/${year}`;
 }
 
-/** Fecha a frase com "." só se ela já não termina em pontuação (".", "!", "?" ou "…"). */
+/** Fecha a frase com "." só se ela já não termina em pontuação (".", "!", "?" ou "…"), mesmo seguida de aspas ou fecha-parênteses. */
 export function withFinalStop(text: string): string {
   const trimmed = text.trimEnd();
-  return /[.!?…]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+  return /[.!?…]["'”’)»\]]*$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
 function describe(row: CoinTransactionRow, sources: CoinSources): string {

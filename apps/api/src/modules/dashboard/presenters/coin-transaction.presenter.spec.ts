@@ -49,6 +49,18 @@ describe('presentCoinTransaction', () => {
     expect(withStatement('Texto sem pontuação')).toBe(
       'Acerto: Texto sem pontuação.',
     );
+    // pontuação seguida de aspas ou parêntese já é final
+    expect(withStatement('Complete: "Chegou amanhã."')).toBe(
+      'Acerto: Complete: "Chegou amanhã."',
+    );
+    expect(withStatement('Ele disse: "Vamos?"')).toBe(
+      'Acerto: Ele disse: "Vamos?"',
+    );
+    expect(withStatement('Considere o caso (o primeiro.)')).toBe(
+      'Acerto: Considere o caso (o primeiro.)',
+    );
+    // aspas sem pontuação antes: acrescenta o ponto depois
+    expect(withStatement('Leia "texto"')).toBe('Acerto: Leia "texto".');
     // enunciado longo: o recorte termina em "…" e fica sem "." extra
     expect(withStatement(`${'a'.repeat(150)}`)).toBe(
       `Acerto: ${'a'.repeat(140)}…`,
