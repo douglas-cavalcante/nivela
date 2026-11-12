@@ -235,13 +235,18 @@ export class RedemptionsService {
         },
         select: { id: true },
       });
-      await this.coins.credit(tx, {
+      const refund = await this.coins.credit(tx, {
         studentId,
         amount: redemption.pricePaid,
         reason: 'refund',
         sourceType: 'redemption',
         sourceId: id,
       });
+      if (!refund.applied) {
+        // O estorno deste resgate já existe: nunca deixar "recusado" sem
+        // estorno nem estorno em dobro. O erro desfaz a transação inteira.
+        throw new BusinessRuleException(FINISHED);
+      }
     });
     return this.present(id, user);
   }
