@@ -16,10 +16,13 @@ export function AppText({ variant = 'body', size, style, ...props }: AppTextProp
     bold: { fontFamily: fonts.bodyBold, fontSize: 16, lineHeight: 24, color: colors.text },
     muted: { fontFamily: fonts.body, fontSize: 15, lineHeight: 22, color: colors.textMuted },
   }[variant];
+  // A manuscrita tem traços que passam da caixa medida; sem folga à direita o Android corta a última letra.
+  const overhang =
+    variant === 'heading' ? { paddingRight: Math.ceil((size ?? 32) * 0.15) } : null;
   return (
     <Text
       accessibilityRole={variant === 'heading' ? 'header' : undefined}
-      style={[base, size ? { fontSize: size, lineHeight: Math.round(size * 1.25) } : null, style]}
+      style={[base, overhang, size ? { fontSize: size, lineHeight: Math.round(size * 1.25) } : null, style]}
       {...props}
     />
   );
