@@ -134,6 +134,8 @@ A senha de todas as contas de demonstração é `nivela123`.
 - [Estrutura de pastas](docs/estruturaDePastas.md)
 - [Fluxo de trabalho (git e commits)](docs/workflow.md)
 - [Especificação de design](docs/superpowers/specs/2026-11-08-nivela-design.md)
+- [Requisitos (RF, RNF e RN)](docs/requisitos.md)
+- [Diagramas UML](docs/uml/README.md): [casos de uso](docs/uml/casos-de-uso.md), [classes](docs/uml/classes.md), [serviços centrais](docs/uml/classes-servicos.md) e [DER](docs/uml/der.md)
 
 ## Licença
 
