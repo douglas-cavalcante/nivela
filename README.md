@@ -119,6 +119,10 @@ A senha de todas as contas de demonstração é `nivela123`.
 | Alunos | `aluno2@nivela.test` a `aluno4@nivela.test` | 9º ano A (o `aluno4` aparece em "Precisam de ajuda") |
 | Alunos | `aluno5@nivela.test` a `aluno8@nivela.test` | 1ª série B (o `aluno5` tem os três estados de resgate) |
 
+## Telas
+
+Capturas do painel web e do app mobile, com os dados de demonstração, em [docs/prints/](docs/prints/) (a lista de telas e o passo a passo para regenerar estão em [docs/prints/README.md](docs/prints/README.md)).
+
 ## Gerar o APK
 
 O app pode ser empacotado em um APK de release, instalável em qualquer celular Android sem a Play Store. O build é local (Expo prebuild + Gradle), pelo script `apps/mobile/scripts/build-apk.mjs`:
