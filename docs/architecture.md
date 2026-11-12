@@ -6,12 +6,13 @@ O **Nivela** é uma plataforma open source de apoio ao nivelamento estudantil na
 
 ```
 Professor/Admin ──► apps/web (React + MUI) ─┐
-                                            ├─ HTTPS/JSON · Bearer token ─► apps/api (NestJS 12) ─► PostgreSQL 17
+                                            ├─ HTTP/JSON · Bearer token ─► apps/api (NestJS 12) ─► PostgreSQL 17
 Aluno ───────────► apps/mobile (Expo)  ─────┘
 packages/design-tokens ──► consumido por web e mobile
 packages/api-contract  ──► tipos de resposta + parseApiError: consumido por api (só `import type`), web e mobile
 ```
 
+- **Transporte:** na demonstração, os clientes falam com a API em **HTTP/JSON pela rede local** (sem criptografia, só em rede confiável). **HTTPS é requisito de produção** (veja "Requisitos de implantação").
 - A **API** concentra toda a regra de negócio e é a única a acessar o banco.
 - **Web** (professor/admin) e **mobile** (aluno) são clientes da mesma API REST em `/api/v1`.
 - O login informa o canal (`web` ou `mobile`) e a API valida o perfil do canal.
@@ -51,7 +52,7 @@ A organização interna de cada app está em [estruturaDePastas.md](estruturaDeP
 - Autorização por `RolesGuard`, **negada por padrão**: toda rota não pública declara `@Roles(Role.Admin, Role.Teacher)` ou `@AnyAuthenticated()` (qualquer perfil logado, ex.: `GET /auth/me`); sem isso a resposta é 403. O teste `test/route-authorization.e2e-spec.ts` percorre todas as rotas do `AppModule` e falha se alguma não declarar. Regras de posse (professor só mexe no que é seu) ficam nos services, partindo dos filtros de `src/shared/scopes/` (`classroomScope`, `studentScope`, `planScope` e, para o aluno, `studentPlanScope`), que valem também nas escritas. Recurso fora do escopo (turma, aluno, plano ou capítulo de outro professor; plano não publicado ou não atribuído ao aluno) responde **404** (nunca 403), para não confirmar que ele existe; só a RN02 (editar a questão de outro autor) responde 403.
 - Erros em JSON `{ message, errors? }`, padronizados por um filtro global: 422 validação (`errors: { campo: [mensagens] }`), 401/403 autenticação/autorização, 404, 409 conflito de regra de negócio (`BusinessRuleException`), 500 sem detalhes internos. Mensagens em português do Brasil.
 - Busca parcial (`?search=`) usa `containsInsensitive()` (`src/shared/prisma/contains-insensitive.ts`): o Prisma repassa `%`, `_` e `\` ao `ILIKE` sem escapar, então o helper escapa os curingas e a pessoa busca texto literal. Nunca monte `{ contains, mode: 'insensitive' }` à mão.
-- Arquivos enviados (imagem da questão, `POST /questions/:id/image`): o multer recebe o arquivo em memória (limite duro de 5 MB; regra de negócio de 2 MB), a API confere a assinatura dos bytes (JPG, PNG ou WEBP) e grava em `UPLOADS_DIR/questions/<id>-<uuid>.<ext>` (padrão `uploads/`, ignorado pelo git; nos e2e, uma pasta temporária criada com `mkdtemp` em `test/helpers/uploads.ts` e apagada ao fim da suíte). A pasta é servida como estático em **`/uploads`**, fora do prefixo `/api/v1`, sem listagem de pasta, sem arquivos ocultos e com `X-Content-Type-Options: nosniff`. A API devolve `image_url` como **caminho relativo à raiz** (`/uploads/questions/<arquivo>`), sem host: cada cliente monta a URL com `resolveAssetUrl(apiBaseUrl, image_url)` do `@nivela/api-contract`, que usa a origem do endereço da API já configurado (`VITE_API_URL`, `EXPO_PUBLIC_API_URL`), então funciona no emulador, no celular e no web sem configuração extra. O banco guarda só o caminho relativo, e o arquivo antigo é apagado ao trocar ou remover a imagem (nunca fora de `UPLOADS_DIR`). Em produção, a pasta precisa estar em volume persistente.
+- Arquivos enviados (imagem da questão, `POST /questions/:id/image`): o multer recebe o arquivo em memória (limite duro de 5 MB; regra de negócio de 2 MB), a API confere a assinatura dos bytes (JPG, PNG ou WEBP) e grava em `UPLOADS_DIR/questions/<id>-<uuid>.<ext>` (padrão `uploads/`, ignorado pelo git; nos e2e, uma pasta temporária criada com `mkdtemp` em `test/helpers/uploads.ts` e apagada ao fim da suíte). A pasta é servida como estático em **`/uploads`**, fora do prefixo `/api/v1`, sem listagem de pasta, sem arquivos ocultos e com `X-Content-Type-Options: nosniff`. A API devolve `image_url` como **caminho relativo à raiz** (`/uploads/questions/<arquivo>`), sem host: cada cliente monta a URL com `resolveAssetUrl(apiBaseUrl, image_url)` do `@nivela/api-contract`, que usa a origem do endereço da API já configurado: no web, `VITE_API_URL`; no app, o endereço salvo no aparelho (`useServerUrl`, que cai no `EXPO_PUBLIC_API_URL` só quando nada foi salvo). Assim as imagens vêm do servidor que o app está usando, no emulador, no celular e no web, sem configuração extra. O banco guarda só o caminho relativo, e o arquivo antigo é apagado ao trocar ou remover a imagem (nunca fora de `UPLOADS_DIR`). Em produção, a pasta precisa estar em volume persistente.
 - CORS: sem configuração, a API libera as origens de desenvolvimento (Vite em 5173 e Expo web em 8081/19006). Para outras origens (por exemplo o Vite em outra porta, quando a 5173 está ocupada), defina `CORS_ORIGINS` com as origens separadas por vírgula.
 - Limite de tentativas: só `POST /auth/login` (por ip + e-mail normalizado) e `POST /auth/register-student` (por ip) são limitados, com `@nestjs/throttler` e armazenamento em memória. Variáveis: `THROTTLE_LOGIN_LIMIT` (padrão 10), `THROTTLE_REGISTER_LIMIT` (padrão 60) e `THROTTLE_TTL_SECONDS` (padrão 60). Ao estourar, a API responde 429 `{ message: "Muitas tentativas. Aguarde um pouco e tente de novo." }` com `Retry-After`. O `trust proxy` não é ligado (a implantação do TCC não usa proxy): atrás de um proxy reverso o ip seria o do proxy e o limite do cadastro valeria para todos juntos. Os e2e usam limites altos (`.env.test`); `rate-limit.e2e-spec.ts` sobe o app com limites baixos.
 - Campos JSON (corpo, resposta e query string) sempre em `snake_case` (`join_code`, `created_at`).
@@ -122,6 +123,41 @@ Regras do Plano 4, todas na API (os apps só apresentam).
 - **"Precisam de ajuda":** alunos **ativos** do escopo com pelo menos 5 questões terminadas nos últimos 30 dias e taxa de acerto arredondada abaixo de 50% (o card nunca mostra "50%" sob "< 50%"). O resumo e a lista usam o mesmo critério.
 - **Janelas:** os números do Início (resumo, atividade, "precisam de ajuda") usam os 30 dias de estudo (hoje e os 29 anteriores; a atividade aceita `days` de 7 a 60, padrão 14). O desempenho por categoria da turma (`GET /classrooms/:id/performance`) e do aluno (`GET /students/:id/performance`) considera **todo o histórico**.
 - **Escopo:** tudo filtrado por `studentScope` (professor: alunos das suas turmas; admin: todos). O extrato de moedas (`GET /me/coins` e `GET /students/:id/coins`) vem do mesmo módulo, com um texto por `reason`; o `source_id` do `streak_bonus` é um número de dia, convertido para a data. O extrato é ordenado só por `id` decrescente (todo movimento de um aluno é gravado com o perfil dele travado até o commit, então o id segue a ordem real) e o `created_at` tem origem única: o relógio do host (Prisma e o INSERT cru dos créditos "uma vez" do `CoinLedger` passam `new Date()`), nunca o `now()` do banco.
+
+## Entrega e demonstração
+
+### Servidor configurável no app
+
+O endereço da API no app não é fixo: `src/lib/server-url/` guarda o endereço salvo no aparelho (`expo-secure-store`) e, sem ele, usa o padrão embutido no build (`EXPO_PUBLIC_API_URL`). A pessoa o troca em "Servidor · Alterar" (Boas-vindas, Entrar e tela de falha de conexão), pela `ServerUrlSheet`.
+
+- **Normalização e teste:** `normalizeServerUrl` completa `http://` e `/api/v1` e tira a `/` final; antes de salvar, o app chama `GET <endereço>/health`, que responde sem token (o endereço novo ainda não é de confiança, então a requisição de teste nunca leva o Bearer). Endereço inválido ou sem resposta não muda o endereço atual.
+- **Trocar encerra a sessão:** ao salvar um endereço diferente do atual (ou voltar ao padrão, se ele for diferente), o token é apagado só no aparelho, sem chamar o logout do servidor antigo, e o `AuthContext` é avisado (inclusive para sair da tela de falha de conexão); o token de um servidor nunca vai para outro. Salvar o mesmo endereço mantém a sessão.
+- **Imagens e requisições** passam a usar o endereço novo imediatamente (`setApiBaseUrl`); o `ServerUrlProvider` só renderiza o app depois de ler o armazenamento, para nenhuma requisição sair para o endereço errado.
+
+### APK de release
+
+O APK sai de um build local (`npm run build:apk -w apps/mobile`): o `expo prebuild` gera o projeto Android (**CNG**: a pasta `android/` é gerada e ignorada pelo git) e o Gradle compila o release.
+
+- `usesCleartextTraffic` é ligado pelo `expo-build-properties` em `app.json`: o Android 9 ou mais novo bloqueia HTTP por padrão, e a demonstração fala HTTP com o IP da rede local. A permissão vale para qualquer endereço, porque o Android não restringe por faixa de IP.
+- ABIs **arm64-v8a** (celulares) e **x86_64** (emulador); sem 32 bits.
+- Assinado com a **chave de debug**: serve para instalar e demonstrar, não para a Play Store.
+- O endereço padrão embutido vem de `EXPO_PUBLIC_API_URL` (ambiente ou `apps/mobile/.env`); sem ele o script para com uma mensagem.
+
+### Limite de tentativas
+
+A chave do login é **IP + e-mail normalizado**, para que uma turma inteira atrás do mesmo Wi-Fi não bloqueie uns aos outros; a do cadastro é só o IP, com limite folgado (60). Limitação conhecida: um mesmo IP ainda pode tentar vários e-mails diferentes (cada um com a própria cota), então o limite protege cada conta, não a rede inteira. O armazenamento é em memória (uma instância da API).
+
+### Seed de demonstração
+
+`prisma/seed-demo.ts` (com os dados em `prisma/demo/`) acrescenta professores, turmas, questões, planos, prêmios e alunos com 14 dias de histórico, numa única transação. **Reaproveita** disciplinas e categorias que já existam com o mesmo nome (sem diferenciar maiúsculas) e **recusa** antes de gravar se um código de turma ou e-mail de demonstração já existir; rodar duas vezes avisa e não grava nada. Nunca altera o administrador nem apaga dados. Os testes rodam no `nivela_test`.
+
+### Requisitos de implantação
+
+- **Servidor:** Node 22 e npm 10 para a API; PostgreSQL 17 (no projeto, o `postgres:17-alpine` do `docker-compose.yml`); migrations aplicadas com `prisma migrate deploy`.
+- **Portas:** API em **8000** (escuta em `0.0.0.0`); PostgreSQL em 5433 no host do Docker; painel web em 5173 no desenvolvimento (ou o servidor estático que servir o `build`). O Firewall do Windows precisa permitir a **entrada na porta 8000** para o celular alcançar a API.
+- **Variáveis da API:** `DATABASE_URL`, `PORT`, `TZ` (o dia de estudo usa `America/Fortaleza`), `ADMIN_NAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` (seed), `UPLOADS_DIR`, `CORS_ORIGINS` (opcional) e `THROTTLE_LOGIN_LIMIT`/`THROTTLE_REGISTER_LIMIT`/`THROTTLE_TTL_SECONDS`. Web: `VITE_API_URL`. Mobile: `EXPO_PUBLIC_API_URL` (endereço padrão).
+- **Rede:** celular e computador da API no mesmo Wi-Fi (ou em redes que se alcancem); o IP da máquina pode mudar entre redes, e o app o troca em "Servidor · Alterar".
+- **Segurança:** a demonstração usa HTTP sem criptografia; **em produção, sirva a API por HTTPS** (com proxy reverso, ligue o `trust proxy`, senão o limite de tentativas enxerga um só IP), troque as senhas de demonstração e a do administrador, mantenha `UPLOADS_DIR` em volume persistente e lembre que o limite de tentativas em memória pressupõe uma instância só.
 
 ## Como subir o ambiente
 

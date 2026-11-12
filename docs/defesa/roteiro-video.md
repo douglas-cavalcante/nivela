@@ -61,9 +61,9 @@ Use os dados do seed de demonstração. Fale o que está acontecendo enquanto cl
 | 0:20 | Login | Entrar no painel; mencionar que aluno não entra no painel (e professor não entra no app). | `ana.lima@nivela.test` |
 | 0:40 | Questões | Lista com filtros; abrir **Nova questão** e cadastrar uma questão **com imagem** (enunciado, 5 alternativas, 1 correta, explicação); desativar uma questão. | `ana.lima@nivela.test` |
 | 0:30 | Turmas | Abrir "9º ano A": **código `NIV-9ANO`** (copiar), alunos da turma e desempenho por categoria. Deixe o código visível: ele é usado no cadastro do app. | `ana.lima@nivela.test` |
-| 0:40 | Planos | Abrir o plano de Matemática: **capítulos em ordem**, questões de cada capítulo, publicação, atribuição à turma e progresso dos alunos. O progresso da "1ª série B" nesse plano só aparece para o administrador (RN15). | `ana.lima@nivela.test`; para a 1ª série B, `admin@nivela.test` |
+| 0:40 | Planos | Abrir o plano de Matemática: **capítulos em ordem**, questões de cada capítulo, mostrar a atribuição à turma e o progresso dos alunos (o plano já está publicado). O progresso da "1ª série B" nesse plano só aparece para o administrador (RN15). | `ana.lima@nivela.test`; para a 1ª série B, `admin@nivela.test` |
 | 0:30 | Início | **Indicadores:** alunos ativos, taxa de acerto, resgates pendentes, gráfico de atividade dos últimos 14 dias e a lista "Precisam de ajuda" (aparece o `aluno4`). Explicar que a taxa é por questão terminada. | `ana.lima@nivela.test` |
-| 0:20 | Loja | Aba **Prêmios** (preço e estoque) e aba **Resgates**: fila de pendentes; **entregar** um e **recusar** outro com motivo (o estorno das moedas será visto no app). Os resgates do `aluno5` são da 1ª série B. | `bruno.rocha@nivela.test` (ou `admin@nivela.test`) |
+| 0:20 | Loja | Aba **Prêmios** (preço e estoque) e aba **Resgates**: fila de pendentes; tratar **só o resgate pendente do `aluno6`** (entregar ou recusar com motivo). Não mexa nos resgates do `aluno5`: eles seguem mostrando os três estados (pendente, entregue e recusado, com o estorno das moedas) no app, em 5.2. Os dois alunos são da 1ª série B. | `bruno.rocha@nivela.test` (ou `admin@nivela.test`) |
 
 #### 5.2 App mobile (2:30)
 
