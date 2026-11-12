@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from 'src/generated/prisma/client';
 import {
   resolvePlanState,
@@ -51,6 +51,8 @@ export interface ChapterResult {
  */
 @Injectable()
 export class PlanCompletionService {
+  private readonly logger = new Logger(PlanCompletionService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly coins: CoinLedger,
@@ -190,7 +192,17 @@ export class PlanCompletionService {
           state.pendingPlan ||
           (scope === 'any' && state.pendingChapters.length > 0);
         if (pending) {
-          await this.settle(studentId, planId);
+          // Uma falha num aluno não derruba a leitura dos outros: ele aparece
+          // com o estado gravado e o assentamento é tentado de novo na
+          // próxima leitura.
+          try {
+            await this.settle(studentId, planId);
+          } catch (error) {
+            this.logger.error(
+              `Falha ao assentar a conclusão do aluno ${studentId} no plano ${planId}.`,
+              error instanceof Error ? error.stack : String(error),
+            );
+          }
           settled = true;
         }
       }
