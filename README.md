@@ -146,7 +146,7 @@ pip install --target 'C:\Android\cmake-long' cmake==3.31.6 ninja==1.13.0
 cp 'C:\Android\cmake-long\bin\ninja.exe' 'C:\Android\cmake-long\cmake\data\bin\'
 ```
 
-O CMake de verdade fica em `C:\Android\cmake-long\cmake\data\bin\cmake.exe` (a pasta `C:\Android\cmake-long\bin` só tem um lançador que não funciona sozinho); por isso o `ninja.exe` é copiado para a mesma pasta `bin` do CMake real. Depois, aponte `CMAKE_DIR` para a pasta que contém esse `bin` e gere o APK (troque `<ip>` pelo IP da máquina na rede, ou omita `EXPO_PUBLIC_API_URL` e informe o endereço no app):
+O CMake de verdade fica em `C:\Android\cmake-long\cmake\data\bin\cmake.exe` (a pasta `C:\Android\cmake-long\bin` só tem um lançador que não funciona sozinho); por isso o `ninja.exe` é copiado para a mesma pasta `bin` do CMake real. Depois, aponte `CMAKE_DIR` para a pasta que contém esse `bin` e gere o APK (troque `<ip>` pelo IP da máquina na rede; `EXPO_PUBLIC_API_URL` é obrigatória no build, sem ela o app fecha ao abrir, e o endereço ainda pode ser trocado depois no app):
 
 ```bash
 CMAKE_DIR='C:\Android\cmake-long\cmake\data' EXPO_PUBLIC_API_URL=http://<ip>:8000/api/v1 npm run build:apk -w apps/mobile
