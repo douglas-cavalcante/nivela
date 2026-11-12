@@ -1,5 +1,6 @@
 import {
   loginLimit,
+  THROTTLE_MESSAGE,
   registerLimit,
   throttleTtlMs,
 } from 'src/shared/security/throttle-config';
@@ -16,7 +17,7 @@ describe('throttle-config', () => {
     delete process.env.THROTTLE_REGISTER_LIMIT;
     delete process.env.THROTTLE_TTL_SECONDS;
     expect(loginLimit()).toBe(10);
-    expect(registerLimit()).toBe(30);
+    expect(registerLimit()).toBe(60);
     expect(throttleTtlMs()).toBe(60_000);
   });
 
@@ -34,5 +35,11 @@ describe('throttle-config', () => {
       process.env.THROTTLE_LOGIN_LIMIT = value;
       expect(loginLimit()).toBe(10);
     }
+  });
+
+  it('a mensagem do 429 não cita a duração da janela (ela é configurável)', () => {
+    expect(THROTTLE_MESSAGE).toBe(
+      'Muitas tentativas. Aguarde um pouco e tente de novo.',
+    );
   });
 });

@@ -86,14 +86,28 @@ Decisões do Plano 4 já refletidas na documentação: ordem de travas por fluxo
 - **Mobile (loja e extrato):** ao recarregar, o saldo e o estoque antigos piscam antes dos dados novos; o aviso de resgate não some nem tem botão de dispensar e o `GET /me/stats` é pedido duas vezes ao abrir; o botão de voltar de "Meus resgates" usa `borderRadius` 999 em vez de `radius.pill`; a imagem do prêmio repete o nome para leitores de tela; o erro unificado esconde as moedas já carregadas quando só as estatísticas falham; datas usam o fuso do aparelho (e as fixtures de data `T15:00Z` dependem do fuso do CI); o `expectParams` do teste "Carregar mais" de Meus resgates é tautológico (compara o que o próprio teste montou); o teste do aviso da loja é só estrutural (não cobre rolagem); faltam testes (404, erro não-409 mantém a folha, recarga ao focar, confirmação dupla, falha/novo carregamento do `CoinsCard` e do extrato) e abortar requisições ao desmontar.
 - **Mobile (planos):** o cartão de "Meus planos" (`ApiMyPlanSummary`) ainda mostra 100% para plano sem questões disponíveis; precisa de um campo novo no contrato (por exemplo, `has_questions`). Faltam teste com vários capítulos e o aviso de plano vazio esconde o progresso já gravado.
 
-## Plano 5 — Entrega
+## Plano 5 — Entrega (feito)
 
-- **LICENSE**: perguntar ao autor qual licença open source (sugestão: MIT); hoje `apps/api/package.json` diz `UNLICENSED`.
-- **APK**: `EXPO_PUBLIC_API_URL` é fixado no build; liberar HTTP em texto puro para IP da rede local (`expo-build-properties` → `usesCleartextTraffic`) ou usar HTTPS; publicar o APK num GitHub Release (o e-book exige "arquivos e executável").
-- Rate limiting (`@nestjs/throttler`) em login/cadastro antes de qualquer demo compartilhada.
-- `docs/defesa/roteiro-video.md`: vídeo de 8–12 min com os pontos obrigatórios da orientação (título, justificativa, etapas dos objetivos, ferramentas e métodos, resultados, trabalhos futuros) e quais telas mostrar.
-- Texto pronto para a monografia justificando a troca Laravel → NestJS (monorepo 100% TypeScript, tipos compartilhados, padrão do Estagius).
-- Seed de demonstração (turmas, questões de Matemática e Português, planos, prêmios) para gravar o vídeo.
+Tudo abaixo foi entregue na versão 1.0.0 e está documentado no `README.md` e em `docs/architecture.md` ("Entrega e demonstração"). As sobras estão em "Trabalhos futuros".
+
+- ~~**LICENSE**~~ — feito: licença MIT na raiz.
+- ~~**APK**~~ — feito: build local com `npm run build:apk -w apps/mobile`, HTTP liberado para a rede local (`usesCleartextTraffic`), endereço do servidor trocável no app ("Servidor · Alterar") e `EXPO_PUBLIC_API_URL` só como endereço padrão.
+- ~~Limite de tentativas (`@nestjs/throttler`) em login e cadastro~~ — feito: login por IP + e-mail, cadastro por IP, limites configuráveis (RN16).
+- ~~`docs/defesa/roteiro-video.md`~~ — feito: roteiro do vídeo de 11 minutos com as telas de cada bloco.
+- ~~Texto para a monografia justificando a troca Laravel → NestJS~~ — feito em `docs/defesa/justificativa-stack.md`.
+- ~~Seed de demonstração~~ — feito: `npm run db:seed:demo -w apps/api`, que só acrescenta dados.
+
+## Trabalhos futuros
+
+Sobras do Plano 5, por área.
+
+- **API (autenticação):** o login com senha errada responde 422; um 401 diria melhor o que houve (os clientes tratam o 422 hoje). Valor inválido em `THROTTLE_*` cai em silêncio no padrão; um aviso no log ajudaria. O limite de tentativas fica em memória, então só vale para uma instância da API.
+- **Segurança e implantação:** servir a API por HTTPS em produção (hoje a demonstração usa HTTP na rede local).
+- **Mobile (servidor):** testes extras do normalizador de endereço (casos de borda) e do tempo limite do `GET /health`.
+- **Mobile (APK):** o `build-apk.mjs` tem fallbacks de JDK e SDK só para o Windows; faltam os de outros sistemas. O ícone é testado só por existência do arquivo. O `usesCleartextTraffic` é conferido no `app.json`, não no manifest gerado.
+- **Seed de demonstração:** testes extras do horário das tentativas, do `coinsAwarded` e da falha no meio da transação. Os códigos de turma de demonstração têm letras que o gerador evita (ambíguas, como `I` e `O`).
+- **Mobile (planos):** o detalhe de um plano sem capítulos não mostra aviso.
+- **Prints:** `scripts/prints` fica fora do lint; no print 09 a segunda fileira está cortada.
 
 ## Sobras do Plano 2 (revisões das Tasks 1 a 13)
 

@@ -18,6 +18,7 @@ tcc/
 │   ├── design-tokens/      # @nivela/design-tokens (TS puro)
 │   └── api-contract/       # @nivela/api-contract (tipos de resposta e parseApiError, TS puro)
 ├── docs/                   # arquitetura, estrutura de pastas, workflow, requisitos, UML, prints
+├── scripts/prints/         # geração dos prints de docs/prints (seed-images.mjs, web-prints.mjs)
 ├── docker/                 # initdb/ (scripts do Postgres) e pgdata/ (dados locais, ignorado pelo git)
 ├── docker-compose.yml      # postgres:17-alpine
 ├── package.json            # npm workspaces: apps/*, packages/*
@@ -62,12 +63,14 @@ src/
 │       └── <feature>.module.ts        # `exports` define o que outras features podem usar
 ├── common/                        # filters, pipes, guards (AuthGuard, RolesGuard), decorators (@Public, @Roles, @AnyAuthenticated, @CurrentUser), validators (sem regra de negócio)
 ├── shared/                        # enums, exceções, contrato de autenticação (auth/auth-user.ts), relógio injetável (clock/: `CLOCK` + `ClockModule`), moedas (coins/: `CoinLedger` e `coin-rules.ts`), dia de estudo e sequência (study/: `studyDay`, `StreakService`, `StudyModule`), escopos de leitura (scopes/), arquivos enviados (files/: `ImageStorageService` e validação por assinatura dos bytes, usados pelas imagens de questões e de prêmios), paginação (pagination/), helpers do Prisma (prisma/, ex.: `isUniqueViolation`) e regras usadas por mais de uma feature
+├── shared/security/               # limite de tentativas: `LoginThrottlerGuard`, `throttle-config.ts` (limites e mensagem do 429) e `password.ts` (custo do bcrypt)
 ├── prisma/                        # PrismaModule (global) e PrismaService (adapter-pg)
 ├── generated/prisma/              # client do Prisma (gerado, ignorado pelo git)
 ├── app.factory.ts                 # configureApp(): prefixo, validação, filtro, CORS, Swagger
 ├── app.module.ts
 └── main.ts
 prisma/schema.prisma, prisma/migrations/, prisma/seed.ts   # seed: administrador inicial a partir de ADMIN_*
+prisma/seed-demo.ts, prisma/demo/                          # seed de demonstração (só acrescenta) e seus dados (questões, planos, prêmios, alunos)
 test/*.e2e-spec.ts                 # e2e com supertest contra o banco nivela_test
 test/helpers/                      # createTestApp(), resetDatabase(), factories (createUser/createClassroom) e rotas só de teste
 scripts/test-db-migrate.js           # aplica as migrations no banco nivela_test antes do e2e
@@ -149,11 +152,15 @@ app/                       # Rotas (Expo Router) — só montam a tela, sem lóg
 └── practice/[subjectId].tsx              # prática livre de uma disciplina
 src/
 ├── features/<feature>/    # mesmas regras de import da web; anatomia abaixo
-├── components/            # arquivos soltos, um por componente (AppText.tsx, Button.tsx…): AppText, Button, EmptyState, HandTitle, Mascot, OfflineScreen, PaperBackground (fundo pautado), PenCard (borda + sombra sólida), TabIcon, TextField
-├── lib/                   # axios (Bearer e 401), auth (AuthContext, tokenStorage via expo-secure-store), theme (ThemeProvider/useTheme a partir dos design tokens)
+├── components/            # arquivos soltos, um por componente (AppText.tsx, Button.tsx…): AppText, Button, EmptyState, HandTitle, Mascot, OfflineScreen, PaperBackground (fundo pautado), PenCard (borda + sombra sólida), ServerUrlSheet (folha de troca do endereço da API), TabIcon, TextField
+├── lib/                   # axios (Bearer e 401), auth (AuthContext, tokenStorage via expo-secure-store), server-url (endereço da API salvo no aparelho: ServerUrlProvider, useServerUrl, normalização), theme (ThemeProvider/useTheme a partir dos design tokens)
 ├── types/ hooks/ utils/ constants/ assets/
 └── test/                  # setup do Jest (SecureStore em memória), renderApp (renderRouter) e usuários de exemplo
+assets/                    # ícone, ícone adaptativo e splash (gerados por scripts/generate-icons.mjs)
+scripts/                   # build-apk.mjs (APK de release) e generate-icons.mjs
 ```
+
+A `ServerUrlLine` (linha "Servidor: … · Alterar") fica em `features/auth/components/`, pois só as telas de entrada a usam; a `ServerUrlSheet`, que a tela de falha de conexão (`OfflineScreen`) também abre, fica em `src/components/`, já que componentes compartilhados não importam de features.
 
 ### Anatomia de uma feature (mobile)
 

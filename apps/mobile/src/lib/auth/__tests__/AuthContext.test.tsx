@@ -84,4 +84,39 @@ describe('AuthProvider', () => {
     expect(screen.getByText('deslogado')).toBeTruthy();
     expect(await getToken()).toBeNull();
   });
+
+  it('signOut lento: o fim do logout não apaga o token de uma sessão iniciada nesse meio-tempo', async () => {
+    let releaseLogout: () => void = () => undefined;
+    const logoutGate = new Promise<void>((resolve) => (releaseLogout = resolve));
+    api.defaults.adapter = async (config: InternalAxiosRequestConfig) => {
+      if (config.url === '/auth/me') {
+        return { data: { user: student }, status: 200, statusText: 'OK', headers: {}, config };
+      }
+      if (config.url === '/auth/logout') {
+        await logoutGate;
+        return { data: null, status: 204, statusText: 'No Content', headers: {}, config };
+      }
+      throw new Error(`Requisição inesperada: ${config.url}`);
+    };
+    await setToken('velho');
+    await render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    expect(await screen.findByText('logado:Ana Souza')).toBeTruthy();
+
+    let signingOut: Promise<void> = Promise.resolve();
+    await act(async () => {
+      signingOut = auth.signOut();
+    });
+    await act(() => auth.signIn('novo', other));
+    expect(await screen.findByText('logado:Bia Lima')).toBeTruthy();
+
+    releaseLogout();
+    await act(() => signingOut);
+
+    expect(screen.getByText('logado:Bia Lima')).toBeTruthy();
+    expect(await getToken()).toBe('novo');
+  });
 });

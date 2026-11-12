@@ -86,7 +86,7 @@ O aluno não acessa o painel web, e professor e administrador não acessam o app
 | RN13 | Código de turma no formato `NIV-XXXX` (letras e números sem caracteres ambíguos), único; o professor pode regenerá-lo; turmas inativas não aceitam novos alunos. |
 | RN14 | E-mail único no sistema. Usuário inativo não faz login. Senha com no mínimo 8 caracteres. |
 | RN15 | O professor só vê e gerencia as próprias turmas, os alunos delas e os próprios planos; o administrador vê tudo. Recurso fora do escopo responde 404, para não confirmar que ele existe. |
-| RN16 | Limite de tentativas: o login é limitado por IP e e-mail e o cadastro de aluno por IP, com limites configuráveis (`THROTTLE_LOGIN_LIMIT`, `THROTTLE_REGISTER_LIMIT` e `THROTTLE_TTL_SECONDS`; padrões de 10 e 30 tentativas por janela de 60 segundos). Ao estourar, a API responde 429 "Muitas tentativas. Aguarde um minuto e tente de novo." O limite do cadastro é folgado para que uma turma inteira possa se cadastrar pela mesma rede. |
+| RN16 | Limite de tentativas: o login é limitado por IP e e-mail e o cadastro de aluno por IP, com limites configuráveis (`THROTTLE_LOGIN_LIMIT`, `THROTTLE_REGISTER_LIMIT` e `THROTTLE_TTL_SECONDS`; padrões de 10 e 60 tentativas por janela de 60 segundos). Ao estourar, a API responde 429 "Muitas tentativas. Aguarde um pouco e tente de novo." O limite do cadastro é folgado (60 por janela) para que uma turma inteira, de 35 a 45 alunos contando os erros de digitação, possa se cadastrar pela mesma rede. |
 
 As regras RN01 a RN15 vêm da especificação; a RN16 foi acrescentada na implementação.
 

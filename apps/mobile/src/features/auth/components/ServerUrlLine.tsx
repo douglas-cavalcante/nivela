@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable } from 'react-native';
 import { AppText } from 'src/components/AppText';
-import { ServerUrlSheet } from 'src/features/auth/components/ServerUrlSheet';
+import { ServerUrlSheet } from 'src/components/ServerUrlSheet';
 import { formatServerUrl, useServerUrl } from 'src/lib/server-url';
 import { useTheme } from 'src/lib/theme/useTheme';
 

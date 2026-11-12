@@ -1,4 +1,4 @@
-import { Text } from 'react-native';
+import { Platform, Text } from 'react-native';
 import type { TextProps } from 'react-native';
 import { useTheme } from 'src/lib/theme/useTheme';
 
@@ -20,9 +20,9 @@ export function AppText({ variant = 'body', size, style, ...props }: AppTextProp
   }[variant];
   // A manuscrita tem traços que passam da caixa medida e o Android corta a última letra (padding não resolve:
   // o corte é na área de conteúdo). Um espaço fino ao final entra na medida e dá folga ao traço.
-  // Só vale para `children` que seja uma única string; qualquer outro tipo é repassado sem mudança.
+  // Só vale no Android e para `children` que seja uma única string; qualquer outro tipo é repassado sem mudança.
   const children =
-    variant === 'heading' && typeof props.children === 'string'
+    Platform.OS === 'android' && variant === 'heading' && typeof props.children === 'string'
       ? `${props.children}${OVERHANG_SPACE}`
       : props.children;
   return (

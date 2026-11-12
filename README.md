@@ -17,7 +17,11 @@ Integração contínua: [workflow de CI](.github/workflows/ci.yml) (lint, tipos,
 | `packages/api-contract` | Tipos de resposta da API e `parseApiError`, compartilhados |
 | `docs/` | Documentação e especificação |
 
-> Em construção: as funcionalidades chegam ao longo do [plano de implementação](docs/superpowers/plans/). Hoje já funcionam o login (web e mobile), o cadastro do aluno com código de turma, o perfil com troca de senha e, no painel web, os cadastros de professores, disciplinas, categorias, questões (com imagem), turmas e alunos; no app, o aluno vê as turmas, entra em outra pelo código, pratica por disciplina, segue planos de nivelamento por capítulos e ganha moedas e sequência de estudo. Planos (criação, atribuição e progresso) já existem no painel; a loja de prêmios e os relatórios já funcionam: o aluno resgata prêmios com as moedas e acompanha o extrato, e o professor cadastra prêmios (com foto), trata a fila de resgates (entregar ou recusar com estorno) e vê no Início os indicadores de acerto, a atividade por dia e os alunos que precisam de ajuda, além do desempenho por categoria nas fichas da turma e do aluno.
+**O que o sistema faz na versão 1.0.0**
+
+- **Painel web (professor e administrador):** login, cadastro de professores, disciplinas, categorias, questões (com imagem), turmas (com código de entrada) e alunos; planos de nivelamento por capítulos, com atribuição às turmas e acompanhamento do progresso; loja de prêmios (com foto) e fila de resgates (entregar ou recusar com estorno das moedas); no Início, indicadores de acerto, atividade por dia e alunos que precisam de ajuda, além do desempenho por categoria nas fichas da turma e do aluno.
+- **App mobile (aluno):** cadastro com código de turma, entrada em outras turmas pelo código, prática por disciplina com feedback e segunda tentativa, planos por capítulos, moedas, extrato, sequência de estudo, loja de prêmios com resgate e acompanhamento dos resgates, perfil com troca de senha e endereço do servidor configurável.
+- **API:** NestJS com autenticação por token, permissões por perfil (deny-by-default), limite de tentativas no login e no cadastro, e seed de demonstração com dados prontos para gravar o vídeo.
 
 ## Pré-requisitos
 
@@ -67,6 +71,9 @@ Troque a senha em **Perfil** no primeiro acesso.
 | `ADMIN_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` | administrador criado pelo seed |
 | `UPLOADS_DIR` | pasta das imagens enviadas (padrão `uploads`, relativa a `apps/api`), servida em `/uploads`; a API devolve o caminho relativo (`/uploads/questions/...`) e cada app o resolve com o próprio endereço da API |
 | `CORS_ORIGINS` | origens liberadas no CORS, separadas por vírgula (opcional) |
+| `THROTTLE_LOGIN_LIMIT` | tentativas de login por janela, para cada par IP + e-mail (padrão 10) |
+| `THROTTLE_REGISTER_LIMIT` | cadastros de aluno por janela, para cada IP (padrão 60, folgado para uma turma inteira na mesma rede) |
+| `THROTTLE_TTL_SECONDS` | duração da janela do limite, em segundos (padrão 60) |
 
 > **Outra porta no web:** o CORS padrão só libera o Vite em `http://localhost:5173` (e o Expo web em 8081/19006). Se subir o painel em outra porta (por exemplo `npm run dev:web -- --port 5174`), defina `CORS_ORIGINS=http://localhost:5174` no `apps/api/.env` e reinicie a API; o mesmo vale para acessar o painel pelo IP da máquina. Se mudar a porta da API, ajuste também `VITE_API_URL` e `EXPO_PUBLIC_API_URL`.
 
@@ -119,6 +126,12 @@ A senha de todas as contas de demonstração é `nivela123`.
 | Alunos | `aluno2@nivela.test` a `aluno4@nivela.test` | 9º ano A (o `aluno4` aparece em "Precisam de ajuda") |
 | Alunos | `aluno5@nivela.test` a `aluno8@nivela.test` | 1ª série B (o `aluno5` tem os três estados de resgate) |
 
+## Segurança da demonstração
+
+- O tráfego entre o app e a API é **HTTP sem criptografia**. Use-o só em rede confiável, durante a demonstração: o APK libera HTTP para qualquer endereço (o Android não permite restringir por faixa de IP). Em produção, sirva a API por **HTTPS**.
+- As contas de demonstração e a senha `nivela123` servem só para demonstração; não as use em um ambiente real.
+- O seed de demonstração só acrescenta dados e não tem remoção. Para gravar o vídeo, prefira um banco separado do que você usa no dia a dia.
+
 ## Telas
 
 Capturas do painel web e do app mobile, com os dados de demonstração, em [docs/prints/](docs/prints/) (a lista de telas e o passo a passo para regenerar estão em [docs/prints/README.md](docs/prints/README.md)).
@@ -136,8 +149,8 @@ O arquivo sai em `dist/nivela-1.0.0.apk` (a versão vem do `app.json`; a pasta `
 **Requisitos**
 
 - **JDK 17.** O script usa o `JAVA_HOME` se ele apontar para um JDK 17; senão, usa o `jbr` do Android Studio (`C:/Program Files/Android/Android Studio/jbr`). Sem nenhum dos dois, ele para com uma mensagem.
-- **Android SDK com a plataforma 35** instalada (pelo SDK Manager do Android Studio). O script procura em `ANDROID_HOME`, `ANDROID_SDK_ROOT` e `C:/Android/Sdk`.
-- Opcional: `EXPO_PUBLIC_API_URL` no ambiente define o endereço padrão da API embutido no APK; o endereço também pode ser trocado no app (veja abaixo).
+- **Android SDK com a plataforma 35** instalada (pelo SDK Manager do Android Studio). O script procura em `ANDROID_HOME`, `ANDROID_SDK_ROOT`, `%LOCALAPPDATA%\Android\Sdk` (local padrão do Android Studio) e `C:/Android/Sdk`.
+- **`EXPO_PUBLIC_API_URL`**, vinda do ambiente ou de `apps/mobile/.env`, é o endereço **padrão** da API embutido no APK (o app o troca depois em "Servidor · Alterar", veja abaixo). Sem nenhum dos dois, o script para com uma mensagem; ele imprime o endereço que vai embutir.
 
 **Windows: caminhos longos.** O Windows limita caminhos a 260 caracteres, e o build do React Native em monorepo gera caminhos maiores que isso. O `ninja` 1.10 que vem com o CMake do Android SDK não consegue contornar o limite, então o build falha. A solução é usar um CMake 3.31 ou mais novo com um ninja 1.12 ou mais novo, instalados em uma **pasta curta fora do repositório** (aqui, `C:\Android\cmake-long`):
 
@@ -146,7 +159,7 @@ pip install --target 'C:\Android\cmake-long' cmake==3.31.6 ninja==1.13.0
 cp 'C:\Android\cmake-long\bin\ninja.exe' 'C:\Android\cmake-long\cmake\data\bin\'
 ```
 
-O CMake de verdade fica em `C:\Android\cmake-long\cmake\data\bin\cmake.exe` (a pasta `C:\Android\cmake-long\bin` só tem um lançador que não funciona sozinho); por isso o `ninja.exe` é copiado para a mesma pasta `bin` do CMake real. Depois, aponte `CMAKE_DIR` para a pasta que contém esse `bin` e gere o APK (troque `<ip>` pelo IP da máquina na rede; `EXPO_PUBLIC_API_URL` é obrigatória no build, sem ela o app fecha ao abrir, e o endereço ainda pode ser trocado depois no app):
+O CMake de verdade fica em `C:\Android\cmake-long\cmake\data\bin\cmake.exe` (a pasta `C:\Android\cmake-long\bin` só tem um lançador que não funciona sozinho); por isso o `ninja.exe` é copiado para a mesma pasta `bin` do CMake real. Depois, aponte `CMAKE_DIR` para a pasta que contém esse `bin` e gere o APK (troque `<ip>` pelo IP da máquina na rede; se `apps/mobile/.env` já tiver `EXPO_PUBLIC_API_URL`, pode omiti-la):
 
 ```bash
 CMAKE_DIR='C:\Android\cmake-long\cmake\data' EXPO_PUBLIC_API_URL=http://<ip>:8000/api/v1 npm run build:apk -w apps/mobile

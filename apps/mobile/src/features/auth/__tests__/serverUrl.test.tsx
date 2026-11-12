@@ -1,4 +1,4 @@
-import { screen, userEvent } from '@testing-library/react-native';
+import { act, fireEvent, screen, userEvent } from '@testing-library/react-native';
 import * as SecureStore from 'expo-secure-store';
 import { networkError, renderApp } from 'src/test/render';
 
@@ -82,5 +82,49 @@ describe('endereço do servidor nas telas de entrada', () => {
     await screen.findByText('Credenciais inválidas.');
 
     expect(base).toBe('http://192.168.0.10:8000/api/v1');
+  });
+
+  it('Enter repetido durante o teste da conexão faz uma requisição só', async () => {
+    const user = userEvent.setup();
+    let health = 0;
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    await renderApp({
+      initialUrl: '/login',
+      routes: {
+        'GET /health': async () => {
+          health += 1;
+          await gate;
+          return { status: 200 };
+        },
+      },
+    });
+
+    await user.press(await screen.findByRole('button', { name: 'Alterar o endereço do servidor' }));
+    const field = screen.getByLabelText('Endereço do servidor');
+    await user.type(field, '192.168.0.99:8000');
+    await act(async () => {
+      fireEvent(field, 'submitEditing');
+      fireEvent(field, 'submitEditing');
+    });
+    await act(async () => release());
+    expect(await screen.findByText('Servidor atualizado.')).toBeTruthy();
+
+    expect(health).toBe(1);
+  });
+
+  it('reabrir a folha não mostra a mensagem anterior', async () => {
+    const user = userEvent.setup();
+    await renderApp({ initialUrl: '/login', routes: { 'GET /health': () => ({ status: 200 }) } });
+
+    await user.press(await screen.findByRole('button', { name: 'Alterar o endereço do servidor' }));
+    await user.type(screen.getByLabelText('Endereço do servidor'), 'ftp://x');
+    await user.press(screen.getByRole('button', { name: 'Testar e salvar' }));
+    expect(await screen.findByText('Digite um endereço como 192.168.0.10:8000.')).toBeTruthy();
+
+    await user.press(screen.getByRole('button', { name: 'Fechar' }));
+    await user.press(screen.getByRole('button', { name: 'Alterar o endereço do servidor' }));
+
+    expect(screen.queryByText('Digite um endereço como 192.168.0.10:8000.')).toBeNull();
   });
 });

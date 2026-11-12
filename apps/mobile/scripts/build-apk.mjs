@@ -10,6 +10,8 @@ const isWindows = process.platform === 'win32';
 
 const JDK_PADRAO = 'C:/Program Files/Android/Android Studio/jbr';
 const SDK_PADRAO = 'C:/Android/Sdk';
+// Local padrão do Android Studio no Windows.
+const SDK_ANDROID_STUDIO = process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Android', 'Sdk') : undefined;
 
 function falhar(mensagem) {
   console.error(`Erro: ${mensagem}`);
@@ -40,10 +42,27 @@ function escolherJdk() {
 }
 
 function escolherSdk() {
-  const sdk = [process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT, SDK_PADRAO].find(
+  const candidatos = [process.env.ANDROID_HOME, process.env.ANDROID_SDK_ROOT, SDK_ANDROID_STUDIO, SDK_PADRAO];
+  const sdk = candidatos.find(
     (caminho) => caminho && existsSync(join(caminho, 'platforms')),
   );
   return sdk ?? falhar(`Android SDK não encontrado. Instale-o em ${SDK_PADRAO} ou defina ANDROID_HOME.`);
+}
+
+/** Endereço padrão da API: o do ambiente ou, sem ele, o de `apps/mobile/.env`. */
+function lerEnderecoDaApi() {
+  const doAmbiente = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (doAmbiente) return doAmbiente;
+  const arquivo = join(mobile, '.env');
+  if (existsSync(arquivo)) {
+    const linha = readFileSync(arquivo, 'utf8').match(/^\s*EXPO_PUBLIC_API_URL\s*=\s*(.*?)\s*$/m);
+    const valor = linha?.[1].replace(/^(["'])(.*)\1$/, '$2').trim();
+    if (valor) return valor;
+  }
+  return falhar(
+    'Defina EXPO_PUBLIC_API_URL (ex.: http://192.168.0.10:8000/api/v1) no ambiente ou crie apps/mobile/.env ' +
+      'a partir de .env.example. Esse é o endereço padrão embutido no APK (trocável no app, em "Servidor · Alterar").',
+  );
 }
 
 function executar(comando, args, opcoes) {
@@ -54,7 +73,8 @@ function executar(comando, args, opcoes) {
 const { version } = JSON.parse(readFileSync(join(mobile, 'app.json'), 'utf8')).expo;
 const javaHome = escolherJdk();
 const androidHome = escolherSdk();
-const env = { ...process.env, JAVA_HOME: javaHome, ANDROID_HOME: androidHome };
+const apiUrl = lerEnderecoDaApi();
+const env = { ...process.env, JAVA_HOME: javaHome, ANDROID_HOME: androidHome, EXPO_PUBLIC_API_URL: apiUrl };
 
 if (isWindows) {
   // O JDK 17 falha com "Unable to establish loopback connection" no Gradle quando a pasta temporária
@@ -66,9 +86,7 @@ if (isWindows) {
 
 console.log(`Usando JDK 17 em ${javaHome}.`);
 console.log(`Usando Android SDK em ${androidHome}.`);
-if (process.env.EXPO_PUBLIC_API_URL) {
-  console.log(`Endereço padrão da API no app: ${process.env.EXPO_PUBLIC_API_URL}`);
-}
+console.log(`Endereço padrão da API no app: ${apiUrl}`);
 
 // No Windows, o ninja que vem com o CMake do Android SDK (1.10) não aceita caminhos com mais de 260
 // caracteres, e o build do React Native gera caminhos assim em monorepos. Se CMAKE_DIR apontar para um
