@@ -46,6 +46,28 @@ describe('tela do plano', () => {
     expect(await screen.findByText('✓ Concluído.')).toBeTruthy();
   });
 
+  it('plano sem questões disponíveis mostra o aviso no lugar da barra e dos capítulos', async () => {
+    await open({
+      'GET /me/plans/7': () => ({
+        status: 200,
+        data: {
+          ...plan,
+          completed: true,
+          progress: { completed_chapters: 2, total_chapters: 2, percent: 100 },
+          chapters: [
+            { id: 21, title: 'Vazio um', position: 1, state: 'completed', answered: 0, total: 0 },
+            { id: 22, title: 'Vazio dois', position: 2, state: 'completed', answered: 0, total: 0 },
+          ],
+        },
+      }),
+    });
+
+    expect(await screen.findByText('Este plano está sem questões disponíveis no momento.')).toBeTruthy();
+    expect(screen.queryByText('0 de 0 questões.')).toBeNull();
+    expect(screen.queryByText('2 de 2 capítulos.')).toBeNull();
+    expect(screen.queryByText('✓ Concluído.')).toBeNull();
+  });
+
   it('o título do plano é um cabeçalho', async () => {
     await open();
 
