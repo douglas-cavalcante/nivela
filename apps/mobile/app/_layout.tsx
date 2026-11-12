@@ -42,6 +42,7 @@ function RootNavigator() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="practice/[subjectId]" />
           <Stack.Screen name="store/redemptions" />
+          <Stack.Screen name="coins" />
           <Stack.Screen name="plans/[id]" />
           <Stack.Screen name="plans/[id]/chapters/[chapterId]" />
         </Stack.Protected>
