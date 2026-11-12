@@ -45,7 +45,10 @@ export class CoinsService {
     const [rows, total] = await Promise.all([
       this.prisma.coinTransaction.findMany({
         where,
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        // Só o id: todo movimento de um aluno é gravado com o perfil dele
+        // travado até o commit, então o id segue a ordem real por aluno
+        // (o horário vem de relógios diferentes e pode divergir).
+        orderBy: { id: 'desc' },
         ...toPrismaPage(query),
       }),
       this.prisma.coinTransaction.count({ where }),

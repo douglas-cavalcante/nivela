@@ -121,6 +121,23 @@ describe('Extrato de moedas (e2e)', () => {
     });
   });
 
+  it('ordena só pelo id: movimento mais novo (id maior) vem primeiro mesmo com horário menor', async () => {
+    const { pupil } = await studentWithStatement();
+    const late = await prisma.coinTransaction.create({
+      data: {
+        studentId: pupil.user.id,
+        reason: 'plan_completed',
+        amount: 1,
+        sourceType: 'plan',
+        sourceId: 999,
+        createdAt: new Date(Date.UTC(2026, 10, 1, 8, 0)),
+      },
+    });
+    const { body } = await get('/me/coins', pupil.token).expect(200);
+    expect(body.data[0].id).toBe(late.id);
+    expect(body.data[0].created_at).toBe('2026-11-01T08:00:00.000Z');
+  });
+
   it('pagina o extrato', async () => {
     const { pupil } = await studentWithStatement();
     const second = await get('/me/coins?page=2&per_page=2', pupil.token).expect(
