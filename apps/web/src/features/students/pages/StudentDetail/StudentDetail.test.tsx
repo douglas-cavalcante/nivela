@@ -53,7 +53,41 @@ function renderPage(route = '/alunos/21') {
   );
 }
 
+const performance = [
+  {
+    category: { id: 4, name: 'Frações' },
+    subject: { id: 1, name: 'Matemática', color: 'teal' },
+    finished: 4,
+    correct: 3,
+    accuracy: 75,
+  },
+];
+
 describe('StudentDetail', () => {
+  beforeEach(() => {
+    server.use(
+      http.get(`${API_URL}/students/21/performance`, () => HttpResponse.json({ data: performance })),
+      http.get(`${API_URL}/students/21/coins`, () =>
+        HttpResponse.json({
+          data: [
+            { id: 3, amount: 5, reason: 'correct_answer', description: 'Acerto em Frações.', created_at: '2026-11-10T15:00:00.000Z' },
+          ],
+          meta: { page: 1, per_page: 10, total: 1, last_page: 1 },
+        }),
+      ),
+    );
+  });
+
+  it('mostra o extrato de moedas do aluno', async () => {
+    server.use(http.get(`${API_URL}/students/21`, () => HttpResponse.json(lucas)));
+    plansHandler();
+    renderPage();
+
+    const section = await screen.findByRole('region', { name: 'Extrato de moedas' });
+    expect(await within(section).findByText('Acerto em Frações.')).toBeInTheDocument();
+    expect(within(section).getByText('+5')).toBeInTheDocument();
+  });
+
   it('mostra dados, turmas como links, moedas e sequência', async () => {
     server.use(http.get(`${API_URL}/students/21`, () => HttpResponse.json(lucas)));
     plansHandler();
@@ -72,14 +106,23 @@ describe('StudentDetail', () => {
     expect(within(best).getByText('9 dias')).toBeInTheDocument();
   });
 
-  it('mostra espaços reservados sem dados inventados', async () => {
+  it('mostra o desempenho do aluno por categoria', async () => {
+    server.use(http.get(`${API_URL}/students/21`, () => HttpResponse.json(lucas)));
+    plansHandler();
+    renderPage();
+
+    const section = await screen.findByRole('region', { name: 'Desempenho' });
+    expect(await within(section).findByText('Frações')).toBeInTheDocument();
+    expect(within(section).getByText('75% (3 de 4).')).toBeInTheDocument();
+  });
+
+  it('aluno sem turmas mostra o aviso e sequência no singular', async () => {
     server.use(http.get(`${API_URL}/students/21`, () => HttpResponse.json({ ...lucas, classrooms: [], current_streak: 1 })));
     plansHandler();
     renderPage();
 
-    expect(await screen.findByText('Desempenho do aluno — disponível em breve.')).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Desempenho' })).toBeInTheDocument();
     expect(screen.queryByText('Planos de estudo — disponível em breve.')).toBeNull();
-    expect(screen.getByText('Extrato de moedas — disponível em breve.')).toBeInTheDocument();
     expect(screen.getByText('Este aluno ainda não está em nenhuma turma.')).toBeInTheDocument();
     expect(screen.getByText('1 dia')).toBeInTheDocument();
   });
@@ -110,7 +153,7 @@ describe('StudentDetail', () => {
 
     expect(await screen.findByRole('heading', { name: 'Não deu para carregar.' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
-    expect(await screen.findByText('Desempenho do aluno — disponível em breve.')).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Desempenho' })).toBeInTheDocument();
   });
 
   it('id inválido na URL nem chama a API', async () => {

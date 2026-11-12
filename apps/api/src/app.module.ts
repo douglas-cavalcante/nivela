@@ -7,6 +7,7 @@ import { AnswersModule } from 'src/modules/answers/answers.module';
 import { AuthModule } from 'src/modules/auth/auth.module';
 import { CategoriesModule } from 'src/modules/categories/categories.module';
 import { ClassroomsModule } from 'src/modules/classrooms/classrooms.module';
+import { DashboardModule } from 'src/modules/dashboard/dashboard.module';
 import { HealthModule } from 'src/modules/health/health.module';
 import { LevelingPlansModule } from 'src/modules/leveling-plans/leveling-plans.module';
 import { RewardsModule } from 'src/modules/rewards/rewards.module';
@@ -32,6 +33,7 @@ import { ClockModule } from 'src/shared/clock/clock.module';
     AnswersModule,
     LevelingPlansModule,
     RewardsModule,
+    DashboardModule,
     HealthModule,
   ],
   providers: [

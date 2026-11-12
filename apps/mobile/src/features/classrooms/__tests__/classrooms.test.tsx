@@ -18,11 +18,17 @@ const setimo: ApiMyClassroom = {
   joined_at: '2026-03-02T10:00:00.000Z',
 };
 
+// O perfil também carrega o cartão de moedas.
+const coinRoutes = {
+  'GET /me/stats': () => ({ status: 200, data: { coins_balance: 0, current_streak: 0, best_streak: 0 } }),
+  'GET /me/coins': () => ({ status: 200, data: { data: [], meta: { page: 1, per_page: 3, total: 0, last_page: 1 } } }),
+};
+
 const list = (data: ApiMyClassroom[]) => () => ({ status: 200, data: { data } });
 
 describe('turmas do aluno no perfil', () => {
   it('lista as turmas com ano e professor', async () => {
-    await renderApp({ user: student, initialUrl: '/profile', routes: { 'GET /me/classrooms': list([sexto]) } });
+    await renderApp({ user: student, initialUrl: '/profile', routes: { ...coinRoutes, 'GET /me/classrooms': list([sexto]) } });
 
     expect(await screen.findByText('Minhas turmas')).toBeTruthy();
     expect(await screen.findByText('6º A')).toBeTruthy();
@@ -38,7 +44,7 @@ describe('turmas do aluno no perfil', () => {
     await renderApp({
       user: student,
       initialUrl: '/profile',
-      routes: {
+      routes: { ...coinRoutes,
         'GET /me/classrooms': async () => {
           await gate;
           return { status: 200, data: { data: [sexto] } };
@@ -53,7 +59,7 @@ describe('turmas do aluno no perfil', () => {
   });
 
   it('sem turmas mostra o estado vazio', async () => {
-    await renderApp({ user: student, initialUrl: '/profile', routes: { 'GET /me/classrooms': list([]) } });
+    await renderApp({ user: student, initialUrl: '/profile', routes: { ...coinRoutes, 'GET /me/classrooms': list([]) } });
 
     expect(await screen.findByText('Você ainda não está em nenhuma turma.')).toBeTruthy();
   });
@@ -63,7 +69,7 @@ describe('turmas do aluno no perfil', () => {
     await renderApp({
       user: student,
       initialUrl: '/profile',
-      routes: { 'GET /me/classrooms': (body, config) => (calls++ === 0 ? networkError(body, config) : list([sexto])()) },
+      routes: { ...coinRoutes, 'GET /me/classrooms': (body, config) => (calls++ === 0 ? networkError(body, config) : list([sexto])()) },
     });
     const user = userEvent.setup();
 
@@ -82,7 +88,7 @@ describe('turmas do aluno no perfil', () => {
     await renderApp({
       user: student,
       initialUrl: '/profile',
-      routes: { 'GET /me/classrooms': list([sexto]), 'POST /me/classrooms': join },
+      routes: { ...coinRoutes, 'GET /me/classrooms': list([sexto]), 'POST /me/classrooms': join },
     });
 
     await user.press(await screen.findByRole('button', { name: 'Entrar em outra turma' }));
@@ -102,7 +108,7 @@ describe('turmas do aluno no perfil', () => {
     await renderApp({
       user: student,
       initialUrl: '/profile',
-      routes: {
+      routes: { ...coinRoutes,
         'GET /me/classrooms': list([sexto]),
         'POST /me/classrooms': () => ({
           status: 422,
@@ -125,7 +131,7 @@ describe('turmas do aluno no perfil', () => {
     await renderApp({
       user: student,
       initialUrl: '/profile',
-      routes: { 'GET /me/classrooms': list([]), 'POST /me/classrooms': join },
+      routes: { ...coinRoutes, 'GET /me/classrooms': list([]), 'POST /me/classrooms': join },
     });
 
     await user.press(await screen.findByRole('button', { name: 'Entrar em outra turma' }));

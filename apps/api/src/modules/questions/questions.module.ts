@@ -8,6 +8,6 @@ import { QuestionsService } from 'src/modules/questions/questions.service';
   imports: [FilesModule],
   controllers: [QuestionsController],
   providers: [QuestionsService, QuestionImageService],
-  exports: [QuestionImageService],
+  exports: [QuestionImageService, QuestionsService],
 })
 export class QuestionsModule {}

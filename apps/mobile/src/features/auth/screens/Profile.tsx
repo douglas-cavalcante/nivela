@@ -6,6 +6,7 @@ import { Button } from 'src/components/Button';
 import { PaperBackground } from 'src/components/PaperBackground';
 import { PenCard } from 'src/components/PenCard';
 import { MyClassroomsCard } from 'src/features/classrooms';
+import { CoinsCard } from 'src/features/coins';
 import { useAuth } from 'src/lib/auth/AuthContext';
 import { useTheme } from 'src/lib/theme/useTheme';
 import type { Role } from '@nivela/api-contract';
@@ -57,6 +58,7 @@ export function Profile() {
             </AppText>
           </View>
         </PenCard>
+        {user.role === 'student' ? <CoinsCard /> : null}
         {user.role === 'student' ? <MyClassroomsCard /> : null}
         <Button title={leaving ? 'Saindo…' : 'Sair'} variant="outline" loading={leaving} onPress={leave} />
       </ScrollView>

@@ -2,6 +2,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { AppRoutes } from 'src/app/routes';
+import { dashboardHandlers } from 'src/test/dashboard';
 import { getToken, setToken } from 'src/lib/auth/tokenStorage';
 import { renderWithProviders } from 'src/test/render';
 import { API_URL, server } from 'src/test/server';
@@ -15,6 +16,8 @@ async function login() {
 }
 
 describe('AppRoutes', () => {
+  beforeEach(() => dashboardHandlers());
+
   it('rota protegida sem login redireciona para /login', async () => {
     renderWithProviders(<AppRoutes />, { route: '/', realAuth: true });
     expect(await screen.findByRole('button', { name: 'Entrar' })).toBeInTheDocument();
@@ -26,7 +29,8 @@ describe('AppRoutes', () => {
 
     await login();
 
-    expect(await screen.findByRole('heading', { name: 'Início' })).toBeInTheDocument();
+    // a primeira carga do Início baixa o Recharts (lazy), que no Vitest sob carga passa de 1 s
+    expect(await screen.findByRole('heading', { name: 'Início' }, { timeout: 10_000 })).toBeInTheDocument();
   });
 
   it('volta para a página que a pessoa tentou abrir', async () => {
@@ -54,7 +58,7 @@ describe('AppRoutes', () => {
 
   it('professor logado não vê /professores: volta para o Início', async () => {
     renderWithProviders(<AppRoutes />, { user: teacher, route: '/professores' });
-    expect(await screen.findByRole('heading', { name: 'Início' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Início' }, { timeout: 10_000 })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Professores' })).toBeNull();
   });
 
