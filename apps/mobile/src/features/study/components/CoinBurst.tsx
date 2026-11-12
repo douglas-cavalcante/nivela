@@ -81,7 +81,7 @@ export function CoinBurst({ amount, direction = 'in' }: CoinBurstProps) {
         style={[styles.badge, { backgroundColor: colors.highlight, borderColor: colors.border }, popStyle]}
       >
         <AppText variant="bold" size={24} style={{ color: colors.onHighlight }}>
-          {`${outgoing ? '-' : '+'}${amount} 🪙`}
+          {`${outgoing ? '−' : '+'}${amount} 🪙`}
         </AppText>
       </Animated.View>
     </View>
