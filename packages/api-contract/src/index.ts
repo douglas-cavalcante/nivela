@@ -43,8 +43,12 @@ export type {
   PlanStatus,
 } from './plans';
 export type {
+  ApiMyRedemption,
+  ApiRedeemResult,
+  ApiRedemption,
   ApiReward,
   ApiStoreReward,
   RedemptionStatus,
+  RejectRedemptionPayload,
   RewardPayload,
 } from './rewards';

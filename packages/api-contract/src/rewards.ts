@@ -41,3 +41,42 @@ export interface RewardPayload {
   price: number;
   stock: number;
 }
+
+/** Resgate como o aluno vê (só os dele). */
+export interface ApiMyRedemption {
+  id: number;
+  reward: { id: number; name: string; image_url: string | null };
+  /** Preço no momento do resgate; não muda se o prêmio for reajustado depois. */
+  price_paid: number;
+  status: RedemptionStatus;
+  /** Preenchido só quando o resgate foi recusado. */
+  rejection_reason: string | null;
+  created_at: string;
+  /** Quando a equipe entregou ou recusou; null enquanto pendente. */
+  handled_at: string | null;
+}
+
+/** Resgate na fila da equipe (professor e administrador). */
+export interface ApiRedemption extends ApiMyRedemption {
+  student: {
+    id: number;
+    name: string;
+    /** Só as turmas que quem consulta pode ver. */
+    classrooms: Array<{ id: number; name: string }>;
+  };
+  handled_by: { id: number; name: string } | null;
+}
+
+/** Resposta de `POST /store/rewards/:id/redeem`. */
+export interface ApiRedeemResult {
+  redemption: ApiMyRedemption;
+  /** Saldo do aluno depois do resgate. */
+  coins_balance: number;
+  /** Estoque restante do prêmio. */
+  stock: number;
+}
+
+/** Corpo de `POST /redemptions/:id/reject`. */
+export interface RejectRedemptionPayload {
+  reason: string;
+}
