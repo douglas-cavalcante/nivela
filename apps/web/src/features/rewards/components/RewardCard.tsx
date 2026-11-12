@@ -47,7 +47,10 @@ export function RewardCard({ reward, busy, onEdit, onToggle }: RewardCardProps) 
       <Box
         sx={{
           display: 'grid',
+          // a linha precisa ser limitada a 160 px; senão uma foto grande estoura o cartão
+          gridTemplateRows: 'minmax(0, 1fr)',
           placeItems: 'center',
+          overflow: 'hidden',
           height: 160,
           backgroundColor: colors.rule,
           borderBottom: `${penShadow.width}px solid ${colors.border}`,
