@@ -1,7 +1,7 @@
 import { screen, userEvent } from '@testing-library/react-native';
 import { renderApp } from 'src/test/render';
 import { student } from 'src/test/users';
-import { donePlan, noDuePlan, planSummary } from 'src/features/plans/__tests__/fixtures';
+import { donePlan, emptyPlan, noDuePlan, planSummary } from 'src/features/plans/__tests__/fixtures';
 import { stats } from 'src/test/studyFixtures';
 
 const statsRoute = () => ({ status: 200, data: stats });
@@ -36,6 +36,22 @@ describe('Início: meus planos', () => {
 
     expect(await screen.findByText('Geometria básica')).toBeTruthy();
     expect(screen.getByText('✓ Concluído.')).toBeTruthy();
+  });
+
+  it('plano sem questões disponíveis mostra o aviso no lugar de 100%', async () => {
+    await renderApp({
+      user: student,
+      routes: {
+        'GET /me/stats': statsRoute,
+        'GET /me/plans': () => ({ status: 200, data: { data: [emptyPlan] } }),
+      },
+    });
+
+    expect(await screen.findByText('Revisão de álgebra')).toBeTruthy();
+    expect(screen.getByText('Sem questões disponíveis.')).toBeTruthy();
+    expect(screen.queryByText('2 de 2 capítulos.')).toBeNull();
+    expect(screen.queryByText('✓ Concluído.')).toBeNull();
+    expect(screen.queryByLabelText('100% concluído.')).toBeNull();
   });
 
   it('sem planos mostra a mensagem de vazio', async () => {

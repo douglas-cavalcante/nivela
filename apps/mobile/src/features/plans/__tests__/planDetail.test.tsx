@@ -53,7 +53,7 @@ describe('tela do plano', () => {
         data: {
           ...plan,
           completed: true,
-          progress: { completed_chapters: 2, total_chapters: 2, percent: 100 },
+          progress: { completed_chapters: 2, total_chapters: 2, percent: 100, available_questions: 0 },
           chapters: [
             { id: 21, title: 'Vazio um', position: 1, state: 'completed', answered: 0, total: 0 },
             { id: 22, title: 'Vazio dois', position: 2, state: 'completed', answered: 0, total: 0 },
