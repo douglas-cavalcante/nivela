@@ -12,6 +12,7 @@ import { CategoryList } from 'src/features/categories';
 import { ClassroomDetail, ClassroomList } from 'src/features/classrooms';
 import { PlanEditor, PlanList } from 'src/features/leveling-plans';
 import { QuestionForm, QuestionList } from 'src/features/questions';
+import { RewardsPage } from 'src/features/rewards';
 import { StudentDetail, StudentList } from 'src/features/students';
 import { SubjectList } from 'src/features/subjects';
 import { TeacherList } from 'src/features/teachers';
@@ -42,7 +43,7 @@ function page(element: ReactNode) {
 }
 
 // As rotas das features entram aqui conforme forem construídas; até lá, "Em breve".
-const implemented = ['/', '/questoes', '/planos', '/disciplinas', '/categorias', '/turmas', '/alunos', '/professores'];
+const implemented = ['/', '/questoes', '/planos', '/disciplinas', '/categorias', '/turmas', '/alunos', '/loja', '/professores'];
 const placeholders = menuItems.filter((item) => !implemented.includes(item.path));
 
 export function AppRoutes() {
@@ -67,6 +68,7 @@ export function AppRoutes() {
           <Route path="/turmas/:id" element={page(<ClassroomDetail />)} />
           <Route path="/alunos" element={page(<StudentList />)} />
           <Route path="/alunos/:id" element={page(<StudentDetail />)} />
+          <Route path="/loja" element={page(<RewardsPage />)} />
           {placeholders
             .filter((item) => item.roles.includes('teacher'))
             .map((item) => (

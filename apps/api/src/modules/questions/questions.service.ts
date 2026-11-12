@@ -208,12 +208,11 @@ export class QuestionsService {
   ): Promise<ApiImageUpload> {
     const question = await this.load(id);
     this.assertCanEdit(question, user);
-    const kind = this.images.validate(file);
+    this.images.validate(file);
 
     const imagePath = await this.images.save(
       id,
       (file as UploadedImage).buffer,
-      kind,
     );
     try {
       await this.prisma.question.update({ where: { id }, data: { imagePath } });

@@ -8,7 +8,7 @@ import { useTheme } from 'src/lib/theme/useTheme';
 
 interface StatsBarProps {
   /** Valores mais novos que a busca (vindos de `ApiAnswerResult`): têm prioridade. */
-  latest?: { coinsBalance: number; streak: number } | null;
+  latest?: { coinsBalance: number; streak?: number } | null;
 }
 
 function Pill({ emoji, value, label }: { emoji: string; value: number; label: string }) {

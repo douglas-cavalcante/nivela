@@ -46,11 +46,18 @@ function FlyingCoin({ x, y, index }: { x: number; y: number; index: number }) {
   );
 }
 
+interface CoinBurstProps {
+  amount: number;
+  /** `in` (padrão): "+N" com moedas subindo ao contador. `out`: "-N" com moedas saindo para baixo (gasto). */
+  direction?: 'in' | 'out';
+}
+
 /**
- * "+10 🪙" com moedas voando em direção ao contador. Com "reduzir movimento" ligado,
- * só o texto aparece, parado.
+ * "+10 🪙" com moedas voando em direção ao contador (ou "-50 🪙" com as moedas saindo, em `out`).
+ * Com "reduzir movimento" ligado, só o texto aparece, parado.
  */
-export function CoinBurst({ amount }: { amount: number }) {
+export function CoinBurst({ amount, direction = 'in' }: CoinBurstProps) {
+  const outgoing = direction === 'out';
   const { colors } = useTheme();
   const reduced = useReducedMotion();
   const pop = useSharedValue(reduced ? 1 : 0.5);
@@ -64,13 +71,17 @@ export function CoinBurst({ amount }: { amount: number }) {
   }));
 
   return (
-    <View style={styles.wrapper} accessible accessibilityLabel={`Você ganhou ${amount} moedas.`}>
-      {reduced ? null : FLIGHTS.map((flight, index) => <FlyingCoin key={index} index={index} {...flight} />)}
+    <View style={styles.wrapper} accessible accessibilityLabel={`Você ${outgoing ? 'gastou' : 'ganhou'} ${amount} moedas.`}>
+      {reduced
+        ? null
+        : FLIGHTS.map((flight, index) => (
+            <FlyingCoin key={index} index={index} x={flight.x} y={outgoing ? -flight.y : flight.y} />
+          ))}
       <Animated.View
         style={[styles.badge, { backgroundColor: colors.highlight, borderColor: colors.border }, popStyle]}
       >
         <AppText variant="bold" size={24} style={{ color: colors.onHighlight }}>
-          {`+${amount} 🪙`}
+          {`${outgoing ? '-' : '+'}${amount} 🪙`}
         </AppText>
       </Animated.View>
     </View>

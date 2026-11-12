@@ -152,3 +152,33 @@ export async function createQuestion(
     },
   });
 }
+
+interface RewardOverrides {
+  createdBy?: number;
+  name?: string;
+  description?: string | null;
+  price?: number;
+  stock?: number;
+  active?: boolean;
+}
+
+/** Cria um prêmio (e um professor autor, se não for informado). */
+export async function createReward(
+  prisma: PrismaService,
+  overrides: RewardOverrides = {},
+) {
+  sequence += 1;
+  const createdBy =
+    overrides.createdBy ??
+    (await createUser(prisma, { role: Role.Teacher })).id;
+  return prisma.reward.create({
+    data: {
+      createdBy,
+      name: overrides.name ?? `Prêmio ${sequence}`,
+      description: overrides.description ?? null,
+      price: overrides.price ?? 10,
+      stock: overrides.stock ?? 5,
+      active: overrides.active ?? true,
+    },
+  });
+}
