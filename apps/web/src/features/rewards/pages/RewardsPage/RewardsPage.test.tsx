@@ -23,6 +23,19 @@ const reward = (id: number, extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
+const redemption = (id: number, extra: Record<string, unknown> = {}) => ({
+  id,
+  reward: { id: 1, name: 'Caderno especial', image_url: null },
+  price_paid: 80,
+  status: 'pending',
+  rejection_reason: null,
+  created_at: '2026-11-10T14:05:00.000Z',
+  handled_at: null,
+  student: { id: 5, name: `Aluna ${id}`, classrooms: [{ id: 3, name: '7º A' }] },
+  handled_by: null,
+  ...extra,
+});
+
 const meta = (total: number, page = 1) => ({ page, per_page: 15, total, last_page: Math.max(1, Math.ceil(total / 15)) });
 
 function Where() {
@@ -53,6 +66,17 @@ function catalog(
 ) {
   server.use(
     http.get(`${API_URL}/rewards`, ({ request }) => {
+      const params = new URL(request.url).searchParams;
+      onList?.(params);
+      return HttpResponse.json({ data: rows, meta: meta(rows.length) });
+    }),
+  );
+}
+
+function queue(rows: unknown[] = [redemption(1)], onList?: (params: URLSearchParams) => void) {
+  server.use(
+    http.get(`${API_URL}/classrooms`, () => HttpResponse.json({ data: [{ id: 3, name: '7º A' }], meta: meta(1) })),
+    http.get(`${API_URL}/redemptions`, ({ request }) => {
       const params = new URL(request.url).searchParams;
       onList?.(params);
       return HttpResponse.json({ data: rows, meta: meta(rows.length) });
@@ -210,5 +234,145 @@ describe('RewardsPage: catálogo', () => {
     catalog([]);
     renderPage();
     expect(await screen.findByText('Nenhum prêmio ainda.')).toBeInTheDocument();
+  });
+});
+
+describe('RewardsPage: abas', () => {
+  it('abre a aba pela URL e troca de aba escrevendo na URL', async () => {
+    catalog();
+    queue();
+    renderPage('/loja?tab=resgates');
+
+    expect(await screen.findByRole('tab', { name: 'Resgates', selected: true })).toBeInTheDocument();
+    expect(await screen.findByText('Aluna 1')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Prêmios' }));
+    expect(await screen.findByText('Prêmio 1')).toBeInTheDocument();
+    expect(url()).toBe('/loja');
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Resgates' }));
+    await waitFor(() => expect(url()).toBe('/loja?tab=resgates'));
+  });
+
+  it('uma aba desconhecida cai em Prêmios', async () => {
+    catalog();
+    renderPage('/loja?tab=xyz');
+    expect(await screen.findByRole('tab', { name: 'Prêmios', selected: true })).toBeInTheDocument();
+  });
+});
+
+describe('RewardsPage: resgates', () => {
+  it('pede a fila de pendentes e mostra aluno, turmas, prêmio, moedas e data', async () => {
+    const calls: URLSearchParams[] = [];
+    queue(undefined, (params) => calls.push(params));
+    renderPage('/loja?tab=resgates');
+
+    const row = (await screen.findByText('Aluna 1')).closest('tr') as HTMLElement;
+    expect(calls[0].get('status')).toBe('pending');
+    expect(within(row).getByText('7º A')).toBeInTheDocument();
+    expect(within(row).getByText('Caderno especial')).toBeInTheDocument();
+    expect(within(row).getByText('80')).toBeInTheDocument();
+    expect(within(row).getByText(/^10\/11\/2026 \d{2}:\d{2}$/)).toBeInTheDocument();
+    expect(within(row).getByText('Pendente')).toBeInTheDocument();
+  });
+
+  it('filtra por situação e turma, tudo na URL', async () => {
+    const calls: URLSearchParams[] = [];
+    queue(undefined, (params) => calls.push(params));
+    renderPage('/loja?tab=resgates');
+    await screen.findByText('Aluna 1');
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Situação' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Entregues' }));
+    await waitFor(() => expect(calls.at(-1)?.get('status')).toBe('delivered'));
+    expect(url()).toContain('status=delivered');
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Turma' }));
+    await userEvent.click(await screen.findByRole('option', { name: '7º A' }));
+    await waitFor(() => expect(calls.at(-1)?.get('classroom_id')).toBe('3'));
+    expect(url()).toContain('classroom_id=3');
+  });
+
+  it('entregar confirma, chama a rota e recarrega a fila', async () => {
+    let delivered = false;
+    server.use(
+      http.get(`${API_URL}/redemptions`, () =>
+        HttpResponse.json({ data: delivered ? [] : [redemption(1)], meta: meta(delivered ? 0 : 1) }),
+      ),
+      http.post(`${API_URL}/redemptions/1/deliver`, () => {
+        delivered = true;
+        return HttpResponse.json(redemption(1, { status: 'delivered' }));
+      }),
+    );
+    renderPage('/loja?tab=resgates');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Entregar o resgate de Aluna 1' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Entregar o prêmio?' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Entregar' }));
+
+    expect(await screen.findByText('Prêmio entregue.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Aluna 1')).toBeNull());
+  });
+
+  it('recusar sem motivo não envia; com motivo envia', async () => {
+    queue();
+    const bodies: unknown[] = [];
+    server.use(
+      http.post(`${API_URL}/redemptions/1/reject`, async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json(redemption(1, { status: 'rejected' }));
+      }),
+    );
+    renderPage('/loja?tab=resgates');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Recusar o resgate de Aluna 1' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Recusar o resgate?' });
+    expect(within(dialog).getByText('O aluno recebe as moedas de volta.')).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Recusar' }));
+    expect(await within(dialog).findByText('O motivo deve ter de 3 a 300 caracteres.')).toBeInTheDocument();
+    expect(bodies).toEqual([]);
+
+    await userEvent.type(within(dialog).getByLabelText('Motivo'), 'Fora de estoque');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Recusar' }));
+    await waitFor(() => expect(bodies).toEqual([{ reason: 'Fora de estoque' }]));
+    expect(await screen.findByText('Resgate recusado.')).toBeInTheDocument();
+  });
+
+  it('409 vira aviso e a fila é recarregada', async () => {
+    let lists = 0;
+    server.use(
+      http.get(`${API_URL}/redemptions`, () => {
+        lists += 1;
+        return HttpResponse.json({ data: [redemption(1)], meta: meta(1) });
+      }),
+      http.post(`${API_URL}/redemptions/1/deliver`, () =>
+        HttpResponse.json({ message: 'Este resgate já foi finalizado.' }, { status: 409 }),
+      ),
+    );
+    renderPage('/loja?tab=resgates');
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Entregar o resgate de Aluna 1' }));
+    await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Entregar' }));
+
+    expect(await screen.findByText('Este resgate já foi finalizado.')).toBeInTheDocument();
+    await waitFor(() => expect(lists).toBe(2));
+  });
+
+  it('resgates já tratados não têm ações e o recusado mostra o motivo', async () => {
+    queue([
+      redemption(1, { status: 'rejected', rejection_reason: 'Fora de estoque', handled_at: '2026-11-10T15:00:00.000Z' }),
+    ]);
+    renderPage('/loja?tab=resgates&status=rejected');
+
+    const row = (await screen.findByText('Aluna 1')).closest('tr') as HTMLElement;
+    expect(within(row).getByText('Recusado')).toBeInTheDocument();
+    expect(within(row).getByText('Fora de estoque')).toBeInTheDocument();
+    expect(within(row).queryByRole('button')).toBeNull();
+  });
+
+  it('fila vazia mostra o estado vazio', async () => {
+    queue([]);
+    renderPage('/loja?tab=resgates');
+    expect(await screen.findByText('Nenhum resgate pendente.')).toBeInTheDocument();
   });
 });
