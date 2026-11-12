@@ -42,3 +42,9 @@ export type {
   ChapterState,
   PlanStatus,
 } from './plans';
+export type {
+  ApiReward,
+  ApiStoreReward,
+  RedemptionStatus,
+  RewardPayload,
+} from './rewards';
