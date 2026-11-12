@@ -57,6 +57,17 @@ export class QuestionsService {
     private readonly images: QuestionImageService,
   ) {}
 
+  /** As questões ativas mais recentes do catálogo da escola. */
+  async recent(limit: number): Promise<ApiQuestionSummary[]> {
+    const rows = await this.prisma.question.findMany({
+      where: { active: true },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      include: WITH_RELATIONS,
+      take: limit,
+    });
+    return rows.map(presentQuestionSummary);
+  }
+
   async list(
     query: ListQuestionsQuery,
   ): Promise<Paginated<ApiQuestionSummary>> {
