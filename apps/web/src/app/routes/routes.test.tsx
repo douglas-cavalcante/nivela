@@ -2,6 +2,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { AppRoutes } from 'src/app/routes';
+import { dashboardHandlers } from 'src/test/dashboard';
 import { getToken, setToken } from 'src/lib/auth/tokenStorage';
 import { renderWithProviders } from 'src/test/render';
 import { API_URL, server } from 'src/test/server';
@@ -15,6 +16,8 @@ async function login() {
 }
 
 describe('AppRoutes', () => {
+  beforeEach(() => dashboardHandlers());
+
   it('rota protegida sem login redireciona para /login', async () => {
     renderWithProviders(<AppRoutes />, { route: '/', realAuth: true });
     expect(await screen.findByRole('button', { name: 'Entrar' })).toBeInTheDocument();

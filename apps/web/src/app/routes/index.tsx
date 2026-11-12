@@ -8,6 +8,7 @@ import { menuItems } from 'src/app/layouts/AppLayout/menu';
 import { AuthLayout } from 'src/app/layouts/AuthLayout';
 import { ProtectedRoute } from 'src/app/routes/ProtectedRoute';
 import { Login, Profile } from 'src/features/auth';
+import { Home } from 'src/features/dashboard';
 import { CategoryList } from 'src/features/categories';
 import { ClassroomDetail, ClassroomList } from 'src/features/classrooms';
 import { PlanEditor, PlanList } from 'src/features/leveling-plans';
@@ -17,7 +18,6 @@ import { StudentDetail, StudentList } from 'src/features/students';
 import { SubjectList } from 'src/features/subjects';
 import { TeacherList } from 'src/features/teachers';
 
-const HomePage = lazy(() => import('src/app/routes/HomePage').then((m) => ({ default: m.HomePage })));
 const ComingSoon = lazy(() => import('src/app/routes/ComingSoon').then((m) => ({ default: m.ComingSoon })));
 
 /** Cada página é carregada sob demanda; enquanto isso o layout continua na tela e só o miolo mostra o spinner. */
@@ -55,7 +55,7 @@ export function AppRoutes() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
-          <Route index element={page(<HomePage />)} />
+          <Route index element={page(<Home />)} />
           <Route path="/perfil" element={page(<Profile />)} />
           <Route path="/questoes" element={page(<QuestionList />)} />
           <Route path="/questoes/nova" element={page(<QuestionForm />)} />
