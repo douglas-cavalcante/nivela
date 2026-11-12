@@ -110,7 +110,7 @@ describe('Extrato de moedas (e2e)', () => {
       ['redemption', -30, 'Resgate: Caderno.'],
       ['streak_bonus', 20, 'Sequência de 7 dias (até 07/11/2026).'],
       ['plan_completed', 50, 'Plano concluído: Plano de frações.'],
-      ['correct_answer', 10, 'Acerto: Quanto é 1/2 + 1/4?.'],
+      ['correct_answer', 10, 'Acerto: Quanto é 1/2 + 1/4?'],
     ]);
     expect(body.data[0]).toEqual({
       id: expect.any(Number),
@@ -178,7 +178,7 @@ describe('Extrato de moedas (e2e)', () => {
       },
     });
     const { body } = await get('/me/coins', pupil.token).expect(200);
-    expect(body.data[0].description).toBe(`Acerto: ${'a'.repeat(140)}….`);
+    expect(body.data[0].description).toBe(`Acerto: ${'a'.repeat(140)}…`);
   });
 
   describe('GET /students/:id/coins (equipe)', () => {
