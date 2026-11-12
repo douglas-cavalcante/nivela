@@ -92,7 +92,7 @@ describe('aba Loja: resgate', () => {
     await user.press(await screen.findByRole('button', { name: 'Resgatar Caderno de desenho' }));
     await user.press(screen.getByRole('button', { name: 'Confirmar' }));
 
-    expect(await screen.findByText('-50 🪙')).toBeTruthy();
+    expect(await screen.findByText('−50 🪙')).toBeTruthy();
     expect(screen.getByLabelText('70 moedas.')).toBeTruthy();
     expect(screen.getByText('Restam 2.')).toBeTruthy();
     expect(screen.getByText('Faltam 230 moedas.')).toBeTruthy();

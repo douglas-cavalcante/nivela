@@ -3,7 +3,7 @@ import request from 'supertest';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Role } from 'src/shared/enums/role.enum';
 import { createTestApp } from './helpers/create-test-app';
-import { createReward, createUser } from './helpers/factories';
+import { createClassroom, createReward, createUser } from './helpers/factories';
 import { sessionFor, tokenFor } from './helpers/login';
 import { resetDatabase } from './helpers/reset-database';
 import { createUploadsDir, removeUploadsDir } from './helpers/uploads';
@@ -173,8 +173,9 @@ describe('Prêmios (e2e)', () => {
         .expect(422);
     });
 
-    it('conta os resgates pendentes', async () => {
-      const teacher = await tokenFor(app, Role.Teacher);
+    it('conta os resgates pendentes só dos alunos do escopo (RN15)', async () => {
+      const teacher = await sessionFor(app, Role.Teacher);
+      const admin = await tokenFor(app, Role.Admin);
       const reward = await createReward(prisma, { name: 'Boné' });
       const student = await createUser(prisma);
       const make = (status: 'pending' | 'delivered') =>
@@ -189,16 +190,34 @@ describe('Prêmios (e2e)', () => {
       await make('pending');
       await make('pending');
       await make('delivered');
-      const res = await http()
-        .get(`/api/v1/rewards/${reward.id}`)
-        .set(as(teacher))
-        .expect(200);
-      expect(res.body.pending_redemptions).toBe(2);
-      const list = await http()
-        .get('/api/v1/rewards')
-        .set(as(teacher))
-        .expect(200);
-      expect(list.body.data[0].pending_redemptions).toBe(2);
+
+      const pendingFor = async (token: string) => {
+        const one = await http()
+          .get(`/api/v1/rewards/${reward.id}`)
+          .set(as(token))
+          .expect(200);
+        const list = await http()
+          .get('/api/v1/rewards')
+          .set(as(token))
+          .expect(200);
+        expect(list.body.data[0].pending_redemptions).toBe(
+          one.body.pending_redemptions,
+        );
+        return one.body.pending_redemptions as number;
+      };
+
+      // Professor sem o aluno em nenhuma turma não vê os resgates dele.
+      expect(await pendingFor(teacher.token)).toBe(0);
+      expect(await pendingFor(admin)).toBe(2);
+
+      // Com o aluno numa turma do professor, vê os dois.
+      const classroom = await createClassroom(prisma, {
+        teacherId: teacher.user.id,
+      });
+      await prisma.classroomStudent.create({
+        data: { classroomId: classroom.id, studentId: student.id },
+      });
+      expect(await pendingFor(teacher.token)).toBe(2);
     });
 
     it('inexistente → 404 "Prêmio não encontrado."', async () => {
@@ -227,6 +246,52 @@ describe('Prêmios (e2e)', () => {
         stock: 9,
         can_edit: true,
       });
+    });
+
+    it('PUT sem estoque não altera o estoque; com estoque, substitui', async () => {
+      const { user, token } = await sessionFor(app, Role.Teacher);
+      const reward = await createReward(prisma, {
+        createdBy: user.id,
+        stock: 7,
+      });
+      const { stock: _omitted, ...withoutStock } = body({ name: 'Só o nome' });
+      void _omitted;
+      const res = await http()
+        .put(`/api/v1/rewards/${reward.id}`)
+        .set(as(token))
+        .send(withoutStock)
+        .expect(200);
+      expect(res.body).toMatchObject({ name: 'Só o nome', stock: 7 });
+      expect(
+        (await prisma.reward.findUniqueOrThrow({ where: { id: reward.id } }))
+          .stock,
+      ).toBe(7);
+
+      await http()
+        .put(`/api/v1/rewards/${reward.id}`)
+        .set(as(token))
+        .send(body({ stock: 2 }))
+        .expect(200);
+      expect(
+        (await prisma.reward.findUniqueOrThrow({ where: { id: reward.id } }))
+          .stock,
+      ).toBe(2);
+      await http()
+        .put(`/api/v1/rewards/${reward.id}`)
+        .set(as(token))
+        .send(body({ stock: -1 }))
+        .expect(422);
+    });
+
+    it('POST continua exigindo o estoque', async () => {
+      const token = await tokenFor(app, Role.Teacher);
+      const { stock: _omitted, ...withoutStock } = body();
+      void _omitted;
+      await http()
+        .post('/api/v1/rewards')
+        .set(as(token))
+        .send(withoutStock)
+        .expect(422);
     });
 
     it('outro professor → 403 e nada muda; administrador → 200', async () => {

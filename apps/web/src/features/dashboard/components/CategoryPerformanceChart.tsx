@@ -34,7 +34,7 @@ export function CategoryPerformanceChart({ scope, id }: CategoryPerformanceChart
       </Box>
     );
   }
-  if (rows.length === 0) return <EmptyState title="Ainda não há respostas terminadas." />;
+  if (rows.length === 0) return <EmptyState title="Ainda não há questões terminadas." />;
 
   return (
     <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, display: 'grid', gap: 2 }}>

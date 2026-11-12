@@ -1,12 +1,12 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { TextField, Typography } from '@mui/material';
-import { parseApiError } from '@nivela/api-contract';
-import type { ApiRedemption } from '@nivela/api-contract';
-import { useForm } from 'react-hook-form';
-import { FormDialog } from 'src/components/FormDialog';
-import { rejectRedemptionAction } from 'src/features/rewards/api/rewards.action';
-import { rejectSchema } from 'src/features/rewards/schemas/reward.schema';
-import type { RejectFormValues } from 'src/features/rewards/schemas/reward.schema';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { TextField, Typography } from "@mui/material";
+import { parseApiError } from "@nivela/api-contract";
+import type { ApiRedemption } from "@nivela/api-contract";
+import { useForm } from "react-hook-form";
+import { FormDialog } from "src/components/FormDialog";
+import { rejectRedemptionAction } from "src/features/rewards/api/rewards.action";
+import { rejectSchema } from "src/features/rewards/schemas/reward.schema";
+import type { RejectFormValues } from "src/features/rewards/schemas/reward.schema";
 
 interface RejectDialogProps {
   redemption: ApiRedemption;
@@ -17,26 +17,36 @@ interface RejectDialogProps {
 }
 
 /** Recusa um resgate com o motivo obrigatório; o aluno recebe as moedas de volta. */
-export function RejectDialog({ redemption, onClose, onRejected, onFailed }: RejectDialogProps) {
+export function RejectDialog({
+  redemption,
+  onClose,
+  onRejected,
+  onFailed,
+}: RejectDialogProps) {
   const {
     register,
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<RejectFormValues>({ resolver: zodResolver(rejectSchema), defaultValues: { reason: '' } });
+  } = useForm<RejectFormValues>({
+    resolver: zodResolver(rejectSchema),
+    defaultValues: { reason: "" },
+  });
 
   const submit = handleSubmit(async (values) => {
     try {
-      onRejected(await rejectRedemptionAction(redemption.id, { reason: values.reason }));
+      onRejected(
+        await rejectRedemptionAction(redemption.id, { reason: values.reason }),
+      );
     } catch (error) {
       const info = parseApiError(error);
       const messages = info.fieldErrors.reason;
-      if (messages) setError('reason', { message: messages.join(' ') });
+      if (messages) setError("reason", { message: messages.join(" ") });
       else onFailed(info.message);
     }
   });
 
-  const { ref, ...reasonField } = register('reason');
+  const { ref, ...reasonField } = register("reason");
 
   return (
     <FormDialog
@@ -50,7 +60,9 @@ export function RejectDialog({ redemption, onClose, onRejected, onFailed }: Reje
       <Typography>
         {redemption.student.name} pediu {redemption.reward.name}.
       </Typography>
-      <Typography color="text.secondary">O aluno recebe as moedas de volta.</Typography>
+      <Typography color="text.secondary">
+        O aluno recebe as moedas de volta.
+      </Typography>
       <TextField
         label="Motivo"
         autoFocus
@@ -60,7 +72,9 @@ export function RejectDialog({ redemption, onClose, onRejected, onFailed }: Reje
         inputRef={ref}
         {...reasonField}
         error={Boolean(errors.reason)}
-        helperText={errors.reason?.message ?? 'O aluno vê o motivo na lista de resgates.'}
+        helperText={
+          errors.reason?.message ?? "O aluno vê o motivo na lista de resgates."
+        }
       />
     </FormDialog>
   );

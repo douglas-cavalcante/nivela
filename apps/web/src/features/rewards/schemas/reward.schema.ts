@@ -1,24 +1,30 @@
-import type { RewardPayload } from '@nivela/api-contract';
-import { z } from 'zod';
+import type { RewardPayload } from "@nivela/api-contract";
+import { z } from "zod";
 
 // Mesmas regras e mensagens do RewardDto e do RejectRedemptionDto da API.
-const PRICE_MESSAGE = 'O preço deve ser um número inteiro de 1 a 100000.';
-const STOCK_MESSAGE = 'O estoque deve ser um número inteiro de 0 a 100000.';
-const REASON_MESSAGE = 'O motivo deve ter de 3 a 300 caracteres.';
+const PRICE_MESSAGE = "O preço deve ser um número inteiro de 1 a 100000.";
+const STOCK_MESSAGE = "O estoque deve ser um número inteiro de 0 a 100000.";
+const REASON_MESSAGE = "O motivo deve ter de 3 a 300 caracteres.";
 
 export const rewardSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, 'Informe o nome do prêmio.')
-    .min(2, 'O nome deve ter pelo menos 2 caracteres.')
-    .max(80, 'O nome deve ter no máximo 80 caracteres.'),
-  description: z.string().trim().max(500, 'A descrição deve ter no máximo 500 caracteres.'),
+    .min(1, "Informe o nome do prêmio.")
+    .min(2, "O nome deve ter pelo menos 2 caracteres.")
+    .max(80, "O nome deve ter no máximo 80 caracteres."),
+  description: z
+    .string()
+    .trim()
+    .max(500, "A descrição deve ter no máximo 500 caracteres."),
   price: z
     .string()
     .trim()
     .regex(/^\d{1,6}$/, PRICE_MESSAGE)
-    .refine((value) => Number(value) >= 1 && Number(value) <= 100_000, PRICE_MESSAGE),
+    .refine(
+      (value) => Number(value) >= 1 && Number(value) <= 100_000,
+      PRICE_MESSAGE,
+    ),
   stock: z
     .string()
     .trim()

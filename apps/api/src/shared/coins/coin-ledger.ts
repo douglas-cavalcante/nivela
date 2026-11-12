@@ -93,11 +93,13 @@ export class CoinLedger {
         data: { studentId, amount, reason, sourceType, sourceId },
       });
     } else {
+      // `created_at` explícito: o mesmo relógio (host) dos registros criados
+      // pelo Prisma, em vez do `now()` do banco, para uma única origem de horário.
       const inserted = await tx.$executeRaw`
         INSERT INTO "coin_transactions"
-          ("student_id", "amount", "reason", "source_type", "source_id")
+          ("student_id", "amount", "reason", "source_type", "source_id", "created_at")
         VALUES
-          (${studentId}, ${amount}, ${reason}::"coin_reason", ${sourceType}, ${sourceId})
+          (${studentId}, ${amount}, ${reason}::"coin_reason", ${sourceType}, ${sourceId}, ${new Date()})
         ON CONFLICT ("student_id", "source_id")
           WHERE "reason" = ${Prisma.raw(`'${reason}'`)}
         DO NOTHING`;

@@ -12,7 +12,7 @@ import type {
 } from '@nivela/api-contract';
 import { Prisma } from 'src/generated/prisma/client';
 import { ListRewardsQuery } from 'src/modules/rewards/dto/list-rewards.query';
-import { RewardDto } from 'src/modules/rewards/dto/reward.dto';
+import { RewardDto, UpdateRewardDto } from 'src/modules/rewards/dto/reward.dto';
 import {
   presentReward,
   presentStoreReward,
@@ -24,20 +24,27 @@ import { Role } from 'src/shared/enums/role.enum';
 import type { UploadedImage } from 'src/shared/files/image-storage.service';
 import { paginate, toPrismaPage } from 'src/shared/pagination/paginate';
 import { containsInsensitive } from 'src/shared/prisma/contains-insensitive';
+import { studentScope } from 'src/shared/scopes/student-scope';
 
 const NOT_FOUND = 'Prêmio não encontrado.';
 const FORBIDDEN =
   'Só quem cadastrou ou um administrador pode editar este prêmio.';
 
-const WITH_RELATIONS = {
-  creator: { select: { id: true, name: true } },
-  _count: {
-    select: { redemptions: { where: { status: 'pending' as const } } },
-  },
-} satisfies Prisma.RewardInclude;
+/** Os resgates pendentes contados são só os de alunos no escopo de quem consulta (RN15). */
+const withRelations = (user: AuthUser) =>
+  ({
+    creator: { select: { id: true, name: true } },
+    _count: {
+      select: {
+        redemptions: {
+          where: { status: 'pending' as const, student: studentScope(user) },
+        },
+      },
+    },
+  }) satisfies Prisma.RewardInclude;
 
 type RewardRecord = Prisma.RewardGetPayload<{
-  include: typeof WITH_RELATIONS;
+  include: ReturnType<typeof withRelations>;
 }>;
 
 @Injectable()
@@ -59,7 +66,7 @@ export class RewardsService {
       this.prisma.reward.findMany({
         where,
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
-        include: WITH_RELATIONS,
+        include: withRelations(user),
         ...toPrismaPage(query),
       }),
       this.prisma.reward.count({ where }),
@@ -72,7 +79,7 @@ export class RewardsService {
   }
 
   async findOne(id: number, user: AuthUser): Promise<ApiReward> {
-    return this.present(await this.load(id), user);
+    return this.present(await this.load(id, user), user);
   }
 
   async create(dto: RewardDto, user: AuthUser): Promise<ApiReward> {
@@ -86,15 +93,21 @@ export class RewardsService {
       },
       select: { id: true },
     });
-    return this.present(await this.load(reward.id), user);
+    return this.present(await this.load(reward.id, user), user);
   }
 
-  async update(id: number, dto: RewardDto, user: AuthUser): Promise<ApiReward> {
-    this.assertCanEdit(await this.load(id), user);
-    // O estoque é gravado como valor absoluto; o `FOR UPDATE` na linha do
-    // prêmio serializa esta edição com resgate e recusa (que alteram o
-    // estoque com o prêmio travado), então nenhuma baixa ou devolução se perde.
-    // Aqui não há moedas: o prêmio é o único lock da transação.
+  async update(
+    id: number,
+    dto: UpdateRewardDto,
+    user: AuthUser,
+  ): Promise<ApiReward> {
+    this.assertCanEdit(await this.load(id, user), user);
+    // O `FOR UPDATE` na linha do prêmio serializa esta edição com resgate e
+    // recusa (que alteram o estoque com o prêmio travado), mas não impede que
+    // um estoque absoluto vindo de um formulário antigo desfaça uma baixa
+    // feita nesse intervalo. Por isso `stock` é opcional: quem edita só os
+    // outros campos não envia o estoque e ele não muda. Aqui não há moedas: o
+    // prêmio é o único lock da transação.
     await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`
         SELECT "id" FROM "rewards" WHERE "id" = ${id} FOR UPDATE`;
@@ -104,12 +117,12 @@ export class RewardsService {
           name: dto.name,
           description: dto.description ?? null,
           price: dto.price,
-          stock: dto.stock,
+          ...(dto.stock === undefined ? {} : { stock: dto.stock }),
         },
         select: { id: true },
       });
     });
-    return this.present(await this.load(id), user);
+    return this.present(await this.load(id, user), user);
   }
 
   async setStatus(
@@ -117,13 +130,13 @@ export class RewardsService {
     active: boolean,
     user: AuthUser,
   ): Promise<ApiReward> {
-    this.assertCanEdit(await this.load(id), user);
+    this.assertCanEdit(await this.load(id, user), user);
     await this.prisma.reward.update({
       where: { id },
       data: { active },
       select: { id: true },
     });
-    return this.present(await this.load(id), user);
+    return this.present(await this.load(id, user), user);
   }
 
   /** Valida o arquivo, grava o novo, aponta o prêmio para ele e só então apaga o antigo. */
@@ -132,7 +145,7 @@ export class RewardsService {
     file: UploadedImage | undefined,
     user: AuthUser,
   ): Promise<ApiImageUpload> {
-    const reward = await this.load(id);
+    const reward = await this.load(id, user);
     this.assertCanEdit(reward, user);
     this.images.validate(file);
 
@@ -155,7 +168,7 @@ export class RewardsService {
   }
 
   async removeImage(id: number, user: AuthUser): Promise<void> {
-    const reward = await this.load(id);
+    const reward = await this.load(id, user);
     this.assertCanEdit(reward, user);
     if (!reward.imagePath) {
       return;
@@ -188,10 +201,10 @@ export class RewardsService {
     };
   }
 
-  private async load(id: number): Promise<RewardRecord> {
+  private async load(id: number, user: AuthUser): Promise<RewardRecord> {
     const reward = await this.prisma.reward.findUnique({
       where: { id },
-      include: WITH_RELATIONS,
+      include: withRelations(user),
     });
     if (!reward) {
       throw new NotFoundException(NOT_FOUND);

@@ -51,6 +51,45 @@ describe('CoinLedger (e2e)', () => {
     expect(moduleRef.get(StreakService)).toBeInstanceOf(StreakService);
   });
 
+  it('o crédito "uma vez" grava created_at com o relógio do host, como o Prisma', async () => {
+    const student = await createUser(prisma);
+    jest.useFakeTimers({
+      now: new Date('2026-03-01T10:00:00.000Z'),
+      doNotFake: [
+        'nextTick',
+        'setImmediate',
+        'clearImmediate',
+        'setTimeout',
+        'clearTimeout',
+        'setInterval',
+        'clearInterval',
+        'queueMicrotask',
+        'performance',
+        'hrtime',
+      ],
+    });
+    try {
+      await prisma.$transaction(async (tx) => {
+        await ledger.credit(tx, correctAnswer(student.id, 1));
+        await ledger.credit(tx, {
+          ...correctAnswer(student.id, 2),
+          reason: 'plan_completed',
+          sourceType: 'plan',
+        });
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+    const rows = await prisma.coinTransaction.findMany({
+      where: { studentId: student.id },
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.createdAt.toISOString())).toEqual([
+      '2026-03-01T10:00:00.000Z',
+      '2026-03-01T10:00:00.000Z',
+    ]);
+  });
+
   it('credita: grava a linha e soma no saldo', async () => {
     const student = await createUser(prisma);
     const result = await prisma.$transaction((tx) =>

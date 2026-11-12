@@ -31,14 +31,14 @@ describe('Resgates concorrentes (e2e)', () => {
     }
   }
 
-  async function waitForLockWaiters(count: number) {
+  async function waitForLockWaiters(count: number, queryLike: string) {
     await waitUntil(async () => {
       const rows = await prisma.$queryRaw<{ waiting: number }[]>`
         SELECT count(*)::int AS waiting FROM pg_stat_activity
         WHERE datname = current_database()
           AND pid <> pg_backend_pid()
           AND wait_event_type = 'Lock'
-          AND query LIKE '%FOR UPDATE%'`;
+          AND query LIKE ${queryLike}`;
       return rows[0].waiting >= count;
     });
   }
@@ -46,11 +46,13 @@ describe('Resgates concorrentes (e2e)', () => {
   /**
    * Segura `lockSql` (um `SELECT ... FOR UPDATE`) numa transação aberta,
    * dispara as requisições, espera `waiters` delas bloqueadas e solta.
+   * `queryLike` filtra a consulta bloqueada (por padrão, um `FOR UPDATE`).
    */
   async function raceBehindLock(
     lockSql: string,
     waiters: number,
     fire: () => request.Test[],
+    queryLike = '%FOR UPDATE%',
   ): Promise<request.Response[]> {
     let release!: () => void;
     const barrier = new Promise<void>((resolve) => {
@@ -71,7 +73,7 @@ describe('Resgates concorrentes (e2e)', () => {
     await locked;
     const pending = fire().map((req) => req.then((res) => res));
     try {
-      await waitForLockWaiters(waiters);
+      await waitForLockWaiters(waiters, queryLike);
     } finally {
       // Sem isto, uma falha da espera deixaria o segurador travando para sempre.
       release();
@@ -212,7 +214,7 @@ describe('Resgates concorrentes (e2e)', () => {
       });
     });
 
-    it('editar o estoque (PUT) concorre com um resgate sem perder a baixa', async () => {
+    it('editar o prêmio (PUT com estoque absoluto) concorre com um resgate: as escritas se serializam, mas o PUT grava o valor do formulário', async () => {
       const reward = await createReward(prisma, { price: 20, stock: 3 });
       const { token } = await student(100);
       const admin = await sessionFor(app, Role.Admin);
@@ -231,7 +233,8 @@ describe('Resgates concorrentes (e2e)', () => {
       const after = await prisma.reward.findUniqueOrThrow({
         where: { id: reward.id },
       });
-      // PUT depois do resgate: 10 (absoluto); resgate depois do PUT: 9.
+      // PUT depois do resgate: 10 (o absoluto do formulário sobrescreve a
+      // baixa); resgate depois do PUT: 9. Sem `stock` no PUT, a baixa fica.
       expect([9, 10]).toContain(after.stock);
       expect(await prisma.rewardRedemption.count()).toBe(1);
     });
@@ -340,6 +343,35 @@ describe('Resgates concorrentes (e2e)', () => {
       );
       expect(statuses(responses)).toEqual([200, 409]);
       await expectConsistentEnd(setup);
+    });
+
+    it('recusar o resgate do aluno A x resgate do aluno B do mesmo prêmio: sem deadlock, estoque e saldos consistentes', async () => {
+      const setup = await pendingRedemption();
+      const other = await student(100);
+      // Seguram o prêmio: a recusa de A espera no UPDATE do estoque e o
+      // resgate de B, no FOR UPDATE do prêmio. As duas consultas citam
+      // "rewards"; o filtro conta as duas bloqueadas.
+      const responses = await raceBehindLock(
+        lockReward(setup.reward.id),
+        2,
+        () => [
+          reject(setup.teacher.token, setup.id),
+          redeem(other.token, setup.reward.id),
+        ],
+        '%"rewards"%',
+      );
+      expect(statuses(responses)).toEqual([200, 201]);
+
+      const a = await snapshot(setup.pupil.user.id, setup.reward.id);
+      const b = await snapshot(other.user.id, setup.reward.id);
+      // A: moedas devolvidas; B: gastou 30. Estoque: 2 - 1 (A) + 1 (recusa) - 1 (B).
+      expect(a).toEqual({ balance: 100, ledger: 100, stock: 1 });
+      expect(b).toEqual({ balance: 70, ledger: 70, stock: 1 });
+      const row = await prisma.rewardRedemption.findUniqueOrThrow({
+        where: { id: setup.id },
+      });
+      expect(row.status).toBe('rejected');
+      expect(await prisma.rewardRedemption.count()).toBe(2);
     });
 
     it('recusar x novo resgate do mesmo aluno: sem deadlock, saldo = extrato', async () => {

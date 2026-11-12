@@ -230,6 +230,16 @@ describe('RedemptionsService', () => {
       ]);
     });
 
+    it('estorno já existente (applied: false): lança o erro para a transação desfazer tudo', async () => {
+      const { service, credit } = setup();
+      credit.mockResolvedValueOnce({ applied: false, balance: 100 });
+      await expect(
+        service.reject(55, { reason: 'Sem estoque.' }, teacher),
+      ).rejects.toThrow(
+        new BusinessRuleException('Este resgate já foi finalizado.'),
+      );
+    });
+
     it('fora do escopo: 404 antes de abrir a transação', async () => {
       const { service, findFirst, order } = setup();
       findFirst.mockResolvedValueOnce(null as never);

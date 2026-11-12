@@ -1,19 +1,22 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { FormHelperText, TextField } from '@mui/material';
-import { parseApiError } from '@nivela/api-contract';
-import type { ApiReward } from '@nivela/api-contract';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { FormDialog } from 'src/components/FormDialog';
-import { ImageUpload } from 'src/components/ImageUpload';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { FormHelperText, TextField } from "@mui/material";
+import { parseApiError } from "@nivela/api-contract";
+import type { ApiReward } from "@nivela/api-contract";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { FormDialog } from "src/components/FormDialog";
+import { ImageUpload } from "src/components/ImageUpload";
 import {
   createRewardAction,
   deleteRewardImageAction,
   updateRewardAction,
   uploadRewardImageAction,
-} from 'src/features/rewards/api/rewards.action';
-import { rewardSchema, toRewardPayload } from 'src/features/rewards/schemas/reward.schema';
-import type { RewardFormValues } from 'src/features/rewards/schemas/reward.schema';
+} from "src/features/rewards/api/rewards.action";
+import {
+  rewardSchema,
+  toRewardPayload,
+} from "src/features/rewards/schemas/reward.schema";
+import type { RewardFormValues } from "src/features/rewards/schemas/reward.schema";
 
 interface RewardFormDialogProps {
   /** Prêmio em edição; sem ele, cria um novo. */
@@ -23,16 +26,20 @@ interface RewardFormDialogProps {
   onSaved: (saved: ApiReward, created: boolean) => void;
 }
 
-const FIELDS = ['name', 'description', 'price', 'stock'] as const;
+const FIELDS = ["name", "description", "price", "stock"] as const;
 
 const IMAGE_TEXTS = {
-  savePrompt: 'Salve o prêmio para adicionar uma imagem.',
-  altText: 'Imagem do prêmio',
-  removedNotice: 'O prêmio ficará sem imagem. Você pode enviar outra depois.',
+  savePrompt: "Salve o prêmio para adicionar uma imagem.",
+  altText: "Imagem do prêmio",
+  removedNotice: "O prêmio ficará sem imagem. Você pode enviar outra depois.",
 };
 
 /** Dados do prêmio (nome, descrição, preço e estoque); a imagem entra depois de salvar. */
-export function RewardFormDialog({ reward, onClose, onSaved }: RewardFormDialogProps) {
+export function RewardFormDialog({
+  reward,
+  onClose,
+  onSaved,
+}: RewardFormDialogProps) {
   // depois de criar, o diálogo continua aberto como edição, para enviar a imagem
   const [current, setCurrent] = useState<ApiReward | undefined>(reward);
   const [formError, setFormError] = useState<string | null>(null);
@@ -40,14 +47,15 @@ export function RewardFormDialog({ reward, onClose, onSaved }: RewardFormDialogP
     register,
     handleSubmit,
     setError,
-    formState: { errors, isSubmitting },
+    reset,
+    formState: { errors, isSubmitting, dirtyFields },
   } = useForm<RewardFormValues>({
     resolver: zodResolver(rewardSchema),
     defaultValues: {
-      name: reward?.name ?? '',
-      description: reward?.description ?? '',
-      price: reward ? String(reward.price) : '',
-      stock: reward ? String(reward.stock) : '',
+      name: reward?.name ?? "",
+      description: reward?.description ?? "",
+      price: reward ? String(reward.price) : "",
+      stock: reward ? String(reward.stock) : "",
     },
   });
 
@@ -56,12 +64,21 @@ export function RewardFormDialog({ reward, onClose, onSaved }: RewardFormDialogP
     const payload = toRewardPayload(values);
     try {
       if (current) {
-        const saved = await updateRewardAction(current.id, payload);
+        // Na edição o estoque só vai se a pessoa mexeu no campo: assim, salvar
+        // só o nome não desfaz uma baixa feita por um resgate depois que o
+        // formulário abriu.
+        const { stock, ...withoutStock } = payload;
+        const saved = await updateRewardAction(
+          current.id,
+          dirtyFields.stock ? { ...withoutStock, stock } : withoutStock,
+        );
         setCurrent(saved);
+        reset(values);
         onSaved(saved, false);
       } else {
         const saved = await createRewardAction(payload);
         setCurrent(saved);
+        reset(values);
         onSaved(saved, true);
       }
     } catch (error) {
@@ -70,7 +87,7 @@ export function RewardFormDialog({ reward, onClose, onSaved }: RewardFormDialogP
       for (const [field, messages] of Object.entries(info.fieldErrors)) {
         const known = FIELDS.find((name) => name === field);
         if (known) {
-          setError(known, { message: messages.join(' ') });
+          setError(known, { message: messages.join(" ") });
           matched = true;
         }
       }
@@ -85,16 +102,16 @@ export function RewardFormDialog({ reward, onClose, onSaved }: RewardFormDialogP
     onSaved(next, false);
   }
 
-  const { ref: nameRef, ...nameField } = register('name');
-  const { ref: descriptionRef, ...descriptionField } = register('description');
-  const { ref: priceRef, ...priceField } = register('price');
-  const { ref: stockRef, ...stockField } = register('stock');
+  const { ref: nameRef, ...nameField } = register("name");
+  const { ref: descriptionRef, ...descriptionField } = register("description");
+  const { ref: priceRef, ...priceField } = register("price");
+  const { ref: stockRef, ...stockField } = register("stock");
 
   return (
     <FormDialog
       open
-      title={current ? 'Editar prêmio' : 'Novo prêmio'}
-      submitLabel={current ? 'Salvar' : 'Criar prêmio'}
+      title={current ? "Editar prêmio" : "Novo prêmio"}
+      submitLabel={current ? "Salvar" : "Criar prêmio"}
       loading={isSubmitting}
       onSubmit={() => void submit()}
       onClose={onClose}
@@ -116,25 +133,29 @@ export function RewardFormDialog({ reward, onClose, onSaved }: RewardFormDialogP
         inputRef={descriptionRef}
         {...descriptionField}
         error={Boolean(errors.description)}
-        helperText={errors.description?.message ?? 'O aluno vê o texto na loja.'}
+        helperText={
+          errors.description?.message ?? "O aluno vê o texto na loja."
+        }
       />
       <TextField
         label="Preço (moedas)"
         autoComplete="off"
         inputRef={priceRef}
         {...priceField}
-        slotProps={{ htmlInput: { inputMode: 'numeric' } }}
+        slotProps={{ htmlInput: { inputMode: "numeric" } }}
         error={Boolean(errors.price)}
-        helperText={errors.price?.message ?? 'De 1 a 100000 moedas.'}
+        helperText={errors.price?.message ?? "De 1 a 100000 moedas."}
       />
       <TextField
         label="Estoque"
         autoComplete="off"
         inputRef={stockRef}
         {...stockField}
-        slotProps={{ htmlInput: { inputMode: 'numeric' } }}
+        slotProps={{ htmlInput: { inputMode: "numeric" } }}
         error={Boolean(errors.stock)}
-        helperText={errors.stock?.message ?? 'Unidades disponíveis para resgate.'}
+        helperText={
+          errors.stock?.message ?? "Unidades disponíveis para resgate."
+        }
       />
 
       <ImageUpload
