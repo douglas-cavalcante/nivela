@@ -1,6 +1,6 @@
 {
   "name": "@nivela/api",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "API REST do Nivela (NestJS 12, Prisma 7 e PostgreSQL).",
   "private": true,
   "license": "MIT",

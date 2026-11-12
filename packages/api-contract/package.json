@@ -1,6 +1,6 @@
 {
   "name": "@nivela/api-contract",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "license": "MIT",
   "description": "Contrato da API do Nivela (tipos de resposta e parser de erros) compartilhado entre API, web e mobile.",
@@ -19,6 +19,6 @@
     "vitest": "^5.1.0"
   },
   "dependencies": {
-    "@nivela/design-tokens": "^0.1.0"
+    "@nivela/design-tokens": "^1.0.0"
   }
 }

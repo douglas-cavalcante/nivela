@@ -1,5 +1,6 @@
 {
   "name": "nivela",
+  "version": "1.0.0",
   "private": true,
   "license": "MIT",
   "description": "Plataforma open source de apoio ao nivelamento estudantil (API NestJS, painel web React e app mobile Expo).",

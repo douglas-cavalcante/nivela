@@ -2,7 +2,7 @@
   "name": "@nivela/web",
   "private": true,
   "license": "MIT",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
   "description": "Painel web do Nivela para professores e administradores.",
   "scripts": {
@@ -20,7 +20,7 @@
     "@mui/icons-material": "^9.5.0",
     "@mui/material": "^9.5.0",
     "@nivela/api-contract": "*",
-    "@nivela/design-tokens": "^0.1.0",
+    "@nivela/design-tokens": "^1.0.0",
     "axios": "^1.21.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
