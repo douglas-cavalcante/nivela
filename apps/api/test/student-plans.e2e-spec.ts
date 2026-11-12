@@ -206,6 +206,39 @@ describe('Planos do aluno (e2e)', () => {
         progress: { completed_chapters: 3, total_chapters: 3, percent: 100 },
       });
     });
+
+    it('available_questions soma só as questões ativas dos capítulos (0 quando não há nenhuma)', async () => {
+      const withQuestions = await createPlan(prisma, {
+        teacherId,
+        subjectId,
+        chapters: [2, 1],
+        title: 'Com questões',
+      });
+      const empty = await createPlan(prisma, {
+        teacherId,
+        subjectId,
+        chapters: [1, 1],
+        title: 'Sem questões ativas',
+      });
+      await assignDirect(withQuestions.planId, student.user.id);
+      await assignDirect(empty.planId, student.user.id);
+      await prisma.question.updateMany({
+        where: { id: { in: empty.chapters.flatMap((c) => c.questions) } },
+        data: { active: false },
+      });
+      await prisma.question.update({
+        where: { id: withQuestions.chapters[0].questions[0] },
+        data: { active: false },
+      });
+
+      const { body } = await get('/me/plans').expect(200);
+      const rows = body.data as ApiMyPlanSummary[];
+      const byTitle = new Map(rows.map((r) => [r.title, r]));
+      expect(byTitle.get('Com questões')?.progress.available_questions).toBe(2);
+      expect(
+        byTitle.get('Sem questões ativas')?.progress.available_questions,
+      ).toBe(0);
+    });
   });
 
   describe('GET /me/plans/:id (RN06)', () => {
@@ -236,6 +269,7 @@ describe('Planos do aluno (e2e)', () => {
         completed_chapters: 1,
         total_chapters: 3,
         percent: 33,
+        available_questions: 4,
       });
     });
 

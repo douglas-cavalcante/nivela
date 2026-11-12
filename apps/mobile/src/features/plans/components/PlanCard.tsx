@@ -17,13 +17,17 @@ interface PlanCardProps {
 export function PlanCard({ plan, onPress }: PlanCardProps) {
   const { mode } = useTheme();
   const palette = subjectColors[mode][plan.subject.color];
-  const progress = `${chaptersLabel(plan.progress.completed_chapters, plan.progress.total_chapters)}.`;
+  // Sem questões ativas o "100%" enganaria: o card avisa, como o detalhe do plano.
+  const empty = plan.progress.available_questions === 0;
+  const progress = empty
+    ? 'Sem questões disponíveis.'
+    : `${chaptersLabel(plan.progress.completed_chapters, plan.progress.total_chapters)}.`;
   const due = plan.due_date ? `Até ${formatDueDay(plan.due_date)}.` : null;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Plano ${plan.title}. ${plan.subject.name}. ${plan.completed ? 'Plano concluído.' : progress}${
+      accessibilityLabel={`Plano ${plan.title}. ${plan.subject.name}. ${plan.completed && !empty ? 'Plano concluído.' : progress}${
         due ? ` ${due}` : ''
       }`}
       onPress={onPress}
@@ -38,12 +42,14 @@ export function PlanCard({ plan, onPress }: PlanCardProps) {
         <AppText variant="muted" importantForAccessibility="no">
           {plan.subject.name}
         </AppText>
-        {plan.completed ? <DoneChip /> : null}
-        <ProgressBar
-          percent={plan.progress.percent}
-          color={palette.foreground}
-          label={`${plan.progress.percent}% concluído.`}
-        />
+        {plan.completed && !empty ? <DoneChip /> : null}
+        {empty ? null : (
+          <ProgressBar
+            percent={plan.progress.percent}
+            color={palette.foreground}
+            label={`${plan.progress.percent}% concluído.`}
+          />
+        )}
         <View style={styles.row}>
           <AppText variant="bold" importantForAccessibility="no">
             {progress}
