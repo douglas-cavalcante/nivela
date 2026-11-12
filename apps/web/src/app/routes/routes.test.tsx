@@ -29,7 +29,8 @@ describe('AppRoutes', () => {
 
     await login();
 
-    expect(await screen.findByRole('heading', { name: 'Início' })).toBeInTheDocument();
+    // a primeira carga do Início baixa o Recharts (lazy), que no Vitest sob carga passa de 1 s
+    expect(await screen.findByRole('heading', { name: 'Início' }, { timeout: 10_000 })).toBeInTheDocument();
   });
 
   it('volta para a página que a pessoa tentou abrir', async () => {
@@ -57,7 +58,7 @@ describe('AppRoutes', () => {
 
   it('professor logado não vê /professores: volta para o Início', async () => {
     renderWithProviders(<AppRoutes />, { user: teacher, route: '/professores' });
-    expect(await screen.findByRole('heading', { name: 'Início' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Início' }, { timeout: 10_000 })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Professores' })).toBeNull();
   });
 
