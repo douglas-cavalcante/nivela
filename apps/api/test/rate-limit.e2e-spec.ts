@@ -6,7 +6,7 @@ import { createTestApp } from './helpers/create-test-app';
 import { createUser, DEFAULT_PASSWORD } from './helpers/factories';
 import { resetDatabase } from './helpers/reset-database';
 
-const MESSAGE = 'Muitas tentativas. Aguarde um minuto e tente de novo.';
+const MESSAGE = 'Muitas tentativas. Aguarde um pouco e tente de novo.';
 const KEYS = [
   'THROTTLE_LOGIN_LIMIT',
   'THROTTLE_REGISTER_LIMIT',
@@ -21,7 +21,7 @@ describe('Limite de tentativas (e2e)', () => {
     for (const key of KEYS) saved[key] = process.env[key];
     process.env.THROTTLE_LOGIN_LIMIT = '3';
     process.env.THROTTLE_REGISTER_LIMIT = '4';
-    process.env.THROTTLE_TTL_SECONDS = '2';
+    process.env.THROTTLE_TTL_SECONDS = '5';
     app = await createTestApp();
     await resetDatabase(app.get(PrismaService));
   });
@@ -80,9 +80,9 @@ describe('Limite de tentativas (e2e)', () => {
       await login(user.email, 'errada').expect(422);
     }
     await login(user.email, DEFAULT_PASSWORD).expect(429);
-    await new Promise((resolve) => setTimeout(resolve, 2200));
+    await new Promise((resolve) => setTimeout(resolve, 5200));
     await login(user.email, DEFAULT_PASSWORD).expect(200);
-  });
+  }, 15_000);
 
   it('o cadastro estoura por ip no limite configurado', async () => {
     const register = (n: number) =>

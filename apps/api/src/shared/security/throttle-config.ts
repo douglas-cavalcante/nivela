@@ -1,10 +1,10 @@
 const DEFAULT_LOGIN_LIMIT = 10;
-const DEFAULT_REGISTER_LIMIT = 30;
+const DEFAULT_REGISTER_LIMIT = 60;
 const DEFAULT_TTL_SECONDS = 60;
 
 /** Mensagem do 429 nas rotas públicas de autenticação. */
 export const THROTTLE_MESSAGE =
-  'Muitas tentativas. Aguarde um minuto e tente de novo.';
+  'Muitas tentativas. Aguarde um pouco e tente de novo.';
 
 /** Inteiro positivo lido da variável de ambiente; qualquer outra coisa cai no padrão. */
 function positiveInt(name: string, fallback: number): number {
