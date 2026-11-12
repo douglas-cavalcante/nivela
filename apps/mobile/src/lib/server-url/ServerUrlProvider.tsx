@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import api, { requireApiUrl, setApiBaseUrl } from 'src/lib/axios';
+import { clearToken } from 'src/lib/auth/tokenStorage';
+import api, { notifySessionEnded, requireApiUrl, setApiBaseUrl } from 'src/lib/axios';
 import {
   clearStoredServerUrl,
   getStoredServerUrl,
@@ -21,6 +22,12 @@ async function isReachable(url: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Encerra a sessão só no aparelho: apaga o token e avisa o AuthContext (sem POST /auth/logout). */
+async function endSession(): Promise<void> {
+  await clearToken();
+  notifySessionEnded();
 }
 
 /**
@@ -51,21 +58,25 @@ export function ServerUrlProvider({ children }: { children: ReactNode }) {
       const candidate = normalizeServerUrl(input);
       if (candidate === null) return 'invalid';
       if (!(await isReachable(candidate))) return 'unreachable';
+      // Servidor diferente: o token do antigo nunca vai para o novo. Limpa localmente, sem
+      // chamar o logout do servidor antigo, e só então passa a usar o endereço novo.
+      if (candidate !== url) await endSession();
       await setStoredServerUrl(candidate);
       setApiBaseUrl(candidate);
       setUrl(candidate);
       setStored(true);
       return 'ok';
     },
-    [],
+    [url],
   );
 
   const reset = useCallback(async () => {
+    if (defaultUrl !== url) await endSession();
     await clearStoredServerUrl();
     setApiBaseUrl(defaultUrl);
     setUrl(defaultUrl);
     setStored(false);
-  }, [defaultUrl]);
+  }, [defaultUrl, url]);
 
   const value = useMemo<ServerUrlContextValue | null>(
     () => (url === null ? null : { url, isDefault: !stored || url === defaultUrl, change, reset }),

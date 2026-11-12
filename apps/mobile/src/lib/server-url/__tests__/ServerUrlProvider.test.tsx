@@ -6,7 +6,7 @@ import { useEffect } from 'react';
 import { Text } from 'react-native';
 import { resolveAssetUrl } from '@nivela/api-contract';
 import { getToken, setToken } from 'src/lib/auth/tokenStorage';
-import api from 'src/lib/axios';
+import api, { setUnauthorizedHandler } from 'src/lib/axios';
 import { ServerUrlProvider } from 'src/lib/server-url/ServerUrlProvider';
 import { useServerUrl } from 'src/lib/server-url/useServerUrl';
 
@@ -38,6 +38,7 @@ beforeEach(() => {
 
 afterEach(() => {
   api.defaults.adapter = originalAdapter;
+  setUnauthorizedHandler(null);
 });
 
 type ServerUrl = ReturnType<typeof useServerUrl>;
@@ -119,7 +120,10 @@ describe('ServerUrlProvider', () => {
     expect(calls[0].authorization).toBe('');
   });
 
-  it('com sucesso salva, troca a base do axios e usa o endereço novo nas imagens', async () => {
+  it('com sucesso salva, troca a base do axios, encerra a sessão e usa o endereço novo nas imagens', async () => {
+    await setToken('token-antigo');
+    const onUnauthorized = jest.fn();
+    setUnauthorizedHandler(onUnauthorized);
     await renderProvider();
 
     let result: string | undefined;
@@ -129,16 +133,30 @@ describe('ServerUrlProvider', () => {
 
     expect(result).toBe('ok');
     expect(await SecureStore.getItemAsync('nivela.serverUrl')).toBe('http://192.168.0.10:8000/api/v1');
+    expect(await getToken()).toBeNull();
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
     expect(current.isDefault).toBe(false);
     await waitFor(() => expect(screen.getByText(/192\.168\.0\.10:8000\/uploads\/a\.png/)).toBeTruthy());
 
     calls = [];
     await api.get('/qualquer');
-    expect(calls[0]).toMatchObject({ baseURL: 'http://192.168.0.10:8000/api/v1' });
+    expect(calls[0]).toMatchObject({ baseURL: 'http://192.168.0.10:8000/api/v1', authorization: '' });
   });
 
-  it('reset volta ao padrão e apaga o endereço salvo', async () => {
+  it('trocar para o mesmo endereço não encerra a sessão', async () => {
+    await setToken('token-atual');
+    await renderProvider();
+
+    await act(async () => {
+      expect(await current.change('api.test/api/v1')).toBe('ok');
+    });
+
+    expect(await getToken()).toBe('token-atual');
+  });
+
+  it('reset volta ao padrão, apaga o salvo e encerra a sessão', async () => {
     await SecureStore.setItemAsync('nivela.serverUrl', 'http://192.168.0.10:8000/api/v1');
+    await setToken('token-antigo');
     await renderProvider();
 
     await act(async () => {
@@ -148,5 +166,6 @@ describe('ServerUrlProvider', () => {
     expect(current.url).toBe(DEFAULT_URL);
     expect(current.isDefault).toBe(true);
     expect(await SecureStore.getItemAsync('nivela.serverUrl')).toBeNull();
+    expect(await getToken()).toBeNull();
   });
 });

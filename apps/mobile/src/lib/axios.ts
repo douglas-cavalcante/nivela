@@ -10,6 +10,11 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): voi
   onUnauthorized = handler;
 }
 
+/** Sessão encerrada fora de uma resposta 401 (ex.: troca de servidor): avisa o AuthContext. */
+export function notifySessionEnded(): void {
+  onUnauthorized?.();
+}
+
 /** Falha logo na inicialização, com mensagem clara, se a URL da API não estiver configurada. */
 export function requireApiUrl(value: string | undefined): string {
   if (!value?.trim()) {
