@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+
+# Cancela a execução anterior da mesma branch/PR quando chega um push novo.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: API (lint, tipos, testes, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: nivela
+          POSTGRES_PASSWORD: nivela
+          POSTGRES_DB: nivela_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nivela -d nivela_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Banco do serviço acima. Tem de terminar em _test (os e2e apagam dados).
+      # Prevalece sobre o apps/api/.env.test (que aponta para a porta 5433 local).
+      DATABASE_URL: postgresql://nivela:nivela@localhost:5432/nivela_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint -w apps/api
+      - name: Tipos
+        run: npm run typecheck -w apps/api
+      - name: Testes unitários
+        run: npm test -w apps/api
+      # Drift: aplica as migrations num banco-sombra descartável e compara com o
+      # schema.prisma (--exit-code: 0 = sem diferença, 2 = drift, 1 = erro).
+      - name: Drift do schema (migrations × schema.prisma)
+        working-directory: apps/api
+        env:
+          PGPASSWORD: nivela
+          SHADOW_DATABASE_URL: postgresql://nivela:nivela@localhost:5432/nivela_shadow
+        run: |
+          psql -h localhost -U nivela -d nivela_test -c 'CREATE DATABASE nivela_shadow'
+          npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code
+      # Aplica as migrations (prisma migrate deploy) no banco do serviço e roda os e2e.
+      - name: Testes e2e
+        run: npm run test:e2e -w apps/api
+      - name: Build
+        run: npm run build -w apps/api
+
+  web:
+    name: Web e tokens (lint, tipos, testes, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Tokens de design (tipos)
+        run: npm run typecheck -w packages/design-tokens
+      - name: Tokens de design (testes)
+        run: npm test -w packages/design-tokens
+      - name: Lint
+        run: npm run lint -w apps/web
+      - name: Tipos
+        run: npm run typecheck -w apps/web
+      - name: Testes
+        run: npm test -w apps/web
+      - name: Build
+        run: npm run build -w apps/web
+
+  contract:
+    name: Contrato da API (tipos, testes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Tipos
+        run: npm run typecheck -w packages/api-contract
+      - name: Testes
+        run: npm test -w packages/api-contract
+
+  mobile:
+    name: Mobile (lint, tipos, testes)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint -w apps/mobile
+      - name: Tipos
+        run: npm run typecheck -w apps/mobile
+      # Metade dos núcleos: menos disputa de CPU entre os workers do jest-expo.
+      - name: Testes
+        run: npm test -w apps/mobile -- --maxWorkers=50%

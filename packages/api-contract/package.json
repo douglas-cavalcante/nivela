@@ -1,0 +1,24 @@
+{
+  "name": "@nivela/api-contract",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Contrato da API do Nivela (tipos de resposta e parser de erros) compartilhado entre API, web e mobile.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "axios": "^1.21.0"
+  },
+  "devDependencies": {
+    "axios": "^1.21.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@nivela/design-tokens": "^1.0.0"
+  }
+}

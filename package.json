@@ -1,0 +1,34 @@
+{
+  "name": "nivela",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Plataforma open source de apoio ao nivelamento estudantil (API NestJS, painel web React e app mobile Expo).",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "dev:api": "npm run start:dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "dev:mobile": "npm run start -w apps/mobile",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.0",
+    "typescript": "~6.0.2"
+  },
+  "overrides": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "jsdom": "29.1.1"
+  }
+}

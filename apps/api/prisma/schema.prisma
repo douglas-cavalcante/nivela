@@ -1,0 +1,415 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  admin
+  teacher
+  student
+
+  @@map("role")
+}
+
+enum TokenChannel {
+  web
+  mobile
+
+  @@map("token_channel")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(120)
+  email     String   @unique @db.VarChar(190)
+  password  String   @db.VarChar(100)
+  role      Role     @default(student)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  studentProfile     StudentProfile?
+  accessTokens       AccessToken[]
+  classrooms         Classroom[]
+  enrollments        ClassroomStudent[]
+  questions          Question[]
+  rewards            Reward[]
+  redemptions        RewardRedemption[]  @relation("RedemptionStudent")
+  handledRedemptions RewardRedemption[]  @relation("RedemptionHandler")
+  attempts           QuestionAttempt[]
+  coinTransactions   CoinTransaction[]
+  levelingPlans      LevelingPlan[]
+  planAssignments    PlanAssignment[]
+  chapterCompletions ChapterCompletion[]
+  planCompletions    PlanCompletion[]
+
+  @@map("users")
+}
+
+model StudentProfile {
+  userId        Int       @id @map("user_id")
+  coinsBalance  Int       @default(0) @map("coins_balance")
+  currentStreak Int       @default(0) @map("current_streak")
+  bestStreak    Int       @default(0) @map("best_streak")
+  lastStudyDate DateTime? @map("last_study_date") @db.Date
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("student_profiles")
+}
+
+model AccessToken {
+  id         Int          @id @default(autoincrement())
+  userId     Int          @map("user_id")
+  tokenHash  String       @unique @map("token_hash") @db.Char(64)
+  channel    TokenChannel
+  lastUsedAt DateTime?    @map("last_used_at") @db.Timestamptz(3)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("access_tokens")
+}
+
+model Classroom {
+  id         Int      @id @default(autoincrement())
+  teacherId  Int      @map("teacher_id")
+  name       String   @db.VarChar(120)
+  schoolYear String?  @map("school_year") @db.VarChar(40)
+  joinCode   String   @unique @map("join_code") @db.VarChar(8)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  teacher         User               @relation(fields: [teacherId], references: [id])
+  students        ClassroomStudent[]
+  planAssignments PlanAssignment[]
+
+  @@index([teacherId])
+  @@map("classrooms")
+}
+
+model ClassroomStudent {
+  classroomId Int      @map("classroom_id")
+  studentId   Int      @map("student_id")
+  joinedAt    DateTime @default(now()) @map("joined_at") @db.Timestamptz(3)
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  student   User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([classroomId, studentId])
+  @@index([studentId])
+  @@map("classroom_student")
+}
+
+// Unicidade por nome sem diferenciar maiúsculas/espaços: índices funcionais
+// `lower(name)` criados à mão na migration subjects_categories (o Prisma não
+// os representa no schema).
+model Subject {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(60)
+  color     String   @db.VarChar(20)
+  icon      String   @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  categories    Category[]
+  questions     Question[]
+  levelingPlans LevelingPlan[]
+
+  @@map("subjects")
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  subjectId Int      @map("subject_id")
+  name      String   @db.VarChar(80)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  subject   Subject    @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  questions Question[]
+
+  // Alvo da FK composta questions_category_subject_fkey (categoria × disciplina).
+  @@unique([id, subjectId], map: "categories_id_subject_id_key")
+  @@index([subjectId])
+  @@map("categories")
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
+
+  @@map("difficulty")
+}
+
+model Question {
+  id          Int        @id @default(autoincrement())
+  authorId    Int        @map("author_id")
+  subjectId   Int        @map("subject_id")
+  categoryId  Int        @map("category_id")
+  statement   String
+  imagePath   String?    @map("image_path") @db.VarChar(255)
+  difficulty  Difficulty
+  explanation String
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  author           User              @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  subject          Subject           @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  category         Category          @relation(fields: [categoryId, subjectId], references: [id, subjectId], onDelete: Restrict, onUpdate: NoAction, map: "questions_category_subject_fkey")
+  options          QuestionOption[]
+  attempts         QuestionAttempt[]
+  chapterQuestions ChapterQuestion[]
+
+  @@index([subjectId, categoryId, active])
+  @@index([authorId])
+  @@map("questions")
+}
+
+model QuestionOption {
+  id         Int     @id @default(autoincrement())
+  questionId Int     @map("question_id")
+  letter     String  @db.Char(1)
+  text       String
+  isCorrect  Boolean @map("is_correct")
+
+  question Question          @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  attempts QuestionAttempt[]
+
+  @@unique([questionId, letter])
+  // Alvo da FK composta question_attempts_option_question_fkey (alternativa × questão).
+  @@unique([id, questionId], map: "question_options_id_question_id_key")
+  @@map("question_options")
+}
+
+enum CoinReason {
+  correct_answer
+  plan_completed
+  streak_bonus
+  redemption
+  refund
+
+  @@map("coin_reason")
+}
+
+// Unicidade das tentativas por contexto: índices únicos parciais criados à mão
+// na migration answers (question_attempts_practice_key para plan_chapter_id
+// nulo e question_attempts_chapter_key para não nulo) e CHECK de
+// attempt_number (1 ou 2). A FK de plan_chapter_id (Restrict) foi criada na
+// migration leveling_plans.
+model QuestionAttempt {
+  id               Int      @id @default(autoincrement())
+  studentId        Int      @map("student_id")
+  questionId       Int      @map("question_id")
+  planChapterId    Int?     @map("plan_chapter_id")
+  selectedOptionId Int      @map("selected_option_id")
+  attemptNumber    Int      @map("attempt_number") @db.SmallInt
+  isCorrect        Boolean  @map("is_correct")
+  coinsAwarded     Int      @default(0) @map("coins_awarded")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  student        User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  question       Question       @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  planChapter    PlanChapter?   @relation(fields: [planChapterId], references: [id], onDelete: Restrict)
+  selectedOption QuestionOption @relation(fields: [selectedOptionId, questionId], references: [id, questionId], onDelete: Restrict, onUpdate: NoAction, map: "question_attempts_option_question_fkey")
+
+  @@index([studentId, questionId])
+  @@index([questionId])
+  @@index([selectedOptionId])
+  @@index([planChapterId])
+  @@map("question_attempts")
+}
+
+// "Uma vez" por origem: índices únicos parciais criados à mão na migration
+// answers (coin_once_per_question, coin_once_per_plan, coin_once_per_streak_day)
+// e CHECK amount <> 0.
+model CoinTransaction {
+  id         Int        @id @default(autoincrement())
+  studentId  Int        @map("student_id")
+  amount     Int
+  reason     CoinReason
+  sourceType String     @map("source_type") @db.VarChar(30)
+  sourceId   Int        @map("source_id")
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, createdAt])
+  @@map("coin_transactions")
+}
+
+enum PlanStatus {
+  draft
+  published
+
+  @@map("plan_status")
+}
+
+model LevelingPlan {
+  id              Int        @id @default(autoincrement())
+  teacherId       Int        @map("teacher_id")
+  subjectId       Int        @map("subject_id")
+  title           String     @db.VarChar(120)
+  description     String?    @db.VarChar(1000)
+  completionBonus Int        @default(50) @map("completion_bonus")
+  status          PlanStatus @default(draft)
+  publishedAt     DateTime?  @map("published_at") @db.Timestamptz(3)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  teacher     User             @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  subject     Subject          @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  chapters    PlanChapter[]
+  assignments PlanAssignment[]
+  completions PlanCompletion[]
+
+  @@index([teacherId])
+  @@index([subjectId])
+  @@map("leveling_plans")
+}
+
+// Posição única por plano: plan_chapters_position_key é DEFERRABLE INITIALLY
+// DEFERRED na migration leveling_plans (SQL à mão), para reordenar numa
+// transação. O Prisma não expressa DEFERRABLE; o @@unique abaixo só faz o
+// Prisma reconhecer o índice (sem ele o drift acusaria a restrição).
+model PlanChapter {
+  id             Int    @id @default(autoincrement())
+  levelingPlanId Int    @map("leveling_plan_id")
+  title          String @db.VarChar(120)
+  position       Int
+
+  levelingPlan LevelingPlan        @relation(fields: [levelingPlanId], references: [id], onDelete: Cascade)
+  questions    ChapterQuestion[]
+  completions  ChapterCompletion[]
+  attempts     QuestionAttempt[]
+
+  @@unique([levelingPlanId, position], map: "plan_chapters_position_key")
+  @@index([levelingPlanId])
+  @@map("plan_chapters")
+}
+
+// Posição única por capítulo: chapter_question_position_key (DEFERRABLE
+// INITIALLY DEFERRED), criada à mão na migration leveling_plans.
+model ChapterQuestion {
+  planChapterId Int @map("plan_chapter_id")
+  questionId    Int @map("question_id")
+  position      Int
+
+  planChapter PlanChapter @relation(fields: [planChapterId], references: [id], onDelete: Cascade)
+  question    Question    @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@id([planChapterId, questionId])
+  @@unique([planChapterId, position], map: "chapter_question_position_key")
+  @@index([questionId])
+  @@map("chapter_question")
+}
+
+// Exatamente um de classroom_id/student_id (CHECK plan_assignments_one_target)
+// e únicos parciais por alvo (plan_assignments_classroom_key e
+// plan_assignments_student_key), criados à mão na migration leveling_plans.
+model PlanAssignment {
+  id             Int       @id @default(autoincrement())
+  levelingPlanId Int       @map("leveling_plan_id")
+  classroomId    Int?      @map("classroom_id")
+  studentId      Int?      @map("student_id")
+  dueDate        DateTime? @map("due_date") @db.Date
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  levelingPlan LevelingPlan @relation(fields: [levelingPlanId], references: [id], onDelete: Cascade)
+  classroom    Classroom?   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  student      User?        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([levelingPlanId])
+  @@index([classroomId])
+  @@index([studentId])
+  @@map("plan_assignments")
+}
+
+model ChapterCompletion {
+  studentId     Int      @map("student_id")
+  planChapterId Int      @map("plan_chapter_id")
+  completedAt   DateTime @default(now()) @map("completed_at") @db.Timestamptz(3)
+
+  student     User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  planChapter PlanChapter @relation(fields: [planChapterId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, planChapterId])
+  @@index([planChapterId])
+  @@map("chapter_completions")
+}
+
+model PlanCompletion {
+  studentId      Int      @map("student_id")
+  levelingPlanId Int      @map("leveling_plan_id")
+  completedAt    DateTime @default(now()) @map("completed_at") @db.Timestamptz(3)
+  bonusAwarded   Int      @default(0) @map("bonus_awarded")
+
+  student      User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  levelingPlan LevelingPlan @relation(fields: [levelingPlanId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, levelingPlanId])
+  @@index([levelingPlanId])
+  @@map("plan_completions")
+}
+
+enum RedemptionStatus {
+  pending
+  delivered
+  rejected
+
+  @@map("redemption_status")
+}
+
+// CHECKs criados à mão na migration rewards: price entre 1 e 100000,
+// stock >= 0 e rejection_reason obrigatório quando status = 'rejected'.
+model Reward {
+  id          Int      @id @default(autoincrement())
+  createdBy   Int      @map("created_by")
+  name        String   @db.VarChar(80)
+  description String?  @db.VarChar(500)
+  imagePath   String?  @map("image_path") @db.VarChar(255)
+  price       Int
+  stock       Int
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  creator     User               @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+  redemptions RewardRedemption[]
+
+  @@index([createdBy])
+  @@map("rewards")
+}
+
+model RewardRedemption {
+  id              Int              @id @default(autoincrement())
+  rewardId        Int              @map("reward_id")
+  studentId       Int              @map("student_id")
+  pricePaid       Int              @map("price_paid")
+  status          RedemptionStatus @default(pending)
+  handledBy       Int?             @map("handled_by")
+  handledAt       DateTime?        @map("handled_at") @db.Timestamptz(3)
+  rejectionReason String?          @map("rejection_reason") @db.VarChar(300)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  reward  Reward @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+  student User   @relation("RedemptionStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  handler User?  @relation("RedemptionHandler", fields: [handledBy], references: [id], onDelete: Restrict)
+
+  @@index([studentId, createdAt])
+  @@index([status])
+  @@index([rewardId])
+  @@index([handledBy])
+  @@map("reward_redemptions")
+}

@@ -1,0 +1,67 @@
+# Diagrama de casos de uso
+
+Atores (Administrador, Professor e Aluno) e casos de uso agrupados por área. O Administrador especializa o Professor (faz tudo que ele faz e ainda gerencia professores); Professor e Aluno especializam o Usuário autenticado, que entra, sai e troca a senha. Requisitos relacionados: [requisitos.md](../requisitos.md).
+
+![Diagrama de casos de uso](casos-de-uso.png)
+
+```mermaid
+flowchart LR
+  alu(["Aluno"])
+  usr(["Usuário autenticado"])
+  prof(["Professor"])
+  adm(["Administrador"])
+
+  subgraph estudo["Estudo e gamificação (app)"]
+    direction TB
+    UC3("Cadastrar-se com código de turma")
+    UC4("Alterar o endereço do servidor")
+    UC18("Seguir plano de nivelamento")
+    UC20("Praticar livremente")
+    UC19("Responder questões")
+    UC21("Ver moedas, sequência e extrato")
+    UC16("Ver vitrine e resgatar prêmio")
+    UC17("Acompanhar meus resgates")
+  end
+
+  subgraph acesso["Acesso"]
+    direction TB
+    UC1("Entrar e sair")
+    UC2("Trocar a própria senha")
+  end
+
+  subgraph conteudo["Conteúdo, turmas e planos (painel)"]
+    direction TB
+    UC6("Gerenciar disciplinas e categorias")
+    UC10("Gerenciar banco de questões")
+    UC7("Gerenciar turmas e código de entrada")
+    UC11("Montar plano em capítulos")
+    UC12("Publicar e atribuir plano")
+    UC13("Acompanhar progresso do plano")
+  end
+
+  subgraph gestao["Acompanhamento e loja (painel)"]
+    direction TB
+    UC8("Consultar alunos e fichas")
+    UC9("Ver indicadores do Início")
+    UC14("Gerenciar prêmios")
+    UC15("Atender fila de resgates")
+    UC5("Gerenciar professores")
+  end
+
+  alu --- UC3 & UC4 & UC18 & UC20 & UC16 & UC17 & UC21
+  alu -. "é um" .-> usr
+  prof -. "é um" .-> usr
+  usr --- UC1 & UC2
+  adm -. "especializa" .-> prof
+  adm --- UC5
+  prof --- UC6 & UC10 & UC7 & UC11 & UC12 & UC13
+  prof --- UC8 & UC9 & UC14 & UC15
+
+  UC18 -. "inclui" .-> UC19
+  UC20 -. "inclui" .-> UC19
+  UC19 -. "estende: ganhar moedas" .-> UC21
+  UC12 -. "inclui" .-> UC11
+
+  classDef grupo fill:#f7f7f7,stroke:#999,color:#222
+  class estudo,acesso,conteudo,gestao grupo
+```

@@ -1,6 +1,5 @@
 # Dependências
 node_modules/
-vendor/
 
 # Ambiente
 .env
@@ -30,3 +29,10 @@ npm-debug.log*
 
 # Ferramentas
 .superpowers/
+
+# Cache do tsc -b
+*.tsbuildinfo
+
+# Build Android local (gerado pelo expo prebuild)
+apps/mobile/android/
+dist/*.apk
