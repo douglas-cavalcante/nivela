@@ -1,4 +1,4 @@
-import { screen, userEvent } from '@testing-library/react-native';
+import { screen, userEvent, within } from '@testing-library/react-native';
 import { renderApp } from 'src/test/render';
 import { student } from 'src/test/users';
 import { stats } from 'src/test/studyFixtures';
@@ -117,5 +117,26 @@ describe('aba Loja: resgate', () => {
     expect(await screen.findByText('Prêmio esgotado.')).toBeTruthy();
     expect(await screen.findByText('Esgotado.')).toBeTruthy();
     expect(screen.queryByText('Trocar 50 moedas por Caderno de desenho?')).toBeNull();
+  });
+
+  it('o aviso do resgate fica fora da rolagem, sempre visível', async () => {
+    const user = userEvent.setup();
+    await renderApp({
+      user: student,
+      initialUrl: '/store',
+      routes: {
+        'GET /me/stats': statsRoute,
+        'GET /store/rewards': rewards([caderno]),
+        'POST /store/rewards/1/redeem': () => ({ status: 409, data: { message: 'Prêmio esgotado.' } }),
+      },
+    });
+
+    await user.press(await screen.findByRole('button', { name: 'Resgatar Caderno de desenho' }));
+    await user.press(screen.getByRole('button', { name: 'Confirmar' }));
+
+    const notice = await screen.findByText('Prêmio esgotado.');
+    expect(within(screen.getByTestId('store-notice')).getByText('Prêmio esgotado.')).toBeTruthy();
+    expect(within(screen.getByTestId('store-scroll')).queryByText('Prêmio esgotado.')).toBeNull();
+    expect(notice).toBeTruthy();
   });
 });

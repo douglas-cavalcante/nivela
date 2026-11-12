@@ -84,24 +84,27 @@ export function Store() {
 
   return (
     <PaperBackground>
-      <ScrollView contentContainerStyle={styles.content}>
+      {notice ? (
+        <View style={styles.banner} testID="store-notice">
+          {notice?.kind === 'success' ? (
+            <PenCard style={styles.notice}>
+              <CoinBurst amount={notice.price} direction="out" />
+              <AppText variant="bold">Pedido feito! Agora é só combinar a entrega com o professor.</AppText>
+            </PenCard>
+          ) : null}
+          {notice?.kind === 'error' ? (
+            <AppText accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: colors.danger }}>
+              {notice.message}
+            </AppText>
+          ) : null}
+        </View>
+      ) : null}
+      <ScrollView testID="store-scroll" contentContainerStyle={styles.content}>
         <AppText variant="heading" size={40} accessibilityRole="header">
           Loja
         </AppText>
         <StatsBar latest={balance === null ? null : { coinsBalance: balance }} />
         <Button title="Meus resgates" variant="outline" onPress={() => router.push('/store/redemptions')} />
-
-        {notice?.kind === 'success' ? (
-          <PenCard style={styles.notice}>
-            <CoinBurst amount={notice.price} direction="out" />
-            <AppText variant="bold">Pedido feito! Agora é só combinar a entrega com o professor.</AppText>
-          </PenCard>
-        ) : null}
-        {notice?.kind === 'error' ? (
-          <AppText accessibilityRole="alert" accessibilityLiveRegion="polite" style={{ color: colors.danger }}>
-            {notice.message}
-          </AppText>
-        ) : null}
 
         {loadError ? (
           <View style={styles.gap}>
@@ -145,6 +148,7 @@ export function Store() {
 const styles = StyleSheet.create({
   content: { gap: spacing(4), padding: spacing(5), paddingBottom: spacing(10) },
   gap: { gap: spacing(2) },
+  banner: { paddingHorizontal: spacing(5), paddingTop: spacing(3) },
   notice: { gap: spacing(3) },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -spacing(2) },
   cell: { width: '50%', paddingHorizontal: spacing(2), paddingBottom: spacing(3) },
