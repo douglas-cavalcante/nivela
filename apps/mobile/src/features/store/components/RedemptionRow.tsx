@@ -6,6 +6,7 @@ import { AppText } from 'src/components/AppText';
 import { Mascot } from 'src/components/Mascot';
 import { PenCard } from 'src/components/PenCard';
 import { formatDay } from 'src/features/store/format';
+import { useServerUrl } from 'src/lib/server-url';
 import { useTheme } from 'src/lib/theme/useTheme';
 
 const STATUS_LABEL: Record<RedemptionStatus, string> = {
@@ -17,7 +18,8 @@ const STATUS_LABEL: Record<RedemptionStatus, string> = {
 /** Uma linha de "Meus resgates": prêmio, preço pago, data e o estado (com o motivo se recusado). */
 export function RedemptionRow({ redemption }: { redemption: ApiMyRedemption }) {
   const { colors } = useTheme();
-  const imageUrl = resolveAssetUrl(process.env.EXPO_PUBLIC_API_URL ?? '', redemption.reward.image_url);
+  const { url: apiUrl } = useServerUrl();
+  const imageUrl = resolveAssetUrl(apiUrl, redemption.reward.image_url);
   const chip = {
     pending: { background: colors.highlight, text: colors.onHighlight },
     delivered: { background: colors.success, text: colors.onSuccess },

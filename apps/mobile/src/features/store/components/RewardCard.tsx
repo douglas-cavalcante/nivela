@@ -6,6 +6,7 @@ import { AppText } from 'src/components/AppText';
 import { Button } from 'src/components/Button';
 import { Mascot } from 'src/components/Mascot';
 import { PenCard } from 'src/components/PenCard';
+import { useServerUrl } from 'src/lib/server-url';
 import { useTheme } from 'src/lib/theme/useTheme';
 
 interface RewardCardProps {
@@ -20,7 +21,8 @@ const coinsLabel = (count: number): string => `${count} ${count === 1 ? 'moeda' 
 /** Cartão de caderno de um prêmio na vitrine: foto (ou mascote), nome, preço, estoque e "Resgatar". */
 export function RewardCard({ reward, balance, onRedeem }: RewardCardProps) {
   const { colors } = useTheme();
-  const imageUrl = resolveAssetUrl(process.env.EXPO_PUBLIC_API_URL ?? '', reward.image_url);
+  const { url: apiUrl } = useServerUrl();
+  const imageUrl = resolveAssetUrl(apiUrl, reward.image_url);
   const soldOut = reward.stock <= 0;
   const affordable = balance === null ? reward.affordable : balance >= reward.price;
   const missing = balance === null ? null : reward.price - balance;

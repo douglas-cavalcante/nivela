@@ -6,6 +6,7 @@ import { Button } from 'src/components/Button';
 import { HandTitle } from 'src/components/HandTitle';
 import { Mascot } from 'src/components/Mascot';
 import { PaperBackground } from 'src/components/PaperBackground';
+import { ServerUrlLine } from 'src/features/auth/components/ServerUrlLine';
 
 export function Welcome() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export function Welcome() {
         <View style={styles.actions}>
           <Button title="Entrar" onPress={() => router.push('/login')} />
           <Button title="Tenho um código de turma" variant="secondary" onPress={() => router.push('/register')} />
+          <ServerUrlLine />
         </View>
       </ScrollView>
     </PaperBackground>
