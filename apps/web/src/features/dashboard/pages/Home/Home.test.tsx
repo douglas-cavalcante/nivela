@@ -71,6 +71,28 @@ describe('Home', () => {
     expect(within(card).getByRole('link', { name: 'Ver a lista.' })).toHaveAttribute('href', '#precisam-de-ajuda');
   });
 
+  it('avisa quando o cartão conta mais alunos do que a lista mostra', async () => {
+    const many = Array.from({ length: 10 }, (_, index) => ({
+      student: { id: 100 + index, name: `Aluno ${index + 1}` },
+      accuracy: 20,
+      finished: 6,
+    }));
+    dashboardHandlers({ summary: { ...summary, students_needing_help: 13 }, needingHelp: many });
+    renderPage();
+
+    const section = await screen.findByRole('region', { name: 'Precisam de ajuda' });
+    expect(await within(section).findByText('Mostrando 10 de 13.')).toBeInTheDocument();
+  });
+
+  it('não mostra o aviso quando a lista traz todos', async () => {
+    dashboardHandlers();
+    renderPage();
+
+    const section = await screen.findByRole('region', { name: 'Precisam de ajuda' });
+    await within(section).findByRole('link', { name: 'Bia Souza' });
+    expect(within(section).queryByText(/Mostrando/)).toBeNull();
+  });
+
   it('lista as questões recentes com link para a questão', async () => {
     dashboardHandlers();
     renderPage();

@@ -1,3 +1,4 @@
+import type { ApiDashboardSummary } from '@nivela/api-contract';
 import { Box, CircularProgress, Link as MuiLink, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -60,7 +61,8 @@ function Activity() {
   );
 }
 
-function NeedingHelp() {
+/** `total` vem do indicador do resumo, que conta todos; a lista traz só os primeiros. */
+function NeedingHelp({ total }: { total: number | undefined }) {
   const { rows, loading, error, reload } = useRemoteList((signal) => listNeedingHelpAction(signal));
   return (
     <Panel title="Precisam de ajuda" id="precisam-de-ajuda">
@@ -84,6 +86,11 @@ function NeedingHelp() {
           ))}
         </List>
       )}
+      {!loading && !error && total !== undefined && total > rows.length ? (
+        <Typography variant="body2" color="text.secondary">
+          Mostrando {rows.length} de {total}.
+        </Typography>
+      ) : null}
     </Panel>
   );
 }
@@ -119,10 +126,14 @@ function RecentQuestions() {
   );
 }
 
-function Summary() {
-  const { rows, loading, error, reload } = useRemoteList((signal) => getSummaryAction(signal).then((data) => [data]));
-  const summary = rows[0];
+interface SummaryProps {
+  summary: ApiDashboardSummary | undefined;
+  loading: boolean;
+  error: string | null;
+  reload: () => Promise<void> | void;
+}
 
+function Summary({ summary, loading, error, reload }: SummaryProps) {
   if (error) return <ResourceState kind="error" message={error} onRetry={() => void reload()} />;
   if (loading || !summary) return spinner;
 
@@ -159,15 +170,17 @@ function Summary() {
 export function Home() {
   const { user } = useAuth();
   const firstName = user?.name.split(' ')[0];
+  const { rows, loading, error, reload } = useRemoteList((signal) => getSummaryAction(signal).then((data) => [data]));
+  const summary = rows[0];
 
   return (
     <>
       <PageHeader title="Início" subtitle={firstName ? `Olá, ${firstName}! Bom ver você por aqui.` : undefined} />
       <Box sx={{ display: 'grid', gap: 3 }}>
-        <Summary />
+        <Summary summary={summary} loading={loading} error={error} reload={reload} />
         <Activity />
         <Box sx={{ display: 'grid', gap: 3, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, alignItems: 'start' }}>
-          <NeedingHelp />
+          <NeedingHelp total={summary?.students_needing_help} />
           <RecentQuestions />
         </Box>
       </Box>
