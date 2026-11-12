@@ -52,3 +52,11 @@ export type {
   RejectRedemptionPayload,
   RewardPayload,
 } from './rewards';
+export type {
+  ApiActivityDay,
+  ApiCategoryPerformance,
+  ApiCoinTransaction,
+  ApiDashboardSummary,
+  ApiStudentNeedingHelp,
+  CoinReason,
+} from './dashboard';
