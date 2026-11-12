@@ -37,6 +37,11 @@ export function presentMyPlanSummary(
       completed_chapters: done,
       total_chapters: chapters.length,
       percent: percentOf(done, chapters.length),
+      // Mesma regra do `total` de cada capítulo no detalhe: só questões ativas.
+      available_questions: chapters.reduce(
+        (sum, chapter) => sum + chapter.total,
+        0,
+      ),
     },
     due_date: dueDate ? dueDate.toISOString().slice(0, 10) : null,
     completed,

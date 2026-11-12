@@ -82,6 +82,8 @@ export interface ApiMyPlanSummary {
     total_chapters: number;
     /** Inteiro de 0 a 100 (0 quando o plano não tem capítulos). */
     percent: number;
+    /** Questões ativas somadas dos capítulos (0 = plano sem o que responder). */
+    available_questions: number;
   };
   /** O menor prazo entre as atribuições que alcançam o aluno. */
   due_date: string | null;
