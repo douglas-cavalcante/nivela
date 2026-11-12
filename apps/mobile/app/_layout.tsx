@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { OfflineScreen } from 'src/components/OfflineScreen';
 import { AuthProvider, useAuth } from 'src/lib/auth/AuthContext';
+import { ServerUrlProvider } from 'src/lib/server-url';
 import { ThemeProvider } from 'src/lib/theme/ThemeProvider';
 import { useTheme } from 'src/lib/theme/useTheme';
 
@@ -62,9 +63,11 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <RootNavigator />
-      </AuthProvider>
+      <ServerUrlProvider>
+        <AuthProvider>
+          <RootNavigator />
+        </AuthProvider>
+      </ServerUrlProvider>
     </ThemeProvider>
   );
 }

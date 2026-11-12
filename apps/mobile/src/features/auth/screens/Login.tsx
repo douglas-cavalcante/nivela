@@ -7,6 +7,7 @@ import { AppText } from 'src/components/AppText';
 import { Button } from 'src/components/Button';
 import { loginAction } from 'src/features/auth/api/auth.action';
 import { AuthForm } from 'src/features/auth/components/AuthForm';
+import { ServerUrlLine } from 'src/features/auth/components/ServerUrlLine';
 import { FormTextField } from 'src/features/auth/components/FormTextField';
 import { loginSchema } from 'src/features/auth/schemas/login.schema';
 import type { LoginFormValues, LoginPayloadValues } from 'src/features/auth/schemas/login.schema';
@@ -54,16 +55,19 @@ export function Login() {
       subtitle="Entre para abrir o seu caderno."
       error={serverError}
       footer={
-        <Pressable
-          accessibilityRole="link"
-          accessibilityLabel="Ainda não tem conta? Use o código da turma"
-          onPress={() => router.replace('/register')}
-          style={{ minHeight: 44, justifyContent: 'center' }}
-        >
-          <AppText variant="bold" style={{ color: colors.primary, textAlign: 'center' }}>
-            Ainda não tem conta? Use o código da turma
-          </AppText>
-        </Pressable>
+        <>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Ainda não tem conta? Use o código da turma"
+            onPress={() => router.replace('/register')}
+            style={{ minHeight: 44, justifyContent: 'center' }}
+          >
+            <AppText variant="bold" style={{ color: colors.primary, textAlign: 'center' }}>
+              Ainda não tem conta? Use o código da turma
+            </AppText>
+          </Pressable>
+          <ServerUrlLine />
+        </>
       }
     >
       <FormTextField

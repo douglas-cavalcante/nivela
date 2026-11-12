@@ -7,6 +7,7 @@ import { AppText } from 'src/components/AppText';
 import { Button } from 'src/components/Button';
 import { PenCard } from 'src/components/PenCard';
 import { OptionButton } from 'src/features/study/components/OptionButton';
+import { useServerUrl } from 'src/lib/server-url';
 import { useTheme } from 'src/lib/theme/useTheme';
 
 interface QuestionViewProps {
@@ -32,7 +33,8 @@ export function QuestionView({ question, onAnswer, disabled = false }: QuestionV
   const [sizeIndex, setSizeIndex] = useState(DEFAULT_SIZE_INDEX);
   const submitting = useRef(false);
   const [zoomed, setZoomed] = useState(false);
-  const imageUrl = resolveAssetUrl(process.env.EXPO_PUBLIC_API_URL ?? '', question.image_url);
+  const { url: apiUrl } = useServerUrl();
+  const imageUrl = resolveAssetUrl(apiUrl, question.image_url);
   const locked = disabled || busy;
   const fontSize = TEXT_SIZES[sizeIndex];
 

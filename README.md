@@ -57,7 +57,7 @@ npm run dev:mobile   # Expo: emulador Android ou Expo Go
 
 Troque a senha em **Perfil** no primeiro acesso.
 
-**App no celular:** o `apps/mobile/.env` vem com `EXPO_PUBLIC_API_URL=http://10.0.2.2:8000/api/v1`, que é o `localhost` da máquina visto de dentro do **emulador Android**. Em um **celular físico** (Expo Go), use o IP da sua máquina na rede, por exemplo `http://192.168.0.10:8000/api/v1` (veja o IP com `ipconfig`), com celular e computador no mesmo Wi-Fi. No Windows, o **Firewall do Windows** precisa permitir conexões de entrada na porta **8000** (a API escuta em `0.0.0.0:8000`); sem isso o app mostra "Sem conexão com o servidor." Depois de mudar o `.env`, reinicie o Expo.
+**App no celular:** o `apps/mobile/.env` vem com `EXPO_PUBLIC_API_URL=http://10.0.2.2:8000/api/v1`, que é o `localhost` da máquina visto de dentro do **emulador Android**. Em um **celular físico** (Expo Go), use o IP da sua máquina na rede, por exemplo `http://192.168.0.10:8000/api/v1` (veja o IP com `ipconfig`), com celular e computador no mesmo Wi-Fi. No Windows, o **Firewall do Windows** precisa permitir conexões de entrada na porta **8000** (a API escuta em `0.0.0.0:8000`); sem isso o app mostra "Sem conexão com o servidor." Depois de mudar o `.env`, reinicie o Expo. **Sem mexer no `.env`:** nas telas de Boas-vindas e Entrar, a linha "Servidor: … · Alterar" permite digitar o endereço da API (por exemplo `192.168.0.10:8000`); o app completa `http://` e `/api/v1`, testa a conexão (`GET /health`) antes de salvar e guarda o endereço no aparelho. Trocar de servidor encerra a sessão aberta, e "Usar o padrão" volta ao `EXPO_PUBLIC_API_URL`. Assim um mesmo APK funciona em qualquer rede Wi-Fi.
 
 **Variáveis da API** (`apps/api/.env`, modelo em `.env.example`):
 

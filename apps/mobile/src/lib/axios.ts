@@ -20,14 +20,29 @@ export function requireApiUrl(value: string | undefined): string {
   return value;
 }
 
+/** Endereço atual da API; o ServerUrlProvider o define ao abrir o app e quando a pessoa o troca. */
+let currentBaseUrl: string | null = null;
+
+export function setApiBaseUrl(url: string): void {
+  currentBaseUrl = url;
+}
+
+/** Endereço atual da API; sem nenhum definido, vale o padrão (`EXPO_PUBLIC_API_URL`, validado). */
+export function getApiBaseUrl(): string {
+  return currentBaseUrl ?? requireApiUrl(process.env.EXPO_PUBLIC_API_URL);
+}
+
 const api = axios.create({
-  baseURL: requireApiUrl(process.env.EXPO_PUBLIC_API_URL),
   // Sem resposta em 15 s, a requisição falha (ERR_TIMEOUT) em vez de prender a tela.
   timeout: 15000,
   headers: { Accept: 'application/json' },
 });
 
 api.interceptors.request.use(async (config) => {
+  // `baseURL` explícito na requisição (teste de conexão com um endereço ainda não confiável):
+  // vai exatamente para lá e sem o token da sessão.
+  if (config.baseURL) return config;
+  config.baseURL = getApiBaseUrl();
   const token = await getToken();
   if (token) config.headers.set('Authorization', `Bearer ${token}`);
   return config;
