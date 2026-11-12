@@ -3,7 +3,11 @@ import * as SecureStore from 'expo-secure-store';
 import { renderApp } from 'src/test/render';
 import { student } from 'src/test/users';
 
-const noClassrooms = { 'GET /me/classrooms': () => ({ status: 200, data: { data: [] } }) };
+const noClassrooms = {
+  'GET /me/classrooms': () => ({ status: 200, data: { data: [] } }),
+  'GET /me/stats': () => ({ status: 200, data: { coins_balance: 0, current_streak: 0, best_streak: 0 } }),
+  'GET /me/coins': () => ({ status: 200, data: { data: [], meta: { page: 1, per_page: 3, total: 0, last_page: 1 } } }),
+};
 
 describe('perfil', () => {
   it('mostra os dados do aluno', async () => {
